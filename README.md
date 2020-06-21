@@ -1,7 +1,7 @@
 # xgadget
 
 ![crates.io](https://img.shields.io/crates/v/xgadget.svg)
-![GitHub Actions](https://github.com/entropic-security/xgadget/workflows/Test/badge.svg)
+![GitHub Actions](https://github.com/entropic-security/xgadget/workflows/test/badge.svg)
 
 Fast, parallel, cross-variant ROP/JOP gadget search for 8086 (16-bit), x86 (32-bit), and x64 (64-bit) binaries.
 Uses official Rust bindings for the [zydis disassembler library](https://github.com/zyantific/zydis).
