@@ -1,0 +1,54 @@
+name: continuous deployment
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  continuous_deployment:
+    name: Upload binary release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Cargo dependencies security audit
+        uses: actions-rs/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+
+      - name: Binary release
+        run: cargo build --release --locked
+
+      # TODO: open issue for Zydis and static binaries
+      #run: |
+      #  rustup target add x86_64-unknown-linux-musl
+      #  cargo build --target x86_64-unknown-linux-musl --release --locked
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}_${{ github.run_id }}
+          release_name: Latest build (${{ github.sha }})
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./target/release/xgadget
+          asset_name: xgadget-linux-x64
+          asset_content_type: application/octet-stream
+

@@ -1,0 +1,70 @@
+[package]
+name = "xgadget"
+version = "0.1.0"
+authors = ["Tiemoko Ballo"]
+edition = "2018"
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/entropic-security/xgadget"
+repository = "https://github.com/entropic-security/xgadget"
+documentation = "https://docs.rs/xgadget"
+keywords = ["rop", "jop", "gadget", "x86", "x64"]
+categories = ["algorithms", "development-tools", "command-line-utilities"]
+description = "Fast, parallel, cross-variant ROP/JOP gadget search for 8086/x86/x64 binaries."
+include = [
+    "**/*.rs",
+    "**/*.md",
+    "**/*.sh",
+    "Cargo.toml",
+    "LICENSE",
+]
+
+[dependencies]
+# TODO: need https://github.com/zyantific/zydis-rs/pull/23 to make it to crates.io
+#zydis = "3.1.0"
+zydis = { git = "https://github.com/tnballo/zydis-rs" }
+goblin = "0.2.3"
+rayon = "1.3.0"
+clap = "2.33.1"
+bitflags = "1.2.1"
+num_cpus = "1.13.0"
+rustc-hash = "1.1.0"
+
+[dev-dependencies]
+criterion = "0.3.2"
+rand = "0.7"
+dirs = "2.0.2"
+predicates = "1.0.4"
+assert_cmd = "1.0.1"
+tempfile = "3.1.0"
+
+[lib]
+name = "xgadget"
+path = "src/lib.rs"
+
+[[bin]]
+name = "xgadget"
+path = "src/main.rs"
+
+[[bench]]
+name = "bench_1_misc"
+harness = false
+
+[[bench]]
+name = "bench_2_elf_userspace"
+harness = false
+
+[[bench]]
+name = "bench_3_elf_kernels"
+harness = false
+
+[profile.release]
+panic = "unwind"
+opt-level = 3
+debug = false
+rpath = false
+lto = "fat"
+debug-assertions = false
+codegen-units = 16
+incremental = false
+overflow-checks = false
