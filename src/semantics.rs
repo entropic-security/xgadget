@@ -53,14 +53,27 @@ pub fn is_mem_ptr_set_call(instr: &zydis::DecodedInstruction) -> bool {
     && is_single_reg_deref(&instr)
 }
 
-/// Check if instruction is a ROP/JOP gadget tail
+/// Check if instruction is a ROP/JOP/SYS gadget tail
+#[inline(always)]
 pub fn is_gadget_tail(instr: &zydis::DecodedInstruction) -> bool {
     is_ret(instr)
-    || is_reg_set_jmp(instr)
+    || is_jop_gadget_tail(instr)
+    || is_sys_gadget_tail(instr)
+}
+
+/// Check if instruction is a JOP gadget tail
+#[inline(always)]
+pub fn is_jop_gadget_tail(instr: &zydis::DecodedInstruction) -> bool {
+    is_reg_set_jmp(instr)
     || is_reg_set_call(instr)
     || is_mem_ptr_set_jmp(instr)
     || is_mem_ptr_set_call(instr)
-    || is_syscall(instr)
+}
+
+/// Check if instruction is a SYS gadget tail
+#[inline(always)]
+pub fn is_sys_gadget_tail(instr: &zydis::DecodedInstruction) -> bool {
+    is_syscall(instr)
     || is_linux_syscall(instr)
 }
 

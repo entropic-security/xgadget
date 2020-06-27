@@ -85,11 +85,18 @@ fn main() {
             .required(false)
             .help("Include cross-variant partial matches [default: full matches only]")
         )
-        .arg(clap::Arg::with_name("sp")
+        .arg(clap::Arg::with_name("pivot")
             .short("p")
             .long("--stack-pivot")
             .required(false)
             .help("Filter to gadgets that write the stack ptr [default: all gadgets]")
+        )
+        .arg(clap::Arg::with_name("dispatch")
+            .short("d")
+            .long("--dispatcher")
+            .required(false)
+            .conflicts_with("pivot")
+            .help("Filter to potential JOP \'dispatcher\' gadgets [default: all gadgets]")
         )
         .arg(clap::Arg::with_name("filter")
             .short("f")
@@ -147,8 +154,10 @@ fn main() {
         let start_time = Instant::now();
         let mut gadgets = xgadget::find_gadgets(&bins, max_gadget_len, search_conf).unwrap();
 
-        if args.is_present("sp") {
+        if args.is_present("pivot") {
             gadgets = xgadget::filter_stack_pivot(&gadgets);
+        } else if args.is_present("dispatch") {
+            gadgets = xgadget::filter_dispatcher(&gadgets);
         }
 
         let run_time = start_time.elapsed();
@@ -170,11 +179,13 @@ fn main() {
                 if args.is_present("rop") { "ROP-only" }
                 else if args.is_present("jop") { "JOP-only" }
                 else if args.is_present("sys") { "SYS-only" }
-                else if args.is_present("sp") { "Stack-pivot-only" }
+                else if args.is_present("pivot") { "Stack-pivot-only" }
+                else if args.is_present("dispatch") { "Dispatcher-only" }
                 else { "ROP-JOP-SYS (default)" }
             },
             {
-                if args.is_present("part") { "full-and-partial" }
+                if bins.len() == 1 { "none"}
+                else if args.is_present("part") { "full-and-partial" }
                 else { "full" }
             },
             max_gadget_len,
@@ -189,7 +200,7 @@ fn main() {
                 if args.is_present("filter") {
                     format!("\'{}\'", args.value_of("filter").unwrap())
                 } else {
-                    String::from("None")
+                    String::from("none")
                 }
             },
 
