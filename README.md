@@ -13,6 +13,7 @@ Uses official Rust bindings for the [zydis disassembler library](https://github.
 To the best of my knowledge, `xgadget` is the first gadget search tool to have these features:
 
 * JOP search uses instruction semantics - not hardcoded regex for individual encodings
+    * Optionally filter to JOP "dispatcher" gadgets with flag `--dispatcher`
 * Finds gadgets that work across multiple variants of a binary (e.g. different program or compiler versions)
     * **Full-match** - Same instruction sequence, same program counter: gadget fully re-usable.
         * E.g. `pop rsp; add [rax-0x77], cl; ret ------------------------------------- [ 0xc748d ]`

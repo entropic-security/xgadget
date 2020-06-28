@@ -177,7 +177,23 @@ fn main() {
                 || (args.is_present("filter") && instr.contains(args.value_of("filter").unwrap())) {
 
                 instr.push(' ');
-                println!("{:-<150} {}", instr, addrs);
+                if color {
+                    print!("{}", instr);
+
+                    // Format string can't compensate for ANSI color escapes, so do it manually
+                    let width = 150;
+                    let char_len = strip_ansi_escapes::strip(&instr).unwrap().len();
+                    if width > char_len {
+                        let fill_cnt = width - char_len;
+                        for _ in 0..fill_cnt {
+                            print!("-");
+                        }
+                    }
+
+                    print!(" {}\n", addrs);
+                } else {
+                    println!("{:-<150} {}", instr, addrs);
+                }
             }
         }
 

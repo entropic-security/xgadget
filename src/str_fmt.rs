@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::any::Any;
 use std::fmt::Write;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap};
 
 use colored::Colorize;
 
@@ -24,11 +24,11 @@ pub fn str_fmt_gadgets(gadgets: &[gadget::Gadget], att_syntax: bool, color: bool
     };
 
     if color {
-        formatter.set_print_mnemonic(Box::new(color_mnemonic))?;
+        formatter.set_print_mnemonic(Box::new(color_mnemonic_callback))?;
+        formatter.set_print_register(Box::new(color_reg_callback))?;
     }
 
-    let sorted_gadgets: BTreeSet<_> = gadgets.iter().collect();
-    for g in sorted_gadgets {
+    for g in gadgets {
 
         let mut instr_str = String::new();
         let mut addrs_str = String::new();
@@ -37,7 +37,7 @@ pub fn str_fmt_gadgets(gadgets: &[gadget::Gadget], att_syntax: bool, color: bool
         for instr in &g.instrs {
             formatter.format_instruction(&instr, &mut format_buf, None, None)?;
             if color {
-                instr_str.push_str(&format!("{}{}", format_buf, ";".yellow()));
+                instr_str.push_str(&format!("{}{} ", format_buf, ";".magenta()));
             } else {
                 instr_str.push_str(&format!("{}; ", format_buf));
             }
@@ -59,6 +59,7 @@ pub fn str_fmt_gadgets(gadgets: &[gadget::Gadget], att_syntax: bool, color: bool
         instr_addr_str_tuples.push((instr_str.trim().to_string(), addrs_str));
     }
 
+    instr_addr_str_tuples.sort(); // Alphabetical
     Ok(instr_addr_str_tuples)
 }
 
@@ -88,7 +89,7 @@ pub fn str_fmt_partial_matches(partial_matches: &BTreeMap<u64, Vec<&binary::Bina
             for pb in prior_bins {
                 match_str.push_str(&format!("'{}', ", pb.name));
             }
-            match_str.push_str(&format!("'{}:'", last_bin.name));
+            match_str.push_str(&format!("'{}': ", last_bin.name));
             if color {
                 match_str.push_str(&format!("{}", format!("0x{:016x}", addr_largest_subset).green()));
             } else {
@@ -130,7 +131,7 @@ pub fn str_fmt_partial_matches(partial_matches: &BTreeMap<u64, Vec<&binary::Bina
 
 // Private API ---------------------------------------------------------------------------------------------------------
 
-fn color_mnemonic(
+fn color_mnemonic_callback(
     _formatter: &zydis::Formatter,
     buffer: &mut zydis::FormatterBuffer,
     ctx: &mut zydis::FormatterContext,
@@ -142,6 +143,22 @@ fn color_mnemonic(
     let out_str = buffer.get_string()?;
     let mnemonic_str = instr.mnemonic.get_string().ok_or(zydis::Status::Failed)?;
 
-    // TOOD: Without leading space in format string, this panics...why?
-    write!(out_str, " {}", mnemonic_str.cyan()).map_err(|_| zydis::Status::Failed)
+    // TOOD: Without leading byte in format string, this panics...why?
+    write!(out_str, "\x1e{}", mnemonic_str.cyan()).map_err(|_| zydis::Status::Failed)
+}
+
+fn color_reg_callback(
+    _formatter: &zydis::Formatter,
+    buffer: &mut zydis::FormatterBuffer,
+    _ctx: &mut zydis::FormatterContext,
+    reg: zydis::enums::Register,
+    _user_data: Option<&mut dyn Any>,
+) -> Result<(), zydis::Status> {
+
+    buffer.append(zydis::TOKEN_REGISTER)?;
+    let out_str = buffer.get_string()?;
+    let reg_str = reg.get_string().ok_or(zydis::Status::Failed)?;
+
+    // TOOD: Without leading byte in format string, this panics...why?
+    write!(out_str, "\x1e{}", reg_str.yellow()).map_err(|_| zydis::Status::Failed)
 }

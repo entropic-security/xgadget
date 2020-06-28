@@ -72,7 +72,10 @@ fn test_raw() {
     raw_file.write(ADJACENT_JMP_X64).unwrap();
 
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
-    xgadget_bin.arg(raw_file.path());
+    xgadget_bin
+        .arg(raw_file.path())
+        .arg("-c");
+
     xgadget_bin.assert().success().stdout(predicate::str::contains("lea ecx, [rip+0x5DDCB]; jmp [rcx];"));
     xgadget_bin.assert().success().stdout(predicate::str::contains("jmp rcx;"));
 }
