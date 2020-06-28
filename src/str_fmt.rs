@@ -1,21 +1,31 @@
 use std::error::Error;
+use std::any::Any;
+use std::fmt::Write;
 use std::collections::{BTreeMap, BTreeSet};
+
+use colored::Colorize;
 
 use crate::gadget;
 use crate::binary;
 
+// Public API ----------------------------------------------------------------------------------------------------------
+
 /// Print list of gadgets using a single formatter instance
-pub fn str_fmt_gadgets(gadgets: &[gadget::Gadget], att_syntax: bool) -> Result<Vec<(String, String)>, Box<dyn Error>> {
+pub fn str_fmt_gadgets(gadgets: &[gadget::Gadget], att_syntax: bool, color: bool) -> Result<Vec<(String, String)>, Box<dyn Error>> {
     const BACKING_BUF_LEN: usize = 200;
     let mut backing_buf = [0_u8; BACKING_BUF_LEN];
     let mut format_buf = zydis::OutputBuffer::new(&mut backing_buf[..]);
     let mut instr_addr_str_tuples = Vec::new();
 
-    let formatter = if att_syntax {
+    let mut formatter = if att_syntax {
         zydis::formatter::Formatter::new(zydis::enums::FormatterStyle::ATT)?
     } else {
         zydis::formatter::Formatter::new(zydis::enums::FormatterStyle::INTEL)?
     };
+
+    if color {
+        formatter.set_print_mnemonic(Box::new(color_mnemonic))?;
+    }
 
     let sorted_gadgets: BTreeSet<_> = gadgets.iter().collect();
     for g in sorted_gadgets {
@@ -26,15 +36,23 @@ pub fn str_fmt_gadgets(gadgets: &[gadget::Gadget], att_syntax: bool) -> Result<V
         // Instruction
         for instr in &g.instrs {
             formatter.format_instruction(&instr, &mut format_buf, None, None)?;
-            instr_str.push_str(&format!("{}; ", format_buf));
+            if color {
+                instr_str.push_str(&format!("{}{}", format_buf, ";".yellow()));
+            } else {
+                instr_str.push_str(&format!("{}; ", format_buf));
+            }
         }
 
         // Full match address
         if let Some(lowest_addr) = g.full_matches.iter().collect::<Vec<&u64>>().iter().next() {
-            addrs_str.push_str(&format!("[ 0x{:016x} ]", lowest_addr));
+            if color {
+                addrs_str.push_str(&format!("[ {} ]", format!("0x{:016x}", lowest_addr).green()));
+            } else {
+                addrs_str.push_str(&format!("[ 0x{:016x} ]", lowest_addr));
+            }
 
         // Partial match address(es)
-        } else if let Some(partial_match_str) = str_fmt_partial_matches(&g.partial_matches) {
+        } else if let Some(partial_match_str) = str_fmt_partial_matches(&g.partial_matches, color) {
             addrs_str.push_str(&format!("[ {} ]", &partial_match_str));
         }
 
@@ -51,7 +69,7 @@ pub fn str_fmt_gadgets(gadgets: &[gadget::Gadget], att_syntax: bool) -> Result<V
 // Print time ............................. 147.605491848s
 //
 /// Print partial matches for a given gadget
-pub fn str_fmt_partial_matches(partial_matches: &BTreeMap<u64, Vec<&binary::Binary>>) -> Option<String> {
+pub fn str_fmt_partial_matches(partial_matches: &BTreeMap<u64, Vec<&binary::Binary>>, color: bool) -> Option<String> {
 
     if let Some((mut addr_largest_subset, mut bins_largest_subset)) = partial_matches.iter().next() {
 
@@ -70,8 +88,12 @@ pub fn str_fmt_partial_matches(partial_matches: &BTreeMap<u64, Vec<&binary::Bina
             for pb in prior_bins {
                 match_str.push_str(&format!("'{}', ", pb.name));
             }
-            match_str.push_str(&format!("'{}'", last_bin.name));
-            match_str.push_str(&format!(": 0x{:016x}", addr_largest_subset));
+            match_str.push_str(&format!("'{}:'", last_bin.name));
+            if color {
+                match_str.push_str(&format!("{}", format!("0x{:016x}", addr_largest_subset).green()));
+            } else {
+                match_str.push_str(&format!("0x{:016x}", addr_largest_subset));
+            }
         } else {
             return None;
         }
@@ -93,7 +115,7 @@ pub fn str_fmt_partial_matches(partial_matches: &BTreeMap<u64, Vec<&binary::Bina
         }
 
         // Recursively repeat!
-        match str_fmt_partial_matches(&remaining_matches) {
+        match str_fmt_partial_matches(&remaining_matches, color) {
             Some(remaining_match_str) => {
                 match_str.push_str(", ");
                 match_str.push_str(&remaining_match_str);
@@ -104,4 +126,22 @@ pub fn str_fmt_partial_matches(partial_matches: &BTreeMap<u64, Vec<&binary::Bina
     }
 
     None
+}
+
+// Private API ---------------------------------------------------------------------------------------------------------
+
+fn color_mnemonic(
+    _formatter: &zydis::Formatter,
+    buffer: &mut zydis::FormatterBuffer,
+    ctx: &mut zydis::FormatterContext,
+    _user_data: Option<&mut dyn Any>,
+) -> Result<(), zydis::Status> {
+
+    let instr = unsafe { &*ctx.instruction };
+    buffer.append(zydis::TOKEN_MNEMONIC)?;
+    let out_str = buffer.get_string()?;
+    let mnemonic_str = instr.mnemonic.get_string().ok_or(zydis::Status::Failed)?;
+
+    // TOOD: Without leading space in format string, this panics...why?
+    write!(out_str, " {}", mnemonic_str.cyan()).map_err(|_| zydis::Status::Failed)
 }

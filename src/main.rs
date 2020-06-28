@@ -43,6 +43,12 @@ fn main() {
             .required(false)
             .help("Display gadgets using AT&T syntax [default: Intel syntax]")
         )
+        .arg(clap::Arg::with_name("nocolor")
+            .short("c")
+            .long("no-color")
+            .required(false)
+            .help("Don't color output, useful for UNIX piping [default: color output]")
+        )
         .arg(clap::Arg::with_name("len")
             .short("l")
             .long("max-len")
@@ -111,6 +117,7 @@ fn main() {
     // User-specified settings -----------------------------------------------------------------------------------------
 
     let att_syntax = args.is_present("att");
+    let color = !args.is_present("nocolor");
     let mut search_conf = xgadget::SearchConfig::DEFAULT;
     if args.is_present("part") {
         search_conf |= xgadget::SearchConfig::PART;
@@ -165,7 +172,7 @@ fn main() {
         // Print Results -----------------------------------------------------------------------------------------------
 
         print!("\n");
-        for (mut instr, addrs) in xgadget::str_fmt_gadgets(&gadgets, att_syntax).unwrap() {
+        for (mut instr, addrs) in xgadget::str_fmt_gadgets(&gadgets, att_syntax, color).unwrap() {
             if  (!args.is_present("filter"))
                 || (args.is_present("filter") && instr.contains(args.value_of("filter").unwrap())) {
 
