@@ -188,7 +188,10 @@ pub fn get_flow_opcodes(s_config: SearchConfig) -> Vec<u8> {
 }
 
 /// Search 1+ binaries for ROP gadgets (common gadgets if > 1)
-pub fn find_gadgets<'a>(bins: &'a [binary::Binary], max_len: usize, s_config: SearchConfig) -> Result<Vec<Gadget<'a>>, Box<dyn Error>> {
+pub fn find_gadgets<'a>(bins: &'a [binary::Binary],
+    max_len: usize,
+    s_config: SearchConfig
+) -> Result<Vec<Gadget<'a>>, Box<dyn Error>> {
 
     // Process binaries in parallel
     let decoders = get_all_decoders(&bins)?;
@@ -365,7 +368,13 @@ fn get_all_decoders(bins: &[binary::Binary]) -> Result<Vec<zydis::Decoder>, Box<
 }
 
 /// Setup search parameters
-fn get_decode_config<'a>(bin: &'a binary::Binary, seg: &'a binary::Segment, decoder: &'a zydis::Decoder, flow_op_idx: usize, max_len: usize) -> DecodeConfig<'a> {
+fn get_decode_config<'a>(
+    bin: &'a binary::Binary,
+    seg: &'a binary::Segment,
+    decoder: &'a zydis::Decoder,
+    flow_op_idx: usize, max_len: usize
+) -> DecodeConfig<'a> {
+
     let mut stop_idx = 0;
 
     // Optional early stop
@@ -455,7 +464,12 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<zydis::DecodedInstructi
 }
 
 /// Search a binary for ROP gadgets
-fn find_gadgets_single_bin<'a>(bin: &'a binary::Binary, decoder: &zydis::Decoder, max_len: usize, config: SearchConfig) -> FxHashSet<Gadget<'a>> {
+fn find_gadgets_single_bin<'a>(
+    bin: &'a binary::Binary,
+    decoder: &zydis::Decoder,
+    max_len: usize,
+    config: SearchConfig
+) -> FxHashSet<Gadget<'a>> {
 
     let mut gadget_collector: FxHashMap<Vec<zydis::DecodedInstruction>, BTreeSet<u64>> = FxHashMap::default();
     let flow_op_codes = get_flow_opcodes(config);

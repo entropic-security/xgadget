@@ -11,7 +11,11 @@ use crate::binary;
 // Public API ----------------------------------------------------------------------------------------------------------
 
 /// Print list of gadgets using a single formatter instance
-pub fn str_fmt_gadgets(gadgets: &[gadget::Gadget], att_syntax: bool, color: bool) -> Result<Vec<(String, String)>, Box<dyn Error>> {
+pub fn str_fmt_gadgets(
+    gadgets: &[gadget::Gadget],
+    att_syntax: bool, color: bool
+) -> Result<Vec<(String, String)>, Box<dyn Error>> {
+
     const BACKING_BUF_LEN: usize = 200;
     let mut backing_buf = [0_u8; BACKING_BUF_LEN];
     let mut format_buf = zydis::OutputBuffer::new(&mut backing_buf[..]);
@@ -144,7 +148,7 @@ fn color_mnemonic_callback(
     let mnemonic_str = instr.mnemonic.get_string().ok_or(zydis::Status::Failed)?;
 
     // TOOD: Without leading byte in format string, this panics...why?
-    write!(out_str, "\x1e{}", mnemonic_str.cyan()).map_err(|_| zydis::Status::Failed)
+    write!(out_str, "\x7f{}", mnemonic_str.cyan()).map_err(|_| zydis::Status::Failed)
 }
 
 fn color_reg_callback(
@@ -158,7 +162,11 @@ fn color_reg_callback(
     buffer.append(zydis::TOKEN_REGISTER)?;
     let out_str = buffer.get_string()?;
     let reg_str = reg.get_string().ok_or(zydis::Status::Failed)?;
+    let reg_str_colored = match reg {
+        zydis::Register::RSP | zydis::Register::ESP |zydis::Register::SP => reg_str.red(),
+        _ => reg_str.yellow()
+    };
 
     // TOOD: Without leading byte in format string, this panics...why?
-    write!(out_str, "\x1e{}", reg_str.yellow()).map_err(|_| zydis::Status::Failed)
+    write!(out_str, "\x7f{}", reg_str_colored).map_err(|_| zydis::Status::Failed)
 }

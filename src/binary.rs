@@ -174,7 +174,8 @@ impl Binary {
         };
 
         // Executable segments
-        for sec_tab in pe.sections.iter().filter(|&p| (p.characteristics & goblin::pe::section_table::IMAGE_SCN_MEM_EXECUTE) != 0) {
+        for sec_tab in pe.sections.iter()
+            .filter(|&p| (p.characteristics & goblin::pe::section_table::IMAGE_SCN_MEM_EXECUTE) != 0) {
 
             let start_offset = sec_tab.pointer_to_raw_data as usize;
             let end_offset = start_offset + sec_tab.size_of_raw_data as usize;
