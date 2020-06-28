@@ -1,6 +1,7 @@
 use std::time::Instant;
 
 use rayon::prelude::*;
+use colored::Colorize;
 
 // TODO (tnballo): Clean this up with StructOpt, instead of clap (or maybe wait until StructOpt is merged into clap)
 fn main() {
@@ -197,34 +198,48 @@ fn main() {
             }
         }
 
-        println!("\nSUMMARY [ search: {}, x-match: {}, max_len: {}, syntax: {}, filter: {} ]",
+        println!("\nSUMMARY [ search: {}, x_match: {}, max_len: {}, syntax: {}, str_filter: {} ]",
             {
-                if args.is_present("rop") { "ROP-only" }
+                let search_mode = if args.is_present("rop") { "ROP-only" }
                 else if args.is_present("jop") { "JOP-only" }
                 else if args.is_present("sys") { "SYS-only" }
                 else if args.is_present("pivot") { "Stack-pivot-only" }
                 else if args.is_present("dispatch") { "Dispatcher-only" }
-                else { "ROP-JOP-SYS (default)" }
+                else { "ROP-JOP-SYS (default)" };
+
+                if color { search_mode.red() }
+                else { search_mode.normal() }
             },
             {
-                if bins.len() == 1 { "none"}
+                let x_match = if bins.len() == 1 { "none"}
                 else if args.is_present("part") { "full-and-partial" }
-                else { "full" }
-            },
-            max_gadget_len,
-            {
-                if att_syntax {
-                    "AT&T"
-                } else {
-                    "Intel"
-                }
+                else { "full" };
+
+                if color { x_match.red() }
+                else { x_match.normal() }
+
             },
             {
-                if args.is_present("filter") {
+                let max_len = format!("{}", max_gadget_len);
+
+                if color { max_len.red() }
+                else { max_len.normal() }
+            },
+            {
+                let syntax = if att_syntax { "AT&T" } else { "Intel" };
+
+                if color { syntax.red() }
+                else { syntax.normal() }
+            },
+            {
+                let filter = if args.is_present("filter") {
                     format!("\'{}\'", args.value_of("filter").unwrap())
                 } else {
                     String::from("none")
-                }
+                };
+
+                if color { filter.red() }
+                else { filter.normal() }
             },
 
         );
