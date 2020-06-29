@@ -60,6 +60,10 @@ pub fn str_fmt_gadgets(
             addrs_str.push_str(&format!("[ {} ]", &partial_match_str));
         }
 
+        // Compensate for oddity in coloring callbacks
+        instr_str.retain(|c| c != '\x1f');
+        addrs_str.retain(|c| c != '\x1f');
+
         instr_addr_str_tuples.push((instr_str.trim().to_string(), addrs_str));
     }
 
@@ -148,7 +152,7 @@ fn color_mnemonic_callback(
     let mnemonic_str = instr.mnemonic.get_string().ok_or(zydis::Status::Failed)?;
 
     // TOOD: Without leading byte in format string, this panics...why?
-    write!(out_str, "\x7f{}", mnemonic_str.cyan()).map_err(|_| zydis::Status::Failed)
+    write!(out_str, "\x1f{}", mnemonic_str.cyan()).map_err(|_| zydis::Status::Failed)
 }
 
 fn color_reg_callback(
@@ -168,5 +172,5 @@ fn color_reg_callback(
     };
 
     // TOOD: Without leading byte in format string, this panics...why?
-    write!(out_str, "\x7f{}", reg_str_colored).map_err(|_| zydis::Status::Failed)
+    write!(out_str, "\x1f{}", reg_str_colored).map_err(|_| zydis::Status::Failed)
 }

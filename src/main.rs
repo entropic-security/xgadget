@@ -192,7 +192,6 @@ fn main() {
                     }
 
                     print!(" {}\n", addrs);
-                    println!("TEMP DEBUG, HUMAN LEN: {}", char_len);
                 } else {
                     println!("{:-<150} {}", instr, addrs);
                 }
