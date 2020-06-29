@@ -57,7 +57,7 @@ let cross_gadgets = xgadget::find_gadgets(&bins, max_gadget_len, search_config).
 Run `xgadget --help`:
 
 ```
-xgadget v0.1.0
+xgadget v0.1.1
 
 About:	Fast, parallel, cross-variant ROP/JOP gadget search for 8086/x86/x64 binaries.
 CPUs:	8 logical, 8 physical
@@ -68,12 +68,14 @@ USAGE:
 FLAGS:
     -8, --8086             For raw (no header) files: assume 8086 (16-bit) [default: assumes x64 (64-bit)]
     -t, --att              Display gadgets using AT&T syntax [default: Intel syntax]
+    -d, --dispatcher       Filter to potential JOP 'dispatcher' gadgets [default: all gadgets]
     -h, --help             Prints help information
     -i, --imm16            Include '{ret, ret far} imm16' (e.g. add to stack ptr) [default: don't include]
     -j, --jop              Search for JOP gadgets only [default: ROP, JOP, and SYSCALL]
+    -c, --no-color         Don't color output, useful for UNIX piping [default: color output]
     -m, --partial-match    Include cross-variant partial matches [default: full matches only]
-    -r, --rop              Search for ROP gadgets only [default: ROP, JOP, and SYSCALL]
     -p, --stack-pivot      Filter to gadgets that write the stack ptr [default: all gadgets]
+    -r, --rop              Search for ROP gadgets only [default: ROP, JOP, and SYSCALL]
     -s, --sys              Search for SYSCALL gadgets only [default: ROP, JOP, and SYSCALL]
     -V, --version          Prints version information
     -x, --x86              For raw (no header) files: assume x86 (32-bit) [default: assumes x64 (64-bit)]

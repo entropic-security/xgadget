@@ -108,7 +108,7 @@ pub fn is_syscall(instr: &zydis::DecodedInstruction) -> bool {
     instr.meta.category == zydis::enums::InstructionCategory::SYSCALL
 }
 
-/// Inline check if Linux syscall instruction
+/// Check if Linux syscall instruction
 #[inline(always)]
 pub fn is_linux_syscall(instr: &zydis::DecodedInstruction) -> bool {
 

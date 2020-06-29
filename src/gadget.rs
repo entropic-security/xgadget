@@ -68,7 +68,7 @@ pub const SYSCALL_OPCODES: &[u8] = &[
 // Gadget --------------------------------------------------------------------------------------------------------------
 
 /// Gadget instructions (data) coupled with occurrence addresses for full and partial matches (metadata).
-/// For deterministic print output, gadgets sortable by lowest occurrence address.
+/// Gadgets sortable by lowest occurrence address.
 /// Hash and equality consider only gadget instructions, not occurrence addresses (fast de-duplication via sets).
 #[derive(Clone)]
 pub struct Gadget<'a> {
@@ -88,7 +88,7 @@ impl<'a> Gadget<'a> {
         }
     }
 
-    // Get tail
+    /// Get tail
     pub fn last_instr(&self) -> Option<&zydis::DecodedInstruction> {
         self.instrs.iter().next_back()
     }
@@ -188,7 +188,8 @@ pub fn get_flow_opcodes(s_config: SearchConfig) -> Vec<u8> {
 }
 
 /// Search 1+ binaries for ROP gadgets (common gadgets if > 1)
-pub fn find_gadgets<'a>(bins: &'a [binary::Binary],
+pub fn find_gadgets<'a>(
+    bins: &'a [binary::Binary],
     max_len: usize,
     s_config: SearchConfig
 ) -> Result<Vec<Gadget<'a>>, Box<dyn Error>> {

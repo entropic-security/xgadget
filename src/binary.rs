@@ -27,7 +27,7 @@ impl Segment {
         (self.addr <= addr) && (addr < (self.addr + self.bytes.len() as u64))
     }
 
-    /// Get offsets of byte occurances
+    /// Get offsets of byte occurrences
     pub fn get_matching_offsets(&self, vals: &[u8]) -> Vec<usize> {
         self.bytes
             .par_iter()

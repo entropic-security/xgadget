@@ -172,12 +172,11 @@ fn main() {
 
         // Print Results -----------------------------------------------------------------------------------------------
 
-        print!("\n");
-        for (mut instr, addrs) in xgadget::str_fmt_gadgets(&gadgets, att_syntax, color).unwrap() {
+        println!();
+        for (instr, addrs) in xgadget::str_fmt_gadgets(&gadgets, att_syntax, color).unwrap() {
             if  (!args.is_present("filter"))
                 || (args.is_present("filter") && instr.contains(args.value_of("filter").unwrap())) {
 
-                instr.push(' ');
                 if color {
                     print!("{}", instr);
 
@@ -187,11 +186,11 @@ fn main() {
                     if width > char_len {
                         let fill_cnt = width - char_len;
                         for _ in 0..fill_cnt {
-                            print!("-");
+                            print!("{}", "-".bright_magenta());
                         }
                     }
 
-                    print!(" {}\n", addrs);
+                    println!(" {}", addrs);
                 } else {
                     println!("{:-<150} {}", instr, addrs);
                 }
@@ -207,7 +206,7 @@ fn main() {
                 else if args.is_present("dispatch") { "Dispatcher-only" }
                 else { "ROP-JOP-SYS (default)" };
 
-                if color { search_mode.red() }
+                if color { search_mode.bright_blue() }
                 else { search_mode.normal() }
             },
             {
@@ -215,20 +214,19 @@ fn main() {
                 else if args.is_present("part") { "full-and-partial" }
                 else { "full" };
 
-                if color { x_match.red() }
+                if color { x_match.bright_blue() }
                 else { x_match.normal() }
-
             },
             {
                 let max_len = format!("{}", max_gadget_len);
 
-                if color { max_len.red() }
+                if color { max_len.bright_blue() }
                 else { max_len.normal() }
             },
             {
                 let syntax = if att_syntax { "AT&T" } else { "Intel" };
 
-                if color { syntax.red() }
+                if color { syntax.bright_blue() }
                 else { syntax.normal() }
             },
             {
@@ -238,7 +236,7 @@ fn main() {
                     String::from("none")
                 };
 
-                if color { filter.red() }
+                if color { filter.bright_blue() }
                 else { filter.normal() }
             },
 

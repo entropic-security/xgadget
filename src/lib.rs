@@ -10,6 +10,7 @@
 //!To the best of my knowledge, `xgadget` is the first gadget search tool to have these features:
 //!
 //!* JOP search uses instruction semantics - not hardcoded regex for individual encodings
+//!    * Optionally filter to JOP "dispatcher" gadgets with flag `--dispatcher`
 //!* Finds gadgets that work across multiple variants of a binary (e.g. different program or compiler versions)
 //!    * **Full-match** - Same instruction sequence, same program counter: gadget fully re-usable.
 //!        * E.g. `pop rsp; add [rax-0x77], cl; ret ------------------------------------- [ 0xc748d ]`
@@ -53,10 +54,10 @@
 //!Run `xgadget --help`:
 //!
 //!```ignore
-//!xgadget v0.1.0
+//!xgadget v0.1.1
 //!
-//!About:	Fast, parallel, cross-variant ROP/JOP gadget search for 8086/x86/x64 binaries.
-//!CPUs:	8 logical, 8 physical
+//!About:   Fast, parallel, cross-variant ROP/JOP gadget search for 8086/x86/x64 binaries.
+//!CPUs:    8 logical, 8 physical
 //!
 //!USAGE:
 //!    xgadget [FLAGS] [OPTIONS] <FILE(S)>...
@@ -64,12 +65,14 @@
 //!FLAGS:
 //!    -8, --8086             For raw (no header) files: assume 8086 (16-bit) [default: assumes x64 (64-bit)]
 //!    -t, --att              Display gadgets using AT&T syntax [default: Intel syntax]
+//!    -d, --dispatcher       Filter to potential JOP 'dispatcher' gadgets [default: all gadgets]
 //!    -h, --help             Prints help information
 //!    -i, --imm16            Include '{ret, ret far} imm16' (e.g. add to stack ptr) [default: don't include]
 //!    -j, --jop              Search for JOP gadgets only [default: ROP, JOP, and SYSCALL]
+//!    -c, --no-color         Don't color output, useful for UNIX piping [default: color output]
 //!    -m, --partial-match    Include cross-variant partial matches [default: full matches only]
-//!    -r, --rop              Search for ROP gadgets only [default: ROP, JOP, and SYSCALL]
 //!    -p, --stack-pivot      Filter to gadgets that write the stack ptr [default: all gadgets]
+//!    -r, --rop              Search for ROP gadgets only [default: ROP, JOP, and SYSCALL]
 //!    -s, --sys              Search for SYSCALL gadgets only [default: ROP, JOP, and SYSCALL]
 //!    -V, --version          Prints version information
 //!    -x, --x86              For raw (no header) files: assume x86 (32-bit) [default: assumes x64 (64-bit)]

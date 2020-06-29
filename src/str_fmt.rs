@@ -13,7 +13,8 @@ use crate::binary;
 /// Print list of gadgets using a single formatter instance
 pub fn str_fmt_gadgets(
     gadgets: &[gadget::Gadget],
-    att_syntax: bool, color: bool
+    att_syntax: bool,
+    color: bool
 ) -> Result<Vec<(String, String)>, Box<dyn Error>> {
 
     const BACKING_BUF_LEN: usize = 200;
@@ -41,7 +42,7 @@ pub fn str_fmt_gadgets(
         for instr in &g.instrs {
             formatter.format_instruction(&instr, &mut format_buf, None, None)?;
             if color {
-                instr_str.push_str(&format!("{}{} ", format_buf, ";".magenta()));
+                instr_str.push_str(&format!("{}{} ", format_buf, ";".bright_magenta()));
             } else {
                 instr_str.push_str(&format!("{}; ", format_buf));
             }
@@ -64,7 +65,7 @@ pub fn str_fmt_gadgets(
         instr_str.retain(|c| c != '\x1f');
         addrs_str.retain(|c| c != '\x1f');
 
-        instr_addr_str_tuples.push((instr_str.trim().to_string(), addrs_str));
+        instr_addr_str_tuples.push((instr_str, addrs_str));
     }
 
     instr_addr_str_tuples.sort(); // Alphabetical
@@ -139,6 +140,7 @@ pub fn str_fmt_partial_matches(partial_matches: &BTreeMap<u64, Vec<&binary::Bina
 
 // Private API ---------------------------------------------------------------------------------------------------------
 
+// Mnemonic coloring CFFI callback
 fn color_mnemonic_callback(
     _formatter: &zydis::Formatter,
     buffer: &mut zydis::FormatterBuffer,
@@ -146,15 +148,16 @@ fn color_mnemonic_callback(
     _user_data: Option<&mut dyn Any>,
 ) -> Result<(), zydis::Status> {
 
-    let instr = unsafe { &*ctx.instruction };
+    let instr = unsafe { &*ctx.instruction }; // Unsafe necessary due to Zydis CFFI
     buffer.append(zydis::TOKEN_MNEMONIC)?;
     let out_str = buffer.get_string()?;
-    let mnemonic_str = instr.mnemonic.get_string().ok_or(zydis::Status::Failed)?;
+    let mnemonic_str = instr.mnemonic.get_string().ok_or(zydis::Status::User)?;
 
     // TOOD: Without leading byte in format string, this panics...why?
-    write!(out_str, "\x1f{}", mnemonic_str.cyan()).map_err(|_| zydis::Status::Failed)
+    write!(out_str, "\x1f{}", mnemonic_str.cyan()).map_err(|_| zydis::Status::User)
 }
 
+// Register coloring CFFI callback
 fn color_reg_callback(
     _formatter: &zydis::Formatter,
     buffer: &mut zydis::FormatterBuffer,
@@ -165,12 +168,12 @@ fn color_reg_callback(
 
     buffer.append(zydis::TOKEN_REGISTER)?;
     let out_str = buffer.get_string()?;
-    let reg_str = reg.get_string().ok_or(zydis::Status::Failed)?;
+    let reg_str = reg.get_string().ok_or(zydis::Status::User)?;
     let reg_str_colored = match reg {
         zydis::Register::RSP | zydis::Register::ESP |zydis::Register::SP => reg_str.red(),
         _ => reg_str.yellow()
     };
 
     // TOOD: Without leading byte in format string, this panics...why?
-    write!(out_str, "\x1f{}", reg_str_colored).map_err(|_| zydis::Status::Failed)
+    write!(out_str, "\x1f{}", reg_str_colored).map_err(|_| zydis::Status::User)
 }
