@@ -1,4 +1,5 @@
 use std::time::Instant;
+use std::str;
 
 use rayon::prelude::*;
 use colored::Colorize;
@@ -174,15 +175,19 @@ fn main() {
 
         println!();
         for (instr, addrs) in xgadget::str_fmt_gadgets(&gadgets, att_syntax, color).unwrap() {
+
+            let plaintext_instr_bytes = strip_ansi_escapes::strip(&instr).unwrap();
+            let plaintext_instr_str = str::from_utf8(&plaintext_instr_bytes).unwrap();
+
             if  (!args.is_present("filter"))
-                || (args.is_present("filter") && instr.contains(args.value_of("filter").unwrap())) {
+                || (args.is_present("filter") && plaintext_instr_str.contains(args.value_of("filter").unwrap())) {
 
                 if color {
                     print!("{}", instr);
 
                     // Format string can't compensate for ANSI color escapes, so do it manually
                     let width = 150;
-                    let char_len = strip_ansi_escapes::strip(&instr).unwrap().len();
+                    let char_len = plaintext_instr_bytes.len();
                     if width > char_len {
                         let fill_cnt = width - char_len;
                         for _ in 0..fill_cnt {
