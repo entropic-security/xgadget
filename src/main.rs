@@ -1,5 +1,4 @@
 use std::time::Instant;
-use std::str;
 
 use rayon::prelude::*;
 use colored::Colorize;
@@ -177,7 +176,7 @@ fn main() {
         for (instr, addrs) in xgadget::str_fmt_gadgets(&gadgets, att_syntax, color).unwrap() {
 
             let plaintext_instr_bytes = strip_ansi_escapes::strip(&instr).unwrap();
-            let plaintext_instr_str = str::from_utf8(&plaintext_instr_bytes).unwrap();
+            let plaintext_instr_str = std::str::from_utf8(&plaintext_instr_bytes).unwrap();
 
             if  (!args.is_present("filter"))
                 || (args.is_present("filter") && plaintext_instr_str.contains(args.value_of("filter").unwrap())) {

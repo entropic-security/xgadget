@@ -142,6 +142,9 @@ pub use crate::binary::*;
 pub mod gadget;
 pub use crate::gadget::*;
 
+pub mod filters;
+pub use crate::filters::*;
+
 pub mod semantics;
 pub use crate::semantics::*;
 

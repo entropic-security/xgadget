@@ -160,7 +160,7 @@ fn test_search_args() {
         .unwrap()
         .stdout;
 
-    let output_sp = Command::cargo_bin("xgadget")
+    let output_stack_pivot = Command::cargo_bin("xgadget")
         .unwrap()
         .arg("/bin/cat")
         .arg("-p")
@@ -168,10 +168,30 @@ fn test_search_args() {
         .unwrap()
         .stdout;
 
+   let output_dispatch = Command::cargo_bin("xgadget")
+        .unwrap()
+        .arg("/bin/cat")
+        .arg("-d")
+        .output()
+        .unwrap()
+        .stdout;
+
+    /*
+    // TODO: add this flag, de-conflict name
+    let output_ppr = Command::cargo_bin("xgadget")
+        .unwrap()
+        .arg("/bin/cat")
+        .arg("-p")
+        .output()
+        .unwrap()
+        .stdout;
+    */
+
     assert!(output_all.len() >= output_rop.len());
     assert!(output_all.len() >= output_jop.len());
     assert!(output_all.len() >= output_sys.len());
-    assert!(output_all.len() >= output_sp.len());
+    assert!(output_all.len() >= output_stack_pivot.len());
+    assert!(output_all.len() >= output_dispatch.len());
     assert!(output_rop_imm16.len() >= output_rop.len());
 }
 
@@ -195,4 +215,44 @@ fn test_max_len() {
         .stdout;
 
     assert!(output_100_len.len() >= output_def.len());
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn test_color_filter_line_count() {
+
+    #[cfg(target_arch = "x86")]
+    let reg_name = "eax";
+
+    #[cfg(target_arch = "x86_64")]
+    let reg_name = "rax";
+
+    let output_color = Command::cargo_bin("xgadget")
+        .unwrap()
+        .arg("/bin/cat")
+        .arg(format!("-f \"mov {}\"", reg_name))
+        .output()
+        .unwrap()
+        .stdout;
+
+    let output_color_line_cnt = std::str::from_utf8(&output_color)
+        .unwrap()
+        .lines()
+        .count();
+
+    let output_no_color = Command::cargo_bin("xgadget")
+        .unwrap()
+        .arg("/bin/cat")
+        .arg("-c")
+        .arg(format!("-f \"mov {}\"", reg_name))
+        .output()
+        .unwrap()
+        .stdout;
+
+    let output_no_color_line_cnt = std::str::from_utf8(&output_no_color)
+        .unwrap()
+        .lines()
+        .count();
+
+    assert!(output_color_line_cnt == output_no_color_line_cnt);
 }

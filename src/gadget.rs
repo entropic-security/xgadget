@@ -263,70 +263,6 @@ pub fn find_gadgets<'a>(
     }
 }
 
-// TODO: add tests!
-/// Parallel filter to gadgets that write the stack pointer
-pub fn filter_stack_pivot<'a>(gadgets: &[Gadget<'a>]) -> Vec<Gadget<'a>> {
-    gadgets.par_iter()
-        .filter(|g| {
-            for i in &g.instrs {
-                for o in &i.operands {
-
-                    // Stack pointer
-                    if (o.reg == zydis::Register::RSP
-                        || o.reg == zydis::Register::ESP
-                        || o.reg == zydis::Register::SP)
-
-                        // Write
-                        && (o.action.intersects(zydis::OperandAction::MASK_WRITE))
-                        && (o.visibility != zydis::OperandVisibility::HIDDEN) {
-
-                            return true;
-                    }
-                }
-            }
-            false
-        })
-        .cloned()
-        .collect()
-}
-
-// TODO: add tests!
-/// Parallel filter to gadgets that may be suitable JOP dispatchers
-pub fn filter_dispatcher<'a>(gadgets: &[Gadget<'a>]) -> Vec<Gadget<'a>> {
-    gadgets.par_iter()
-        .filter(|g| {
-            if let Some((tail_instr, preceding_instrs)) = g.instrs.split_last() {
-                if semantics::is_jop_gadget_tail(tail_instr) {
-
-                    let dispatch_op = &tail_instr.operands[0];
-                    let dispatch_reg = match dispatch_op.ty {
-                        zydis::enums::OperandType::REGISTER => dispatch_op.reg,
-                        zydis::enums::OperandType::MEMORY => dispatch_op.mem.base,
-                        _ => return false
-                    };
-
-                    for i in preceding_instrs {
-                        for o in &i.operands {
-
-                            // Dispatch register
-                            if (o.reg == dispatch_reg)
-
-                                // Write
-                                && (o.action.intersects(zydis::OperandAction::MASK_WRITE))
-                                && (o.visibility != zydis::OperandVisibility::HIDDEN) {
-
-                                    return true;
-                            }
-                        }
-                    }
-                }
-            }
-            false
-        })
-        .cloned()
-        .collect()
-}
-
 // Private API ---------------------------------------------------------------------------------------------------------
 
 #[derive(Debug)]
@@ -351,6 +287,7 @@ fn get_decoder(bin: &binary::Binary) -> Result<zydis::Decoder, Box<dyn Error>> {
     let decoder = zydis::Decoder::new(machine_mode, addr_width)?;
     Ok(decoder)
 }
+
 // Get decoders for a list of binaries, any single failure -> all fail
 fn get_all_decoders(bins: &[binary::Binary]) -> Result<Vec<zydis::Decoder>, Box<dyn Error>> {
 

@@ -86,9 +86,9 @@ fn pivot_bench(c: &mut Criterion) {
     let gdb_gadgets = xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::gadget::SearchConfig::DEFAULT).unwrap();
 
     c.bench_function("readelf_pivot_filter_seq", |b| b.iter(|| filter_stack_pivot_sequential(&readelf_gadgets)));
-    c.bench_function("readelf_pivot_filter_par", |b| b.iter(|| xgadget::gadget::filter_stack_pivot(&readelf_gadgets)));
+    c.bench_function("readelf_pivot_filter_par", |b| b.iter(|| xgadget::filter_stack_pivot(&readelf_gadgets)));
     c.bench_function("gdb_pivot_filter_seq", |b| b.iter(|| filter_stack_pivot_sequential(&gdb_gadgets)));
-    c.bench_function("gdb_pivot_filter_par", |b| b.iter(|| xgadget::gadget::filter_stack_pivot(&gdb_gadgets)));
+    c.bench_function("gdb_pivot_filter_par", |b| b.iter(|| xgadget::filter_stack_pivot(&gdb_gadgets)));
 }
 
 // Runner --------------------------------------------------------------------------------------------------------------

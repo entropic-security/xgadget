@@ -4,9 +4,10 @@
 #[inline(always)]
 pub fn is_single_reg(instr: &zydis::DecodedInstruction) -> bool {
 
-    let regs_read_cnt = instr.operands.iter().filter(|&o| {
-        (o.action == zydis::enums::OperandAction::READ)
-        && (o.ty == zydis::enums::OperandType::REGISTER)
+    let regs_read_cnt = instr.operands.iter()
+        .filter(|&o| {
+            (o.action == zydis::enums::OperandAction::READ)
+            && (o.ty == zydis::enums::OperandType::REGISTER)
         }).count();
 
     regs_read_cnt == 1
@@ -16,10 +17,11 @@ pub fn is_single_reg(instr: &zydis::DecodedInstruction) -> bool {
 #[inline(always)]
 pub fn is_single_reg_deref(instr: &zydis::DecodedInstruction) -> bool {
 
-    let regs_deref_cnt = instr.operands.iter().filter(|&o| {
-        (o.action == zydis::enums::OperandAction::READ)
-        && (o.ty == zydis::enums::OperandType::MEMORY)
-        && (o.mem.base != zydis::Register::NONE)
+    let regs_deref_cnt = instr.operands.iter()
+        .filter(|&o| {
+            (o.action == zydis::enums::OperandAction::READ)
+            && (o.ty == zydis::enums::OperandType::MEMORY)
+            && (o.mem.base != zydis::Register::NONE)
         }).count();
 
     regs_deref_cnt == 1
@@ -77,6 +79,35 @@ pub fn is_sys_gadget_tail(instr: &zydis::DecodedInstruction) -> bool {
     || is_linux_syscall(instr)
 }
 
+/// Check if instruction updates register in predictable fashion suitable for a dispatcher
+#[inline(always)]
+pub fn is_reg_update_from_curr_val(instr: &zydis::DecodedInstruction, reg: zydis::Register) -> bool {
+
+    let reg_read_cnt = instr.operands.iter()
+        .filter(|&o| {
+            (o.action.intersects(zydis::OperandAction::MASK_READ))
+            && (o.ty == zydis::enums::OperandType::REGISTER)
+            && (o.reg == reg)
+        }).count();
+
+    if reg_read_cnt != 0 {
+
+        let reg_write_cnt = instr.operands.iter()
+            .filter(|&o| {
+                (o.action.intersects(zydis::OperandAction::MASK_WRITE))
+                && (o.visibility != zydis::OperandVisibility::HIDDEN)
+                && (o.ty == zydis::enums::OperandType::REGISTER)
+                && (o.reg == reg)
+            }).count();
+
+        if reg_write_cnt == 1 {
+            return true;
+        }
+    }
+
+    false
+}
+
 // Categorization ------------------------------------------------------------------------------------------------------
 
 /// Check if return instruction
@@ -112,10 +143,11 @@ pub fn is_syscall(instr: &zydis::DecodedInstruction) -> bool {
 #[inline(always)]
 pub fn is_linux_syscall(instr: &zydis::DecodedInstruction) -> bool {
 
-     let imm_0x80_cnt = instr.operands.iter().filter(|&o| {
-        (o.action == zydis::enums::OperandAction::READ)
-        && (o.ty == zydis::enums::OperandType::IMMEDIATE)
-        && (o.imm.value == 0x80)
+     let imm_0x80_cnt = instr.operands.iter()
+        .filter(|&o| {
+            (o.action == zydis::enums::OperandAction::READ)
+            && (o.ty == zydis::enums::OperandType::IMMEDIATE)
+            && (o.imm.value == 0x80)
         }).count();
 
     (instr.meta.category == zydis::enums::InstructionCategory::INTERRUPT)
