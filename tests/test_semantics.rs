@@ -49,51 +49,51 @@ fn test_jop_semantics() {
     let call_fixed_deref: [u8; 7] = [0xff, 0x14, 0x25, 0x10, 0x00, 0x00, 0x00];
 
     let instr = decoder.decode(&jmp_rax).unwrap().unwrap();
-    assert!(xgadget::is_single_reg(&instr));
+    assert!(xgadget::is_single_reg_read(&instr));
     assert!(xgadget::is_reg_set_jmp(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_jop_gadget_tail(&instr));
 
     let instr = decoder.decode(&jmp_rax_deref).unwrap().unwrap();
-    assert!(xgadget::is_single_reg_deref(&instr));
+    assert!(xgadget::is_single_reg_deref_read(&instr));
     assert!(xgadget::is_mem_ptr_set_jmp(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_jop_gadget_tail(&instr));
 
     let instr = decoder.decode(&jmp_rax_deref_offset).unwrap().unwrap();
-    assert!(xgadget::is_single_reg_deref(&instr));
+    assert!(xgadget::is_single_reg_deref_read(&instr));
     assert!(xgadget::is_mem_ptr_set_jmp(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_jop_gadget_tail(&instr));
 
     // Negative test
     let instr = decoder.decode(&jmp_fixed_deref).unwrap().unwrap();
-    assert!(!xgadget::is_single_reg_deref(&instr));
+    assert!(!xgadget::is_single_reg_deref_read(&instr));
     assert!(!xgadget::is_mem_ptr_set_jmp(&instr));
     assert!(!xgadget::is_gadget_tail(&instr));
     assert!(!xgadget::is_jop_gadget_tail(&instr));
 
     let instr = decoder.decode(&call_rax).unwrap().unwrap();
-    assert!(xgadget::is_single_reg(&instr));
+    assert!(xgadget::is_single_reg_read(&instr));
     assert!(xgadget::is_reg_set_call(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_jop_gadget_tail(&instr));
 
     let instr = decoder.decode(&call_rax_deref).unwrap().unwrap();
-    assert!(xgadget::is_single_reg_deref(&instr));
+    assert!(xgadget::is_single_reg_deref_read(&instr));
     assert!(xgadget::is_mem_ptr_set_call(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_jop_gadget_tail(&instr));
 
     let instr = decoder.decode(&call_rax_deref_offset).unwrap().unwrap();
-    assert!(xgadget::is_single_reg_deref(&instr));
+    assert!(xgadget::is_single_reg_deref_read(&instr));
     assert!(xgadget::is_mem_ptr_set_call(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_jop_gadget_tail(&instr));
 
     // Negative test
     let instr = decoder.decode(&call_fixed_deref).unwrap().unwrap();
-    assert!(!xgadget::is_single_reg_deref(&instr));
+    assert!(!xgadget::is_single_reg_deref_read(&instr));
     assert!(!xgadget::is_mem_ptr_set_call(&instr));
     assert!(!xgadget::is_gadget_tail(&instr));
     assert!(!xgadget::is_jop_gadget_tail(&instr));
@@ -120,13 +120,13 @@ fn test_sys_semantics() {
     assert!(xgadget::is_sys_gadget_tail(&instr));
 
     let instr = decoder.decode(&int_0x80).unwrap().unwrap();
-    assert!(xgadget::is_linux_syscall(&instr));
+    assert!(xgadget::is_legacy_linux_syscall(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_sys_gadget_tail(&instr));
 
     // Negative test
     let instr = decoder.decode(&int_0x10).unwrap().unwrap();
-    assert!(!xgadget::is_linux_syscall(&instr));
+    assert!(!xgadget::is_legacy_linux_syscall(&instr));
     assert!(!xgadget::is_gadget_tail(&instr));
     assert!(!xgadget::is_sys_gadget_tail(&instr));
 }

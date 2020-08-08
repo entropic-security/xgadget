@@ -6,7 +6,7 @@
 Fast, parallel, cross-variant ROP/JOP gadget search for 8086 (16-bit), x86 (32-bit), and x64 (64-bit) binaries.
 Uses official Rust bindings for the [zydis disassembler library](https://github.com/zyantific/zydis).
 
-**Current state:** decent test coverage, but still in beta :)
+**Current state:** decent test coverage, but still in beta. Issues/PRs welcome :)
 
 ### About
 
@@ -44,12 +44,14 @@ let search_config = xgadget::SearchConfig::DEFAULT;
 let bin_1 = xgadget::Binary::from_path_str("/path/to/bin_v1").unwrap();
 let bins = vec![bin_1];
 let gadgets = xgadget::find_gadgets(&bins, max_gadget_len, search_config).unwrap();
+let stack_pivot_gadgets = xgadget::filter_stack_pivot(&gadgets);
 
 // Search for cross-variant gadgets
 let bin_1 = xgadget::Binary::from_path_str("/path/to/bin_v1").unwrap();
 let bin_2 = xgadget::Binary::from_path_str("/path/to/bin_v2").unwrap();
 let bins = vec![bin_1, bin_2];
 let cross_gadgets = xgadget::find_gadgets(&bins, max_gadget_len, search_config).unwrap();
+let cross_reg_ctrl_gadgets = xgadget::filter_stack_set_regs(&cross_gadgets);
 ```
 
 ### CLI Usage

@@ -33,6 +33,18 @@ fn test_conflicting_flags_rop_jop() {
 }
 
 #[test]
+fn test_conflicting_flags_dispatcher_stack_set_reg() {
+    let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
+
+    xgadget_bin
+        .arg("/usr/bin/some_file_83bb57de34d8713f6e4940b4bdda4bea")
+        .arg("-c")
+        .arg("-d");
+
+    xgadget_bin.assert().failure().stderr(predicate::str::contains("The argument '--dispatcher' cannot be used with '--reg-ctrl'"));
+}
+
+#[test]
 fn test_conflicting_flags_x86_8086() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
@@ -74,7 +86,7 @@ fn test_raw() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
     xgadget_bin
         .arg(raw_file.path())
-        .arg("-c");
+        .arg("-n");
 
     xgadget_bin.assert().success().stdout(predicate::str::contains("lea ecx, [rip+0x5DDCB]; jmp [rcx];"));
     xgadget_bin.assert().success().stdout(predicate::str::contains("jmp rcx;"));
@@ -176,22 +188,20 @@ fn test_search_args() {
         .unwrap()
         .stdout;
 
-    /*
-    // TODO: add this flag, de-conflict name
-    let output_ppr = Command::cargo_bin("xgadget")
+    let output_reg_ctrl = Command::cargo_bin("xgadget")
         .unwrap()
         .arg("/bin/cat")
-        .arg("-p")
+        .arg("-c")
         .output()
         .unwrap()
         .stdout;
-    */
 
     assert!(output_all.len() >= output_rop.len());
     assert!(output_all.len() >= output_jop.len());
     assert!(output_all.len() >= output_sys.len());
     assert!(output_all.len() >= output_stack_pivot.len());
     assert!(output_all.len() >= output_dispatch.len());
+    assert!(output_all.len() >= output_reg_ctrl.len());
     assert!(output_rop_imm16.len() >= output_rop.len());
 }
 
@@ -243,7 +253,7 @@ fn test_color_filter_line_count() {
     let output_no_color = Command::cargo_bin("xgadget")
         .unwrap()
         .arg("/bin/cat")
-        .arg("-c")
+        .arg("-n")
         .arg(format!("-f \"mov {}\"", reg_name))
         .output()
         .unwrap()

@@ -45,7 +45,7 @@ fn main() {
             .help("Display gadgets using AT&T syntax [default: Intel syntax]")
         )
         .arg(clap::Arg::with_name("nocolor")
-            .short("c")
+            .short("n")
             .long("no-color")
             .required(false)
             .help("Don't color output, useful for UNIX piping [default: color output]")
@@ -105,6 +105,13 @@ fn main() {
             .conflicts_with("pivot")
             .help("Filter to potential JOP \'dispatcher\' gadgets [default: all gadgets]")
         )
+        .arg(clap::Arg::with_name("reg-ctrl")
+            .short("c")
+            .long("--reg-ctrl")
+            .required(false)
+            .conflicts_with("dispatch")
+            .help("Filter to \'pop {reg} * 1+, {ret or ctrl-ed jmp/call}\' gadgets [default: all gadgets]")
+        )
         .arg(clap::Arg::with_name("filter")
             .short("f")
             .long("--str-filter")
@@ -151,8 +158,6 @@ fn main() {
             .map(|binary| set_arch_raw(binary, args.is_present("8086"), args.is_present("x86")))
             .collect();
 
-
-
         for (i, bin) in bins.iter().enumerate() {
             println!("TARGET {} - {} ", i, bin);
         }
@@ -164,8 +169,14 @@ fn main() {
 
         if args.is_present("pivot") {
             gadgets = xgadget::filter_stack_pivot(&gadgets);
-        } else if args.is_present("dispatch") {
+        }
+
+        if args.is_present("dispatch") {
             gadgets = xgadget::filter_dispatcher(&gadgets);
+        }
+
+        if args.is_present("reg-ctrl") {
+            gadgets = xgadget::filter_stack_set_regs(&gadgets);
         }
 
         let run_time = start_time.elapsed();
@@ -203,15 +214,17 @@ fn main() {
 
         println!("\nSUMMARY [ search: {}, x_match: {}, max_len: {}, syntax: {}, str_filter: {} ]",
             {
-                let search_mode = if args.is_present("rop") { "ROP-only" }
-                else if args.is_present("jop") { "JOP-only" }
-                else if args.is_present("sys") { "SYS-only" }
-                else if args.is_present("pivot") { "Stack-pivot-only" }
-                else if args.is_present("dispatch") { "Dispatcher-only" }
-                else { "ROP-JOP-SYS (default)" };
+                let mut search_mode = String::from("");
+                if args.is_present("rop") { search_mode = format!("{} {}", search_mode, "ROP-only") };
+                if args.is_present("jop") { search_mode = format!("{} {}", search_mode, "JOP-only") };
+                if args.is_present("sys") { search_mode = format!("{} {}", search_mode, "SYS-only") };
+                if args.is_present("pivot") { search_mode = format!("{} {}", search_mode, "Stack-pivot-only") };
+                if args.is_present("dispatch") { search_mode = format!("{} {}", search_mode, "Dispatcher-only") };
+                if args.is_present("reg-ctrl") { search_mode = format!("{} {}", search_mode, "Register-control-only") };
+                if search_mode.is_empty() { search_mode = String::from("ROP-JOP-SYS (default)") };
 
-                if color { search_mode.bright_blue() }
-                else { search_mode.normal() }
+                if color { search_mode.trim().bright_blue() }
+                else { search_mode.trim().normal() }
             },
             {
                 let x_match = if bins.len() == 1 { "none"}

@@ -391,7 +391,7 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<zydis::DecodedInstructi
 
                 // SYS
                 || (semantics::is_syscall(&i)
-                    || (semantics::is_linux_syscall(&i) && (d_config.bin.format == binary::Format::ELF))) {
+                    || (semantics::is_legacy_linux_syscall(&i) && (d_config.bin.format == binary::Format::ELF))) {
 
                     instr_sequences.push((instrs, buf_start_addr));
             }

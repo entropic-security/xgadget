@@ -57,3 +57,27 @@ pub fn filter_dispatcher<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::Gadg
         .cloned()
         .collect()
 }
+
+/// Parallel filter to gadgets of the form "pop {reg} * 1+, {ret or ctrl-ed jmp/call}"
+pub fn filter_stack_set_regs<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::Gadget<'a>> {
+    gadgets.par_iter()
+        .filter(|g| {
+            if let Some((tail_instr, preceding_instrs)) = g.instrs.split_last() {
+                if semantics::is_ret(tail_instr) || semantics::is_jop_gadget_tail(tail_instr) {
+
+                    // Preceded exclusively by pop instrs
+                    if (preceding_instrs.len() >= 1)
+                        && (preceding_instrs.iter().all(|i|
+                            i.mnemonic == zydis::enums::Mnemonic::POP
+                            && semantics::is_single_reg_write(i)
+                        )) {
+
+                        return true;
+                    }
+                }
+            }
+            false
+        })
+        .cloned()
+        .collect()
+}

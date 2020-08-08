@@ -118,6 +118,8 @@ pub const FILTERS_X64: &[u8] = &[
     0xff, 0xe0,                                             // jmp rax
     0x5c,                                                   // pop rsp
     0xc3,                                                   // ret
+    0x58,                                                   // pop rax
+    0xff, 0xe0,                                             // jmp rax
 ];
 
 // Tests ---------------------------------------------------------------------------------------------------------------
@@ -429,6 +431,7 @@ fn test_x64_filter_stack_pivot() {
     assert!(!test_utils::gadget_strs_contains_sub_str(&stack_pivot_gadget_strs,"pop rbx; ret;"));
     assert!(!test_utils::gadget_strs_contains_sub_str(&stack_pivot_gadget_strs,"add rax, 0x08; jmp rax;"));
     assert!(!test_utils::gadget_strs_contains_sub_str(&stack_pivot_gadget_strs,"mov rax, 0x1337; jmp [rax];"));
+    assert!(!test_utils::gadget_strs_contains_sub_str(&stack_pivot_gadget_strs,"pop rax; jmp rax;"));
 }
 
 #[test]
@@ -448,4 +451,25 @@ fn test_x64_filter_dispatcher() {
     assert!(!test_utils::gadget_strs_contains_sub_str(&dispatcher_gadget_strs,"pop rax; pop rbx; ret;"));
     assert!(!test_utils::gadget_strs_contains_sub_str(&dispatcher_gadget_strs,"pop rbx; ret;"));
     assert!(!test_utils::gadget_strs_contains_sub_str(&dispatcher_gadget_strs,"mov rax, 0x1337; jmp [rax];"));
+    assert!(!test_utils::gadget_strs_contains_sub_str(&dispatcher_gadget_strs,"pop rax; jmp rax;"));
+}
+
+#[test]
+fn test_x64_filter_stack_set_regs() {
+    let bin_filters = test_utils::get_raw_bin("bin_filters", &FILTERS_X64);
+    let bins = vec![bin_filters];
+    let gadgets = xgadget::find_gadgets(&bins, MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
+    let loader_gadgets = xgadget::filter_stack_set_regs(&gadgets);
+    let loader_gadget_strs = test_utils::get_gadget_strs(&loader_gadgets, false);
+    test_utils::print_gadget_strs(&loader_gadget_strs);
+
+    // Positive
+    assert!(test_utils::gadget_strs_contains_sub_str(&loader_gadget_strs,"pop rsp; ret;"));
+    assert!(test_utils::gadget_strs_contains_sub_str(&loader_gadget_strs,"pop rax; pop rbx; ret;"));
+    assert!(test_utils::gadget_strs_contains_sub_str(&loader_gadget_strs,"pop rbx; ret;"));
+    assert!(test_utils::gadget_strs_contains_sub_str(&loader_gadget_strs,"pop rax; jmp rax;"));
+
+    // Negative
+    assert!(!test_utils::gadget_strs_contains_sub_str(&loader_gadget_strs,"add rax, 0x08; jmp rax;"));
+    assert!(!test_utils::gadget_strs_contains_sub_str(&loader_gadget_strs,"mov rax, 0x1337; jmp [rax];"));
 }
