@@ -266,3 +266,26 @@ fn test_color_filter_line_count() {
 
     assert!(output_color_line_cnt == output_no_color_line_cnt);
 }
+
+#[cfg(target_os = "linux")]
+#[test]
+fn test_regex() {
+
+    let pop_pop_ret_regex = Command::cargo_bin("xgadget")
+        .unwrap()
+        .arg("/bin/cat")
+        .arg(format!("-f \"{}\"", r"^(?:pop)(?:.*(?:pop))*.*ret"))
+        .output()
+        .unwrap()
+        .stdout;
+
+    let reg_ctrl_filter = Command::cargo_bin("xgadget")
+        .unwrap()
+        .arg("/bin/cat")
+        .arg("--reg-ctrl")
+        .output()
+        .unwrap()
+        .stdout;
+
+    assert!(reg_ctrl_filter.len() >= pop_pop_ret_regex.len());
+}

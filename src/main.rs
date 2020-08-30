@@ -2,8 +2,10 @@ use std::time::Instant;
 
 use rayon::prelude::*;
 use colored::Colorize;
+use regex::Regex;
 
 // TODO (tnballo): Clean this up with StructOpt, instead of clap (or maybe wait until StructOpt is merged into clap)
+// TODO (tnballo): Color help menu?
 fn main() {
 
     // CLI -------------------------------------------------------------------------------------------------------------
@@ -114,11 +116,11 @@ fn main() {
         )
         .arg(clap::Arg::with_name("filter")
             .short("f")
-            .long("--str-filter")
+            .long("--regex-filter")
             .takes_value(true)
-            .value_name("STR")
+            .value_name("EXPRESSION")
             .required(false)
-            .help("Filter to gadgets containing a substring")
+            .help("Filter to gadgets matching a regular expression")
         )
         .get_matches();
 
@@ -126,6 +128,15 @@ fn main() {
 
     let att_syntax = args.is_present("att");
     let color = !args.is_present("nocolor");
+    let filter = args.is_present("filter");
+
+    let mut filter_matches = 0;
+    let mut filter_regex = Regex::new("unused_but_initialized").unwrap();
+    if filter {
+        let re = args.value_of("filter").unwrap().trim();
+        filter_regex = Regex::new(re).unwrap();
+    }
+
     let mut search_conf = xgadget::SearchConfig::DEFAULT;
     if args.is_present("part") {
         search_conf |= xgadget::SearchConfig::PART;
@@ -189,8 +200,8 @@ fn main() {
             let plaintext_instr_bytes = strip_ansi_escapes::strip(&instr).unwrap();
             let plaintext_instr_str = std::str::from_utf8(&plaintext_instr_bytes).unwrap();
 
-            if  (!args.is_present("filter"))
-                || (args.is_present("filter") && plaintext_instr_str.contains(args.value_of("filter").unwrap())) {
+            if  (!filter)
+                || (filter && filter_regex.is_match(plaintext_instr_str)) {
 
                 if color {
                     print!("{}", instr);
@@ -209,10 +220,14 @@ fn main() {
                 } else {
                     println!("{:-<150} {}", instr, addrs);
                 }
+
+                if filter {
+                    filter_matches += 1;
+                }
             }
         }
 
-        println!("\nSUMMARY [ search: {}, x_match: {}, max_len: {}, syntax: {}, str_filter: {} ]",
+        println!("\nSUMMARY [ search: {}, x_match: {}, max_len: {}, syntax: {}, regex_filter: {} ]",
             {
                 let mut search_mode = String::from("");
                 if args.is_present("rop") { search_mode = format!("{} {}", search_mode, "ROP-only") };
@@ -262,7 +277,7 @@ fn main() {
         if bins.len() > 1 {
             println!("{:.<40} {:?}", "Unique cross-variant gadgets found ", gadgets.len());
         } else {
-            println!("{:.<40} {:?}", "Unique gadgets found ", gadgets.len());
+            println!("{:.<40} {:?}", "Unique gadgets found ", if filter { filter_matches } else { gadgets.len() });
         }
 
         println!("{:.<40} {:?}", "Search/filter time ", run_time);
