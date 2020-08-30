@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use rand;
-use xgadget;
+
+
 
 // Opcode offset search ------------------------------------------------------------------------------------------------
 

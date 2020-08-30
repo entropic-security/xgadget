@@ -1,4 +1,4 @@
-use xgadget;
+
 mod test_utils;
 
 #[cfg(target_os = "linux")]
@@ -19,5 +19,5 @@ fn test_elf() {
     // Regardless of version, should find some gadgets
     let bins = vec![bin];
     let gadgets = xgadget::find_gadgets(&bins, 5, xgadget::SearchConfig::DEFAULT).unwrap();
-    assert!(gadgets.len() > 0);
+    assert!(!gadgets.is_empty());
 }

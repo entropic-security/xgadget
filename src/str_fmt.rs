@@ -49,7 +49,7 @@ pub fn str_fmt_gadgets(
         }
 
         // Full match address
-        if let Some(lowest_addr) = g.full_matches.iter().collect::<Vec<&u64>>().iter().next() {
+        if let Some(lowest_addr) = g.full_matches.iter().collect::<Vec<&u64>>().get(0) {
             if color {
                 addrs_str.push_str(&format!("[ {} ]", format!("0x{:016x}", lowest_addr).green()));
             } else {

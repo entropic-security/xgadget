@@ -1,7 +1,7 @@
 use std::error::Error;
 
-use zydis;
-use xgadget;
+
+
 
 mod test_utils;
 
@@ -140,7 +140,7 @@ fn test_x64_zydis_buffer() -> Result<(),  Box<dyn Error>> {
         instr_strs.push(format!("{}", buffer));
     }
 
-    assert_eq!("mov rax, [rsp+0xB8]", format!("{}", instr_strs[0]));
+    assert_eq!("mov rax, [rsp+0xB8]", instr_strs[0]);
     assert_eq!("xor rax, fs:[0x28]", instr_strs[1]);
     assert_eq!("jnz +0x1F6", instr_strs[2]);
     assert_eq!("add rsp, 0xC8", instr_strs[3]);
@@ -305,7 +305,7 @@ fn test_x64_cross_variant_full_and_partial_matches_1() {
     assert!(full_part_match_config.intersects(xgadget::SearchConfig::PART));
 
     // mix vs. ret_jmp
-    let bins = vec![bin_mix.clone(), bin_ret_jmp];
+    let bins = vec![bin_mix, bin_ret_jmp];
 
     // Full match against X_RET_AFTER_JNE_AND_ADJACENT_JMP_X64
     let gadgets = xgadget::find_gadgets(&bins, MAX_LEN, full_match_only_config).unwrap();
@@ -346,7 +346,7 @@ fn test_x64_cross_variant_full_and_partial_matches_2() {
     assert!(full_part_match_config.intersects(xgadget::SearchConfig::PART));
 
     // mix vs. ret_call
-    let bins = vec![bin_mix.clone(), bin_ret_call];
+    let bins = vec![bin_mix, bin_ret_call];
 
     // Full match against X_RET_AFTER_JNE_AND_ADJACENT_CALL_X64
     let gadgets = xgadget::find_gadgets(&bins, MAX_LEN, full_match_only_config).unwrap();
@@ -390,7 +390,7 @@ fn test_x64_cross_variant_full_and_partial_matches_3() {
     assert!(full_part_match_config.intersects(xgadget::SearchConfig::PART));
 
     // mix vs. ret_call vs. ret_jmp
-    let bins = vec![bin_mix.clone(), bin_ret_call, bin_ret_jmp];
+    let bins = vec![bin_mix, bin_ret_call, bin_ret_jmp];
 
     // Full match against X_RET_AFTER_JNE_AND_ADJACENT_CALL_X64 and X_RET_AFTER_JNE_AND_ADJACENT_CALL_X64
     let gadgets = xgadget::find_gadgets(&bins, MAX_LEN, full_match_only_config).unwrap();

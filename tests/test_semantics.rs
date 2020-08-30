@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
 use rustc_hash::FxHashSet;
-use xgadget;
+
 
 mod test_utils;
 
@@ -165,11 +165,11 @@ fn test_gadget_hasher() {
 
     // Same instructions, different address - custom hash match
     let g1 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_instr.clone()], addr_1.clone());
-    let g2 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_instr.clone()], addr_2.clone());
+    let g2 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_instr.clone()], addr_2);
     assert!(test_utils::hash(&g1) == test_utils::hash(&g2));
 
-    let g1 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_instr.clone()], addr_1.clone());
-    let g2 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_deref_instr.clone()], addr_1.clone());
+    let g1 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_instr], addr_1.clone());
+    let g2 = xgadget::Gadget::new(vec![pop_r15_instr, jmp_rax_deref_instr], addr_1);
 
     let mut g_set_1 = FxHashSet::default();
     g_set_1.insert(g1.clone());

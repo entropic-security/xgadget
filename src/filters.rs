@@ -66,7 +66,7 @@ pub fn filter_stack_set_regs<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::
                 if semantics::is_ret(tail_instr) || semantics::is_jop_gadget_tail(tail_instr) {
 
                     // Preceded exclusively by pop instrs
-                    if (preceding_instrs.len() >= 1)
+                    if !preceding_instrs.is_empty()
                         && (preceding_instrs.iter().all(|i|
                             i.mnemonic == zydis::enums::Mnemonic::POP
                             && semantics::is_single_reg_write(i)

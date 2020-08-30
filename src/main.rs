@@ -130,8 +130,9 @@ fn main() {
     let color = !args.is_present("nocolor");
     let filter = args.is_present("filter");
 
-    let mut filter_matches = 0;
+    #[allow(clippy::trivial_regex)]
     let mut filter_regex = Regex::new("unused_but_initialized").unwrap();
+    let mut filter_matches = 0;
     if filter {
         let re = args.value_of("filter").unwrap().trim();
         filter_regex = Regex::new(re).unwrap();
@@ -200,8 +201,7 @@ fn main() {
             let plaintext_instr_bytes = strip_ansi_escapes::strip(&instr).unwrap();
             let plaintext_instr_str = std::str::from_utf8(&plaintext_instr_bytes).unwrap();
 
-            if  (!filter)
-                || (filter && filter_regex.is_match(plaintext_instr_str)) {
+            if  (!filter) || filter_regex.is_match(plaintext_instr_str) {
 
                 if color {
                     print!("{}", instr);
