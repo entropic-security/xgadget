@@ -21,11 +21,11 @@
 //!Other features include:
 //!
 //!* Both library API and CLI tool
-//!* Supports ELF32, ELF64, PE32, PE32+ [1], and raw files
-//!* Parallel across available cores [2], whether searching a single binary or multiple variants
-//!* CI/CD for automated integration test and binary releases (Linux, 64-bit) [3]
-//!* Statistical benchmark harness for performance tuning [4]
-//!* 8086/x86/x64 only, uses a speed-optimized disassembly backend [5]
+//!* Supports ELF32, ELF64, PE32, PE32+ \[1\], and raw files
+//!* Parallel across available cores \[2\], whether searching a single binary or multiple variants
+//!* CI/CD for automated integration test and binary releases (Linux, 64-bit) \[3\]
+//!* Statistical benchmark harness for performance tuning \[4\]
+//!* 8086/x86/x64 only, uses a speed-optimized disassembly backend \[5\]
 //!
 //!### API Usage
 //!
@@ -56,7 +56,7 @@
 //!Run `xgadget --help`:
 //!
 //!```ignore
-//!xgadget v0.1.1
+//!xgadget v0.1.3
 //!
 //!About:   Fast, parallel, cross-variant ROP/JOP gadget search for 8086/x86/x64 binaries.
 //!CPUs:    8 logical, 8 physical
@@ -71,17 +71,18 @@
 //!    -h, --help             Prints help information
 //!    -i, --imm16            Include '{ret, ret far} imm16' (e.g. add to stack ptr) [default: don't include]
 //!    -j, --jop              Search for JOP gadgets only [default: ROP, JOP, and SYSCALL]
-//!    -c, --no-color         Don't color output, useful for UNIX piping [default: color output]
+//!    -n, --no-color         Don't color output, useful for UNIX piping [default: color output]
 //!    -m, --partial-match    Include cross-variant partial matches [default: full matches only]
 //!    -p, --stack-pivot      Filter to gadgets that write the stack ptr [default: all gadgets]
+//!    -c, --reg-ctrl         Filter to 'pop {reg} * 1+, {ret or ctrl-ed jmp/call}' gadgets [default: all gadgets]
 //!    -r, --rop              Search for ROP gadgets only [default: ROP, JOP, and SYSCALL]
 //!    -s, --sys              Search for SYSCALL gadgets only [default: ROP, JOP, and SYSCALL]
 //!    -V, --version          Prints version information
 //!    -x, --x86              For raw (no header) files: assume x86 (32-bit) [default: assumes x64 (64-bit)]
 //!
 //!OPTIONS:
-//!    -f, --str-filter <STR>    Filter to gadgets containing a substring
-//!    -l, --max-len <LEN>       Gadgets up to LEN instrs long. If 0: all gadgets, any length [default: 5]
+//!    -f, --regex-filter <EXPR>    Filter to gadgets matching a regular expression
+//!    -l, --max-len <LEN>          Gadgets up to LEN instrs long. If 0: all gadgets, any length [default: 5]
 //!
 //!ARGS:
 //!    <FILE(S)>...    1+ binaries to gadget search. If > 1: gadgets common to all
@@ -99,7 +100,7 @@
 //!### CLI Binary Releases for Linux
 //!
 //!Commits to this repo's `master` branch automatically run integration tests and build a dynamically-linked binary for 64-bit Linux.
-//!You can [download it here](https://github.com/tnballo/xgadget-priv/releases) and use the CLI immediately, instead of building from source.
+//!You can [download it here](https://github.com/entropic-security/xgadget/releases) and use the CLI immediately, instead of building from source.
 //!Static binaries for Linux and Windows may be supported in the future.
 //!
 //!### ~~Yeah, but can it do 10 OS kernels in 30 seconds?!~~ Repeatable Benchmark Harness
@@ -120,16 +121,16 @@
 //!
 //!### Acknowledgements
 //!
-//!This project started as an optimized solution to Chapter 8, exercise 3 of "Practical Binary Analysis" by Dennis Andreisse [6], and builds on the design outlined therein.
+//!This project started as an optimized solution to Chapter 8, exercise 3 of "Practical Binary Analysis" by Dennis Andreisse \[6\], and builds on the design outlined therein.
 //!
 //!### References
 //!
-//!* [1] [`goblin` crate by Lzu Tao, m4b, Philip Craig, seu, Will Glynn](https://crates.io/crates/goblin)
-//!* [2] [`rayon` crate by Josh Stone, Niko Matsakis](https://crates.io/crates/rayon)
-//!* [3] [`xgadget/.github/workflows`](https://github.com/tnballo/xgadget-priv/tree/master/.github/workflows) # TODO: update from priv!
-//!* [4] [`criterion` crate by Brook Heisler, Jorge Aparicio](https://crates.io/crates/criterion)
-//!* [5] [`zydis` bindings by Joel Honer, Timo von Hartz](https://crates.io/crates/zydis)
-//!* [6] ["Practical Binary Analysis" by Dennis Andreisse](https://practicalbinaryanalysis.com/)
+//!* \[1\] [`goblin` crate by Lzu Tao, m4b, Philip Craig, seu, Will Glynn](https://crates.io/crates/goblin)
+//!* \[2\] [`rayon` crate by Josh Stone, Niko Matsakis](https://crates.io/crates/rayon)
+//!* \[3\] [`xgadget/.github/workflows`](https://github.com/entropic-security/xgadget/tree/master/.github/workflows)
+//!* \[4\] [`criterion` crate by Brook Heisler, Jorge Aparicio](https://crates.io/crates/criterion)
+//!* \[5\] [`zydis` bindings by Joel Honer, Timo von Hartz](https://crates.io/crates/zydis)
+//!* \[6\] ["Practical Binary Analysis" by Dennis Andreisse](https://practicalbinaryanalysis.com/)
 
 // Macro Import --------------------------------------------------------------------------------------------------------
 

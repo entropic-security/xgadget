@@ -118,7 +118,7 @@ fn main() {
             .short("f")
             .long("--regex-filter")
             .takes_value(true)
-            .value_name("EXPRESSION")
+            .value_name("EXPR")
             .required(false)
             .help("Filter to gadgets matching a regular expression")
         )
