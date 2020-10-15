@@ -1,7 +1,7 @@
-use tempfile::NamedTempFile;
-use std::io::Write;
 use assert_cmd::Command;
 use predicates::prelude::*;
+use std::io::Write;
+use tempfile::NamedTempFile;
 
 // Non-exhaustive Error Cases ------------------------------------------------------------------------------------------
 
@@ -9,7 +9,12 @@ use predicates::prelude::*;
 fn test_no_arg_err() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
-    xgadget_bin.assert().failure().stderr(predicate::str::contains("The following required arguments were not provided:"));
+    xgadget_bin
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "The following required arguments were not provided:",
+        ));
 }
 
 #[test]
@@ -17,7 +22,10 @@ fn test_file_not_found_err() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
     xgadget_bin.arg("/usr/bin/some_file_83bb57de34d8713f6e4940b4bdda4bea");
-    xgadget_bin.assert().failure().stderr(predicate::str::contains("No such file or directory"));
+    xgadget_bin
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("No such file or directory"));
 }
 
 #[test]
@@ -29,7 +37,12 @@ fn test_conflicting_flags_rop_jop() {
         .arg("-r")
         .arg("-j");
 
-    xgadget_bin.assert().failure().stderr(predicate::str::contains("The argument '--rop' cannot be used with '--jop'"));
+    xgadget_bin
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "The argument '--rop' cannot be used with '--jop'",
+        ));
 }
 
 #[test]
@@ -41,7 +54,12 @@ fn test_conflicting_flags_dispatcher_stack_set_reg() {
         .arg("-c")
         .arg("-d");
 
-    xgadget_bin.assert().failure().stderr(predicate::str::contains("The argument '--dispatcher' cannot be used with '--reg-ctrl'"));
+    xgadget_bin
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "The argument '--dispatcher' cannot be used with '--reg-ctrl'",
+        ));
 }
 
 #[test]
@@ -53,7 +71,12 @@ fn test_conflicting_flags_x86_8086() {
         .arg("-8")
         .arg("-x");
 
-    xgadget_bin.assert().failure().stderr(predicate::str::contains("The argument '--x86' cannot be used with '--8086'"));
+    xgadget_bin
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "The argument '--x86' cannot be used with '--8086'",
+        ));
 }
 
 #[test]
@@ -65,7 +88,12 @@ fn test_conflicting_flags_imm16_jop() {
         .arg("-i")
         .arg("-j");
 
-    xgadget_bin.assert().failure().stderr(predicate::str::contains("The argument '--jop' cannot be used with '--imm16'"));
+    xgadget_bin
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "The argument '--jop' cannot be used with '--imm16'",
+        ));
 }
 
 // Non-exhaustive Success Cases ----------------------------------------------------------------------------------------
@@ -84,12 +112,18 @@ fn test_raw() {
     raw_file.write(ADJACENT_JMP_X64).unwrap();
 
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
-    xgadget_bin
-        .arg(raw_file.path())
-        .arg("-n");
+    xgadget_bin.arg(raw_file.path()).arg("-n");
 
-    xgadget_bin.assert().success().stdout(predicate::str::contains("lea ecx, [rip+0x5DDCB]; jmp [rcx];"));
-    xgadget_bin.assert().success().stdout(predicate::str::contains("jmp rcx;"));
+    xgadget_bin
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "lea ecx, [rip+0x5DDCB]; jmp [rcx];",
+        ));
+    xgadget_bin
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("jmp rcx;"));
 }
 
 #[cfg(target_os = "linux")]
@@ -106,9 +140,7 @@ fn test_single_bin() {
 fn test_dual_bin() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
-    xgadget_bin
-        .arg("/bin/cat")
-        .arg("/bin/cp");
+    xgadget_bin.arg("/bin/cat").arg("/bin/cp");
 
     xgadget_bin.assert().success();
 }
@@ -131,70 +163,93 @@ fn test_triple_bin_with_arg() {
 #[cfg(target_os = "linux")]
 #[test]
 fn test_search_args() {
+    let output_all = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/bin/cat")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
 
-    let output_all = Command::cargo_bin("xgadget")
-        .unwrap()
-        .arg("/bin/cat")
-        .output()
-        .unwrap()
-        .stdout;
+    let output_rop = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/bin/cat")
+            .arg("-r")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
 
-    let output_rop = Command::cargo_bin("xgadget")
-        .unwrap()
-        .arg("/bin/cat")
-        .arg("-r")
-        .output()
-        .unwrap()
-        .stdout;
+    let output_rop_imm16 = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/bin/cat")
+            .arg("-r")
+            .arg("-i")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
 
-    let output_rop_imm16 = Command::cargo_bin("xgadget")
-        .unwrap()
-        .arg("/bin/cat")
-        .arg("-r")
-        .arg("-i")
-        .output()
-        .unwrap()
-        .stdout;
+    let output_jop = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/bin/cat")
+            .arg("-j")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
 
-    let output_jop = Command::cargo_bin("xgadget")
-        .unwrap()
-        .arg("/bin/cat")
-        .arg("-j")
-        .output()
-        .unwrap()
-        .stdout;
+    let output_sys = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/bin/cat")
+            .arg("-s")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
 
-    let output_sys = Command::cargo_bin("xgadget")
-        .unwrap()
-        .arg("/bin/cat")
-        .arg("-s")
-        .output()
-        .unwrap()
-        .stdout;
+    let output_stack_pivot = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/bin/cat")
+            .arg("-p")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
 
-    let output_stack_pivot = Command::cargo_bin("xgadget")
-        .unwrap()
-        .arg("/bin/cat")
-        .arg("-p")
-        .output()
-        .unwrap()
-        .stdout;
+    let output_dispatch = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/bin/cat")
+            .arg("-d")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
 
-   let output_dispatch = Command::cargo_bin("xgadget")
-        .unwrap()
-        .arg("/bin/cat")
-        .arg("-d")
-        .output()
-        .unwrap()
-        .stdout;
-
-    let output_reg_ctrl = Command::cargo_bin("xgadget")
-        .unwrap()
-        .arg("/bin/cat")
-        .arg("-c")
-        .output()
-        .unwrap()
-        .stdout;
+    let output_reg_ctrl = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/bin/cat")
+            .arg("-c")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
 
     assert!(output_all.len() >= output_rop.len());
     assert!(output_all.len() >= output_jop.len());
@@ -208,61 +263,66 @@ fn test_search_args() {
 #[cfg(target_os = "linux")]
 #[test]
 fn test_max_len() {
+    let output_def_len = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/bin/cat")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
 
-    let output_def = Command::cargo_bin("xgadget")
-        .unwrap()
-        .arg("/bin/cat")
-        .output()
-        .unwrap()
-        .stdout;
+    let output_100_len = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/bin/cat")
+            .arg("-l")
+            .arg("100")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
 
-    let output_100_len = Command::cargo_bin("xgadget")
-        .unwrap()
-        .arg("/bin/cat")
-        .arg("-l 100")
-        .output()
-        .unwrap()
-        .stdout;
-
-    assert!(output_100_len.len() >= output_def.len());
+    assert!(output_100_len.len() >= output_def_len.len());
 }
 
 #[cfg(target_os = "linux")]
 #[test]
 fn test_color_filter_line_count() {
-
     #[cfg(target_arch = "x86")]
     let reg_name = "eax";
 
     #[cfg(target_arch = "x86_64")]
     let reg_name = "rax";
 
-    let output_color = Command::cargo_bin("xgadget")
-        .unwrap()
-        .arg("/bin/cat")
-        .arg(format!("-f \"mov {}\"", reg_name))
-        .output()
-        .unwrap()
-        .stdout;
+    let output_color = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/bin/cat")
+            .arg(format!("-f mov {}", reg_name))
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
 
-    let output_color_line_cnt = std::str::from_utf8(&output_color)
-        .unwrap()
-        .lines()
-        .count();
+    let output_color_line_cnt = output_color.lines().count();
 
-    let output_no_color = Command::cargo_bin("xgadget")
-        .unwrap()
-        .arg("/bin/cat")
-        .arg("-n")
-        .arg(format!("-f \"mov {}\"", reg_name))
-        .output()
-        .unwrap()
-        .stdout;
+    let output_no_color = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/bin/cat")
+            .arg("-n")
+            .arg(format!("-f mov {}", reg_name))
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
 
-    let output_no_color_line_cnt = std::str::from_utf8(&output_no_color)
-        .unwrap()
-        .lines()
-        .count();
+    let output_no_color_line_cnt = output_no_color.lines().count();
 
     assert!(output_color_line_cnt == output_no_color_line_cnt);
 }
@@ -270,22 +330,27 @@ fn test_color_filter_line_count() {
 #[cfg(target_os = "linux")]
 #[test]
 fn test_regex() {
+    let pop_pop_ret_regex = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/bin/cat")
+            .arg(format!("-f {}", r"^(?:pop)(?:.*(?:pop))*.*ret"))
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
 
-    let pop_pop_ret_regex = Command::cargo_bin("xgadget")
-        .unwrap()
-        .arg("/bin/cat")
-        .arg(format!("-f \"{}\"", r"^(?:pop)(?:.*(?:pop))*.*ret"))
-        .output()
-        .unwrap()
-        .stdout;
+    let reg_ctrl_filter = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/bin/cat")
+            .arg("--reg-ctrl")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
 
-    let reg_ctrl_filter = Command::cargo_bin("xgadget")
-        .unwrap()
-        .arg("/bin/cat")
-        .arg("--reg-ctrl")
-        .output()
-        .unwrap()
-        .stdout;
-
-    assert!(reg_ctrl_filter.len() >= pop_pop_ret_regex.len());
+    assert!(pop_pop_ret_regex.len() >= reg_ctrl_filter.len());
 }

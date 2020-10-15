@@ -1,8 +1,5 @@
 use std::error::Error;
 
-
-
-
 mod test_utils;
 
 // Test Data -----------------------------------------------------------------------------------------------------------
@@ -127,9 +124,13 @@ pub const FILTERS_X64: &[u8] = &[
 pub const MAX_LEN: usize = 100;
 
 #[test]
-fn test_x64_zydis_buffer() -> Result<(),  Box<dyn Error>> {
+fn test_x64_zydis_buffer() -> Result<(), Box<dyn Error>> {
     let formatter = zydis::Formatter::new(zydis::FormatterStyle::INTEL)?;
-    let decoder = zydis::Decoder::new(zydis::enums::MachineMode::LONG_64, zydis::enums::AddressWidth::_64).unwrap();
+    let decoder = zydis::Decoder::new(
+        zydis::enums::MachineMode::LONG_64,
+        zydis::enums::AddressWidth::_64,
+    )
+    .unwrap();
     let mut backing_buffer = [0u8; 200];
     let mut buffer = zydis::OutputBuffer::new(&mut backing_buffer[..]);
 
@@ -175,56 +176,152 @@ fn test_x64_ret_after_jne() {
     let gadget_strs = test_utils::get_gadget_strs(&gadgets, false);
     test_utils::print_gadget_strs(&gadget_strs);
 
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"pop r12; pop r13; pop r14; pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"pop r13; pop r14; pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"pop r14; pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"pop rbp; pop r12; pop r13; pop r14; pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"pop rbp; pop r14; pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"pop rdi; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"pop rsi; pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"pop rsp; pop r13; pop r14; pop r15; ret;"));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "pop r12; pop r13; pop r14; pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "pop r13; pop r14; pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "pop r14; pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "pop rbp; pop r12; pop r13; pop r14; pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "pop rbp; pop r14; pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "pop rdi; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "pop rsi; pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "pop rsp; pop r13; pop r14; pop r15; ret;"
+    ));
 }
 
 #[test]
 fn test_x64_adjacent_ret() {
     let bin_ret = test_utils::get_raw_bin("bin_ret", &ADJACENT_RET_X64);
     let bins = vec![bin_ret];
-    let gadgets = xgadget::find_gadgets(&bins, MAX_LEN, xgadget::SearchConfig::DEFAULT | xgadget::SearchConfig::IMM16).unwrap();
+    let gadgets = xgadget::find_gadgets(
+        &bins,
+        MAX_LEN,
+        xgadget::SearchConfig::DEFAULT | xgadget::SearchConfig::IMM16,
+    )
+    .unwrap();
     let gadget_strs = test_utils::get_gadget_strs(&gadgets, false);
     test_utils::print_gadget_strs(&gadget_strs);
 
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"add eax, 0x5DDE1; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"add eax, 0x5DDCB; ret 0x1337;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"lea eax, [rip+0x5DDCB]; ret 0x1337;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"lea eax, [rip+0x5DDE1]; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"lea rax, [rip+0x5DDCB]; ret 0x1337;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"lea rax, [rip+0x5DDE1]; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"add eax, 0x8D48C300; add eax, 0x5DDCB; ret 0x1337;"));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "add eax, 0x5DDE1; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "add eax, 0x5DDCB; ret 0x1337;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "lea eax, [rip+0x5DDCB]; ret 0x1337;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "lea eax, [rip+0x5DDE1]; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "lea rax, [rip+0x5DDCB]; ret 0x1337;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "lea rax, [rip+0x5DDE1]; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "add eax, 0x8D48C300; add eax, 0x5DDCB; ret 0x1337;"
+    ));
 }
 
 #[test]
 fn test_x64_adjacent_call() {
-
     let bin_call = test_utils::get_raw_bin("bin_call", &ADJACENT_CALL_X64);
     let bins = vec![bin_call];
-    let gadgets = xgadget::find_gadgets(&bins, MAX_LEN, xgadget::SearchConfig::DEFAULT | xgadget::SearchConfig::IMM16).unwrap();
+    let gadgets = xgadget::find_gadgets(
+        &bins,
+        MAX_LEN,
+        xgadget::SearchConfig::DEFAULT | xgadget::SearchConfig::IMM16,
+    )
+    .unwrap();
     let gadget_strs = test_utils::get_gadget_strs(&gadgets, false);
     test_utils::print_gadget_strs(&gadget_strs);
 
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"add bh, bh; ror dword ptr [rax-0x73], cl; sbb eax, 0x5DDCB; call [rbx];"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"add eax, 0x48D3FF00; lea ebx, [rip+0x5DDCB]; call [rbx];"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"call [rbx];"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"call rbx;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"fld st0, qword ptr [rip+0x48D3FF00]; lea ebx, [rip+0x5DDCB]; call [rbx];"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"lea ebx, [rip+0x5DDCB]; call [rbx];"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"lea ebx, [rip+0x5DDE1]; call rbx;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"lea rbx, [rip+0x5DDCB]; call [rbx];"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"lea rbx, [rip+0x5DDE1]; call rbx;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"loope -0x21; add eax, 0x48D3FF00; lea ebx, [rip+0x5DDCB]; call [rbx];"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"ror dword ptr [rax-0x73], cl; sbb eax, 0x5DDCB; call [rbx];"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"sbb eax, 0x5DDCB; call [rbx];"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"sbb eax, 0x5DDE1; call rbx;"));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "add bh, bh; ror dword ptr [rax-0x73], cl; sbb eax, 0x5DDCB; call [rbx];"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "add eax, 0x48D3FF00; lea ebx, [rip+0x5DDCB]; call [rbx];"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "call [rbx];"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "call rbx;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "fld st0, qword ptr [rip+0x48D3FF00]; lea ebx, [rip+0x5DDCB]; call [rbx];"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "lea ebx, [rip+0x5DDCB]; call [rbx];"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "lea ebx, [rip+0x5DDE1]; call rbx;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "lea rbx, [rip+0x5DDCB]; call [rbx];"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "lea rbx, [rip+0x5DDE1]; call rbx;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "loope -0x21; add eax, 0x48D3FF00; lea ebx, [rip+0x5DDCB]; call [rbx];"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "ror dword ptr [rax-0x73], cl; sbb eax, 0x5DDCB; call [rbx];"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "sbb eax, 0x5DDCB; call [rbx];"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "sbb eax, 0x5DDE1; call rbx;"
+    ));
 }
 
 #[test]
@@ -235,70 +332,198 @@ fn test_x64_adjacent_jmp() {
     let gadget_strs = test_utils::get_gadget_strs(&gadgets, false);
     test_utils::print_gadget_strs(&gadget_strs);
 
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"add eax, 0x48E1FF00; lea ecx, [rip+0x5DDCB]; jmp [rcx];"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"fld st0, qword ptr [rip+0x48E1FF00]; lea ecx, [rip+0x5DDCB]; jmp [rcx];"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"jmp [rcx];"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"jmp rcx;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"lea ecx, [rip+0x5DDCB]; jmp [rcx];"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"lea ecx, [rip+0x5DDE1]; jmp rcx;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"lea rcx, [rip+0x5DDCB]; jmp [rcx];"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"lea rcx, [rip+0x5DDE1]; jmp rcx;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"loope -0x21; add eax, 0x48E1FF00; lea ecx, [rip+0x5DDCB]; jmp [rcx];"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"or eax, 0x5DDCB; jmp [rcx];"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"or eax, 0x5DDE1; jmp rcx;"));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "add eax, 0x48E1FF00; lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "fld st0, qword ptr [rip+0x48E1FF00]; lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "jmp [rcx];"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "jmp rcx;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "lea ecx, [rip+0x5DDE1]; jmp rcx;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "lea rcx, [rip+0x5DDCB]; jmp [rcx];"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "lea rcx, [rip+0x5DDE1]; jmp rcx;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "loope -0x21; add eax, 0x48E1FF00; lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "or eax, 0x5DDCB; jmp [rcx];"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "or eax, 0x5DDE1; jmp rcx;"
+    ));
 }
 
 #[test]
 fn test_x64_cross_variant_full_matches() {
     let bin_ret_jmp = test_utils::get_raw_bin("bin_ret_jmp", &X_RET_AFTER_JNE_AND_ADJACENT_JMP_X64);
-    let bin_ret_call = test_utils::get_raw_bin("bin_ret_call", &X_RET_AFTER_JNE_AND_ADJACENT_CALL_X64);
+    let bin_ret_call =
+        test_utils::get_raw_bin("bin_ret_call", &X_RET_AFTER_JNE_AND_ADJACENT_CALL_X64);
     let bins = vec![bin_ret_jmp, bin_ret_call];
     let gadgets = xgadget::find_gadgets(&bins, MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
     let gadget_strs = test_utils::get_gadget_strs(&gadgets, false);
     test_utils::print_gadget_strs(&gadget_strs);
 
     // Common - in both ADJACENT_CALL_X64 and ADJACENT_JMP_X64
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"pop r12; pop r13; pop r14; pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"pop r13; pop r14; pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"pop r14; pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"pop rbp; pop r12; pop r13; pop r14; pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"pop rbp; pop r14; pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"pop rdi; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"pop rsi; pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs,"pop rsp; pop r13; pop r14; pop r15; ret;"));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "pop r12; pop r13; pop r14; pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "pop r13; pop r14; pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "pop r14; pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "pop rbp; pop r12; pop r13; pop r14; pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "pop rbp; pop r14; pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "pop rdi; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "pop rsi; pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "pop rsp; pop r13; pop r14; pop r15; ret;"
+    ));
 
     // Negative tests for unique - ADJACENT_CALL_X64
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"add eax, 0x48E1FF00; lea ecx, [rip+0x5DDCB]; jmp [rcx];"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"fld st0, qword ptr [rip+0x48E1FF00]; lea ecx, [rip+0x5DDCB]; jmp [rcx];"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"jmp [rcx];"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"jmp rcx;"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"lea ecx, [rip+0x5DDCB]; jmp [rcx];"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"lea ecx, [rip+0x5DDE1]; jmp rcx;"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"lea rcx, [rip+0x5DDCB]; jmp [rcx];"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"lea rcx, [rip+0x5DDE1]; jmp rcx;"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"loope -0x21; add eax, 0x48E1FF00; lea ecx, [rip+0x5DDCB]; jmp [rcx];"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"or eax, 0x5DDCB; jmp [rcx];"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"or eax, 0x5DDE1; jmp rcx;"));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "add eax, 0x48E1FF00; lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "fld st0, qword ptr [rip+0x48E1FF00]; lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "jmp [rcx];"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "jmp rcx;"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "lea ecx, [rip+0x5DDE1]; jmp rcx;"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "lea rcx, [rip+0x5DDCB]; jmp [rcx];"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "lea rcx, [rip+0x5DDE1]; jmp rcx;"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "loope -0x21; add eax, 0x48E1FF00; lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "or eax, 0x5DDCB; jmp [rcx];"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "or eax, 0x5DDE1; jmp rcx;"
+    ));
 
     // Negative tests for unique - ADJACENT_JMP_X64
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"add eax, 0x48E1FF00; lea ecx, [rip+0x5DDCB]; jmp [rcx];"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"fld st0, qword ptr [rip+0x48E1FF00]; lea ecx, [rip+0x5DDCB]; jmp [rcx];"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"jmp [rcx];"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"jmp rcx;"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"lea ecx, [rip+0x5DDCB]; jmp [rcx];"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"lea ecx, [rip+0x5DDE1]; jmp rcx;"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"lea rcx, [rip+0x5DDCB]; jmp [rcx];"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"lea rcx, [rip+0x5DDE1]; jmp rcx;"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"loope -0x21; add eax, 0x48E1FF00; lea ecx, [rip+0x5DDCB]; jmp [rcx];"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"or eax, 0x5DDCB; jmp [rcx];"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs,"or eax, 0x5DDE1; jmp rcx;"));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "add eax, 0x48E1FF00; lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "fld st0, qword ptr [rip+0x48E1FF00]; lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "jmp [rcx];"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "jmp rcx;"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "lea ecx, [rip+0x5DDE1]; jmp rcx;"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "lea rcx, [rip+0x5DDCB]; jmp [rcx];"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "lea rcx, [rip+0x5DDE1]; jmp rcx;"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "loope -0x21; add eax, 0x48E1FF00; lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "or eax, 0x5DDCB; jmp [rcx];"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "or eax, 0x5DDE1; jmp rcx;"
+    ));
 }
 
 #[test]
 fn test_x64_cross_variant_full_and_partial_matches_1() {
     let bin_ret_jmp = test_utils::get_raw_bin("bin_ret_jmp", &X_RET_AFTER_JNE_AND_ADJACENT_JMP_X64);
-    let bin_mix = test_utils::get_raw_bin("bin_mix", &X_RET_AFTER_JNE_AND_ADJACENT_CALL_MIX_MATCH_X64);
+    let bin_mix =
+        test_utils::get_raw_bin("bin_mix", &X_RET_AFTER_JNE_AND_ADJACENT_CALL_MIX_MATCH_X64);
 
     let full_match_only_config = xgadget::SearchConfig::DEFAULT;
     let full_part_match_config = xgadget::SearchConfig::DEFAULT | xgadget::SearchConfig::PART;
@@ -314,13 +539,28 @@ fn test_x64_cross_variant_full_and_partial_matches_1() {
     test_utils::print_gadget_strs(&gadget_strs_full_match);
 
     // Positive
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs_full_match,"jmp [rcx];"));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_full_match,
+        "jmp [rcx];"
+    ));
 
     // Negative
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs_full_match,"pop r14; pop r15; ret;"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs_full_match,"pop rsi; pop r15; ret;"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs_full_match,"pop r15; ret;"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs_full_match,"pop rdi; ret;"));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_full_match,
+        "pop r14; pop r15; ret;"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_full_match,
+        "pop rsi; pop r15; ret;"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_full_match,
+        "pop r15; ret;"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_full_match,
+        "pop rdi; ret;"
+    ));
 
     // Partial match against X_RET_AFTER_JNE_AND_ADJACENT_JMP_X64
     let gadgets = xgadget::find_gadgets(&bins, MAX_LEN, full_part_match_config).unwrap();
@@ -329,17 +569,34 @@ fn test_x64_cross_variant_full_and_partial_matches_1() {
     test_utils::print_gadget_strs(&gadget_strs_part_match);
 
     // Positive
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs_full_match,"jmp [rcx];"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs_part_match,"pop r14; pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs_part_match,"pop rsi; pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs_part_match,"pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs_part_match,"pop rdi; ret;"));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_full_match,
+        "jmp [rcx];"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_part_match,
+        "pop r14; pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_part_match,
+        "pop rsi; pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_part_match,
+        "pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_part_match,
+        "pop rdi; ret;"
+    ));
 }
 
 #[test]
 fn test_x64_cross_variant_full_and_partial_matches_2() {
-    let bin_ret_call = test_utils::get_raw_bin("bin_ret_call", &X_RET_AFTER_JNE_AND_ADJACENT_CALL_X64);
-    let bin_mix = test_utils::get_raw_bin("bin_mix", &X_RET_AFTER_JNE_AND_ADJACENT_CALL_MIX_MATCH_X64);
+    let bin_ret_call =
+        test_utils::get_raw_bin("bin_ret_call", &X_RET_AFTER_JNE_AND_ADJACENT_CALL_X64);
+    let bin_mix =
+        test_utils::get_raw_bin("bin_mix", &X_RET_AFTER_JNE_AND_ADJACENT_CALL_MIX_MATCH_X64);
 
     let full_match_only_config = xgadget::SearchConfig::DEFAULT;
     let full_part_match_config = xgadget::SearchConfig::DEFAULT | xgadget::SearchConfig::PART;
@@ -355,14 +612,32 @@ fn test_x64_cross_variant_full_and_partial_matches_2() {
     test_utils::print_gadget_strs(&gadget_strs_full_match);
 
     // Positive
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs_full_match,"lea rbx, [rip+0x5DDE1]; call rbx;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs_full_match,"call rbx;"));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_full_match,
+        "lea rbx, [rip+0x5DDE1]; call rbx;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_full_match,
+        "call rbx;"
+    ));
 
     // Negative
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs_full_match,"pop r14; pop r15; ret;"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs_full_match,"pop rsi; pop r15; ret;"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs_full_match,"pop r15; ret;"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&gadget_strs_full_match,"pop rdi; ret;"));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_full_match,
+        "pop r14; pop r15; ret;"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_full_match,
+        "pop rsi; pop r15; ret;"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_full_match,
+        "pop r15; ret;"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_full_match,
+        "pop rdi; ret;"
+    ));
 
     // Partial match against X_RET_AFTER_JNE_AND_ADJACENT_CALL_X64
     let gadgets = xgadget::find_gadgets(&bins, MAX_LEN, full_part_match_config).unwrap();
@@ -371,19 +646,39 @@ fn test_x64_cross_variant_full_and_partial_matches_2() {
     test_utils::print_gadget_strs(&gadget_strs_part_match);
 
     // Positive
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs_full_match,"lea rbx, [rip+0x5DDE1]; call rbx;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs_full_match,"call rbx;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs_part_match,"pop r14; pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs_part_match,"pop rsi; pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs_part_match,"pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs_part_match,"pop rdi; ret;"));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_full_match,
+        "lea rbx, [rip+0x5DDE1]; call rbx;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_full_match,
+        "call rbx;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_part_match,
+        "pop r14; pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_part_match,
+        "pop rsi; pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_part_match,
+        "pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_part_match,
+        "pop rdi; ret;"
+    ));
 }
 
 #[test]
 fn test_x64_cross_variant_full_and_partial_matches_3() {
     let bin_ret_jmp = test_utils::get_raw_bin("bin_ret_jmp", &X_RET_AFTER_JNE_AND_ADJACENT_JMP_X64);
-    let bin_ret_call = test_utils::get_raw_bin("bin_ret_call", &X_RET_AFTER_JNE_AND_ADJACENT_CALL_X64);
-    let bin_mix = test_utils::get_raw_bin("bin_mix", &X_RET_AFTER_JNE_AND_ADJACENT_CALL_MIX_MATCH_X64);
+    let bin_ret_call =
+        test_utils::get_raw_bin("bin_ret_call", &X_RET_AFTER_JNE_AND_ADJACENT_CALL_X64);
+    let bin_mix =
+        test_utils::get_raw_bin("bin_mix", &X_RET_AFTER_JNE_AND_ADJACENT_CALL_MIX_MATCH_X64);
 
     let full_match_only_config = xgadget::SearchConfig::DEFAULT;
     let full_part_match_config = xgadget::SearchConfig::DEFAULT | xgadget::SearchConfig::PART;
@@ -404,14 +699,29 @@ fn test_x64_cross_variant_full_and_partial_matches_3() {
     // Partial match against X_RET_AFTER_JNE_AND_ADJACENT_CALL_X64 and X_RET_AFTER_JNE_AND_ADJACENT_CALL_X64
     let gadgets = xgadget::find_gadgets(&bins, MAX_LEN, full_part_match_config).unwrap();
     let gadget_strs_part_match = test_utils::get_gadget_strs(&gadgets, false);
-    println!("\n{:#^1$}\n", " Mix vs. ret_call vs. ret_jmp (PARTIAL) ", 175);
+    println!(
+        "\n{:#^1$}\n",
+        " Mix vs. ret_call vs. ret_jmp (PARTIAL) ", 175
+    );
     test_utils::print_gadget_strs(&gadget_strs_part_match);
 
     // Positive
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs_part_match,"pop r14; pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs_part_match,"pop rsi; pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs_part_match,"pop r15; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&gadget_strs_part_match,"pop rdi; ret;"));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_part_match,
+        "pop r14; pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_part_match,
+        "pop rsi; pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_part_match,
+        "pop r15; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs_part_match,
+        "pop rdi; ret;"
+    ));
 }
 
 #[test]
@@ -424,14 +734,32 @@ fn test_x64_filter_stack_pivot() {
     test_utils::print_gadget_strs(&stack_pivot_gadget_strs);
 
     // Positive
-    assert!(test_utils::gadget_strs_contains_sub_str(&stack_pivot_gadget_strs,"pop rsp; ret;"));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &stack_pivot_gadget_strs,
+        "pop rsp; ret;"
+    ));
 
     // Negative
-    assert!(!test_utils::gadget_strs_contains_sub_str(&stack_pivot_gadget_strs,"pop rax; pop rbx; ret;"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&stack_pivot_gadget_strs,"pop rbx; ret;"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&stack_pivot_gadget_strs,"add rax, 0x08; jmp rax;"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&stack_pivot_gadget_strs,"mov rax, 0x1337; jmp [rax];"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&stack_pivot_gadget_strs,"pop rax; jmp rax;"));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &stack_pivot_gadget_strs,
+        "pop rax; pop rbx; ret;"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &stack_pivot_gadget_strs,
+        "pop rbx; ret;"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &stack_pivot_gadget_strs,
+        "add rax, 0x08; jmp rax;"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &stack_pivot_gadget_strs,
+        "mov rax, 0x1337; jmp [rax];"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &stack_pivot_gadget_strs,
+        "pop rax; jmp rax;"
+    ));
 }
 
 #[test]
@@ -444,14 +772,32 @@ fn test_x64_filter_dispatcher() {
     test_utils::print_gadget_strs(&dispatcher_gadget_strs);
 
     // Positive
-    assert!(test_utils::gadget_strs_contains_sub_str(&dispatcher_gadget_strs,"add rax, 0x08; jmp rax;"));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &dispatcher_gadget_strs,
+        "add rax, 0x08; jmp rax;"
+    ));
 
     // Negative
-    assert!(!test_utils::gadget_strs_contains_sub_str(&dispatcher_gadget_strs,"pop rsp; ret;"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&dispatcher_gadget_strs,"pop rax; pop rbx; ret;"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&dispatcher_gadget_strs,"pop rbx; ret;"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&dispatcher_gadget_strs,"mov rax, 0x1337; jmp [rax];"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&dispatcher_gadget_strs,"pop rax; jmp rax;"));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &dispatcher_gadget_strs,
+        "pop rsp; ret;"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &dispatcher_gadget_strs,
+        "pop rax; pop rbx; ret;"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &dispatcher_gadget_strs,
+        "pop rbx; ret;"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &dispatcher_gadget_strs,
+        "mov rax, 0x1337; jmp [rax];"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &dispatcher_gadget_strs,
+        "pop rax; jmp rax;"
+    ));
 }
 
 #[test]
@@ -464,12 +810,30 @@ fn test_x64_filter_stack_set_regs() {
     test_utils::print_gadget_strs(&loader_gadget_strs);
 
     // Positive
-    assert!(test_utils::gadget_strs_contains_sub_str(&loader_gadget_strs,"pop rsp; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&loader_gadget_strs,"pop rax; pop rbx; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&loader_gadget_strs,"pop rbx; ret;"));
-    assert!(test_utils::gadget_strs_contains_sub_str(&loader_gadget_strs,"pop rax; jmp rax;"));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &loader_gadget_strs,
+        "pop rsp; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &loader_gadget_strs,
+        "pop rax; pop rbx; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &loader_gadget_strs,
+        "pop rbx; ret;"
+    ));
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &loader_gadget_strs,
+        "pop rax; jmp rax;"
+    ));
 
     // Negative
-    assert!(!test_utils::gadget_strs_contains_sub_str(&loader_gadget_strs,"add rax, 0x08; jmp rax;"));
-    assert!(!test_utils::gadget_strs_contains_sub_str(&loader_gadget_strs,"mov rax, 0x1337; jmp [rax];"));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &loader_gadget_strs,
+        "add rax, 0x08; jmp rax;"
+    ));
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &loader_gadget_strs,
+        "mov rax, 0x1337; jmp [rax];"
+    ));
 }

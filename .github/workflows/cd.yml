@@ -13,6 +13,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Verify code formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt -- --check
+
       - name: Cargo dependencies security audit
         uses: actions-rs/audit-check@v1
         with:
@@ -26,7 +31,7 @@ jobs:
       - name: Binary release
         run: cargo build --release --locked
 
-      # TODO: open issue for Zydis and static binaries
+      # TODO: troubleshoot static binaries
       #run: |
       #  rustup target add x86_64-unknown-linux-musl
       #  cargo build --target x86_64-unknown-linux-musl --release --locked

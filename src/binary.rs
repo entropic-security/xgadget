@@ -1,7 +1,7 @@
-use std::fs;
-use std::path::Path;
 use std::error::Error;
 use std::fmt;
+use std::fs;
+use std::path::Path;
 
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
@@ -16,7 +16,6 @@ pub struct Segment {
 }
 
 impl Segment {
-
     /// Constructor
     pub fn new(addr: u64, bytes: Vec<u8>) -> Segment {
         Segment { addr, bytes }
@@ -100,23 +99,19 @@ impl Binary {
 
     fn priv_from_buf(name: &str, bytes: &[u8]) -> Result<Binary, Box<dyn Error>> {
         match goblin::Object::parse(&bytes)? {
-            goblin::Object::Elf(elf) => {
-                Binary::from_elf(name, &bytes, &elf)
-            }
-            goblin::Object::PE(pe) => {
-                Binary::from_pe(name, &bytes, &pe)
-            }
-            goblin::Object::Unknown(_) => {
-                Ok(Binary::from_raw(name, bytes))
-            }
-            _ => {
-                Err("Unsupported file format!".into())
-            }
+            goblin::Object::Elf(elf) => Binary::from_elf(name, &bytes, &elf),
+            goblin::Object::PE(pe) => Binary::from_pe(name, &bytes, &pe),
+            goblin::Object::Unknown(_) => Ok(Binary::from_raw(name, bytes)),
+            _ => Err("Unsupported file format!".into()),
         }
     }
 
     // ELF file -> Binary
-    fn from_elf(name: &str, bytes: &[u8], elf: &goblin::elf::Elf) -> Result<Binary, Box<dyn Error>> {
+    fn from_elf(
+        name: &str,
+        bytes: &[u8],
+        elf: &goblin::elf::Elf,
+    ) -> Result<Binary, Box<dyn Error>> {
         let mut bin = Binary::priv_new();
 
         bin.name = name.to_string();
@@ -125,28 +120,26 @@ impl Binary {
 
         // Architecture
         bin.arch = match elf.header.e_machine {
-            goblin::elf::header::EM_X86_64 => {
-                Arch::X64
-            }, goblin::elf::header::EM_386 => {
-                Arch::X86
-            },
+            goblin::elf::header::EM_X86_64 => Arch::X64,
+            goblin::elf::header::EM_386 => Arch::X86,
             _ => {
                 return Err("Unsupported architecture!".into());
             }
         };
 
         // Executable segments
-        for prog_hdr in elf.program_headers.iter().filter(|&p| (p.p_flags & goblin::elf::program_header::PF_X) != 0) {
-
+        for prog_hdr in elf
+            .program_headers
+            .iter()
+            .filter(|&p| (p.p_flags & goblin::elf::program_header::PF_X) != 0)
+        {
             let start_offset = prog_hdr.p_offset as usize;
             let end_offset = start_offset + prog_hdr.p_filesz as usize;
 
-            bin.segments.insert(
-                Segment::new(
-                    prog_hdr.p_vaddr,
-                    bytes[start_offset..end_offset].to_vec(),
-                )
-            );
+            bin.segments.insert(Segment::new(
+                prog_hdr.p_vaddr,
+                bytes[start_offset..end_offset].to_vec(),
+            ));
         }
 
         bin.remove_sub_segs();
@@ -163,29 +156,24 @@ impl Binary {
 
         // Architecture
         bin.arch = match pe.header.coff_header.machine {
-            goblin::pe::header::COFF_MACHINE_X86_64 => {
-                Arch::X64
-            }, goblin::pe::header::COFF_MACHINE_X86 => {
-                Arch::X86
-            },
+            goblin::pe::header::COFF_MACHINE_X86_64 => Arch::X64,
+            goblin::pe::header::COFF_MACHINE_X86 => Arch::X86,
             _ => {
                 return Err("Unsupported architecture!".into());
             }
         };
 
         // Executable segments
-        for sec_tab in pe.sections.iter()
-            .filter(|&p| (p.characteristics & goblin::pe::section_table::IMAGE_SCN_MEM_EXECUTE) != 0) {
-
+        for sec_tab in pe.sections.iter().filter(|&p| {
+            (p.characteristics & goblin::pe::section_table::IMAGE_SCN_MEM_EXECUTE) != 0
+        }) {
             let start_offset = sec_tab.pointer_to_raw_data as usize;
             let end_offset = start_offset + sec_tab.size_of_raw_data as usize;
 
-            bin.segments.insert(
-                Segment::new(
-                    sec_tab.virtual_address as u64 + pe.image_base as u64,
-                    bytes[start_offset..end_offset].to_vec(),
-                )
-            );
+            bin.segments.insert(Segment::new(
+                sec_tab.virtual_address as u64 + pe.image_base as u64,
+                bytes[start_offset..end_offset].to_vec(),
+            ));
         }
 
         bin.remove_sub_segs();
@@ -200,12 +188,7 @@ impl Binary {
         bin.entry = 0;
         bin.format = Format::Raw;
 
-        bin.segments.insert(
-            Segment::new(
-                0,
-                bytes[..].to_vec()
-            )
-        );
+        bin.segments.insert(Segment::new(0, bytes[..].to_vec()));
 
         bin
     }
@@ -216,7 +199,9 @@ impl Binary {
         let mut sub_segs = Vec::new();
 
         for seg in &self.segments {
-            let mut local_sub_segs = self.segments.iter()
+            let mut local_sub_segs = self
+                .segments
+                .iter()
                 .cloned()
                 .filter(|s| (s.addr == seg.addr) && (s.bytes.len() < seg.bytes.len()))
                 .collect();
@@ -233,12 +218,16 @@ impl Binary {
 // Summary print
 impl fmt::Display for Binary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\'{}\': {:?}-{:?}, entry 0x{:016x}, {}/{} executable bytes/segments",
+        write!(
+            f,
+            "\'{}\': {:?}-{:?}, entry 0x{:016x}, {}/{} executable bytes/segments",
             self.name,
             self.format,
             self.arch,
             self.entry,
-            self.segments.iter().fold(0, | bytes, seg | bytes + seg.bytes.len()),
+            self.segments
+                .iter()
+                .fold(0, |bytes, seg| bytes + seg.bytes.len()),
             self.segments.len(),
         )
     }

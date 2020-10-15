@@ -1,7 +1,7 @@
-use std::error::Error;
-use std::collections::{BTreeMap, BTreeSet};
-use std::hash::{Hash, Hasher};
 use std::cmp::Ordering;
+use std::collections::{BTreeMap, BTreeSet};
+use std::error::Error;
+use std::hash::{Hash, Hasher};
 
 use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -30,36 +30,47 @@ bitflags! {
 pub const MAX_INSTR_BYTE_CNT: usize = 15;
 
 // https://c9x.me/x86/html/file_module_x86_id_147.html
-pub const JMP_CALL_ABS: u8 = 0xff;   /// call r/m16, call r/m32, jmp r/m16, jmp r/m32
+/// call r/m16, call r/m32, jmp r/m16, jmp r/m32
+pub const JMP_CALL_ABS: u8 = 0xff;
 
 // https://c9x.me/x86/html/file_module_x86_id_313.html
+/// sysenter first opcode (0x0f 0x34)
 pub const SYSENTER: u8 = 0x0f;
+/// int opcode (non-imm8)
 pub const INT: u8 = 0xcd;
 
 // https://c9x.me/x86/html/file_module_x86_id_280.html
-pub const RET_NEAR: u8 = 0xc3;      /// ret
-pub const RET_FAR: u8 = 0xcb;       /// ret far
-pub const RET_NEAR_IMM: u8 = 0xc2;  /// ret imm16
-pub const RET_FAR_IMM: u8 = 0xca;   /// ret far imm16
+/// ret
+pub const RET_NEAR: u8 = 0xc3;
+/// ret far
+pub const RET_FAR: u8 = 0xcb;
+/// ret imm16
+pub const RET_NEAR_IMM: u8 = 0xc2;
+/// ret far imm16
+pub const RET_FAR_IMM: u8 = 0xca;
 
 /// ret {far}
+#[rustfmt::skip]
 pub const CDECL_RET_OPCODES: &[u8] = &[
     RET_NEAR,
     RET_FAR,
 ];
 
 /// ret {far} imm16
+#[rustfmt::skip]
 pub const IMM16_RET_OPCODES: &[u8] = &[
     RET_NEAR_IMM,
     RET_FAR_IMM,
 ];
 
 /// call r/m16, call r/m32, jmp r/m16, jmp r/m32
+#[rustfmt::skip]
 pub const JOP_OPCODES: &[u8] = &[
     JMP_CALL_ABS,
 ];
 
 /// sysenter, int imm8
+#[rustfmt::skip]
 pub const SYSCALL_OPCODES: &[u8] = &[
     SYSENTER,
     INT,
@@ -74,11 +85,10 @@ pub const SYSCALL_OPCODES: &[u8] = &[
 pub struct Gadget<'a> {
     pub instrs: Vec<zydis::DecodedInstruction>,
     pub full_matches: BTreeSet<u64>,
-    pub partial_matches: BTreeMap<u64, Vec<&'a binary::Binary>>
+    pub partial_matches: BTreeMap<u64, Vec<&'a binary::Binary>>,
 }
 
 impl<'a> Gadget<'a> {
-
     /// Assumes instructions are correctly sorted, address guaranteed to be sorted
     pub fn new(instrs: Vec<zydis::DecodedInstruction>, full_matches: BTreeSet<u64>) -> Gadget<'a> {
         Gadget {
@@ -165,7 +175,6 @@ impl Hash for Gadget<'_> {
 
 /// Return opcodes relevant to requested search
 pub fn get_flow_opcodes(s_config: SearchConfig) -> Vec<u8> {
-
     let mut flow_op_codes = Vec::new();
 
     if s_config.intersects(SearchConfig::ROP) {
@@ -191,12 +200,12 @@ pub fn get_flow_opcodes(s_config: SearchConfig) -> Vec<u8> {
 pub fn find_gadgets<'a>(
     bins: &'a [binary::Binary],
     max_len: usize,
-    s_config: SearchConfig
+    s_config: SearchConfig,
 ) -> Result<Vec<Gadget<'a>>, Box<dyn Error>> {
-
     // Process binaries in parallel
     let decoders = get_all_decoders(&bins)?;
-    let parallel_results: Vec<(&binary::Binary, FxHashSet<Gadget>)> = bins.par_iter()
+    let parallel_results: Vec<(&binary::Binary, FxHashSet<Gadget>)> = bins
+        .par_iter()
         .zip(decoders)
         .map(|(bin, dec)| (bin, find_gadgets_single_bin(bin, &dec, max_len, s_config)))
         .collect();
@@ -204,12 +213,10 @@ pub fn find_gadgets<'a>(
     // Filter to cross-variant gadgets
     match parallel_results.split_first() {
         Some((first_result, remaining_results)) => {
-
             let (first_bin, first_set) = first_result;
             let mut common_gadgets = first_set.clone();
 
             for (next_bin, next_set) in remaining_results {
-
                 // Filter common gadgets (set intersection)
                 common_gadgets.retain(|g| next_set.contains(&g));
 
@@ -219,9 +226,10 @@ pub fn find_gadgets<'a>(
                 for common_g in common_gadgets {
                     match next_set.get(&common_g) {
                         Some(next_set_g) => {
-
                             // Full matches
-                            let full_matches: BTreeSet<_> = common_g.full_matches.intersection(&next_set_g.full_matches)
+                            let full_matches: BTreeSet<_> = common_g
+                                .full_matches
+                                .intersection(&next_set_g.full_matches)
                                 .cloned()
                                 .collect();
 
@@ -235,7 +243,6 @@ pub fn find_gadgets<'a>(
 
                             // Partial matches (optional)
                             if s_config.intersects(SearchConfig::PART) {
-
                                 for addr in &common_g.full_matches {
                                     updated_g.partial_matches.insert(*addr, vec![first_bin]);
                                 }
@@ -244,22 +251,23 @@ pub fn find_gadgets<'a>(
                                     match updated_g.partial_matches.get_mut(&addr) {
                                         Some(bin_ref_vec) => bin_ref_vec.push(*next_bin),
                                         // TODO: Replace with unwrap_none() once on stable
-                                        _ => { updated_g.partial_matches.insert(*addr, vec![next_bin]); }
+                                        _ => {
+                                            updated_g.partial_matches.insert(*addr, vec![next_bin]);
+                                        }
                                     }
                                 }
                             }
 
                             temp_gadgets.insert(updated_g);
-                        },
+                        }
                         None => return Err("Fatal gadget comparison logic bug!".into()),
                     }
                 }
                 common_gadgets = temp_gadgets;
-
             }
             Ok(common_gadgets.into_iter().collect())
-        },
-        _ => Err("No binaries to search!".into())
+        }
+        _ => Err("No binaries to search!".into()),
     }
 }
 
@@ -278,10 +286,21 @@ struct DecodeConfig<'a> {
 // Get Zydis decoder for binary
 fn get_decoder(bin: &binary::Binary) -> Result<zydis::Decoder, Box<dyn Error>> {
     let (machine_mode, addr_width) = match &bin.arch {
-        binary::Arch::X8086 => (zydis::enums::MachineMode::LONG_COMPAT_16, zydis::enums::AddressWidth::_16),
-        binary::Arch::X86 => (zydis::enums::MachineMode::LONG_COMPAT_32, zydis::enums::AddressWidth::_32),
-        binary::Arch::X64 => (zydis::enums::MachineMode::LONG_64, zydis::enums::AddressWidth::_64),
-        _ => return Err(format!("Cannot init decoder for architecture \'{:?}\'!", bin.arch).into())
+        binary::Arch::X8086 => (
+            zydis::enums::MachineMode::LONG_COMPAT_16,
+            zydis::enums::AddressWidth::_16,
+        ),
+        binary::Arch::X86 => (
+            zydis::enums::MachineMode::LONG_COMPAT_32,
+            zydis::enums::AddressWidth::_32,
+        ),
+        binary::Arch::X64 => (
+            zydis::enums::MachineMode::LONG_64,
+            zydis::enums::AddressWidth::_64,
+        ),
+        _ => {
+            return Err(format!("Cannot init decoder for architecture \'{:?}\'!", bin.arch).into())
+        }
     };
 
     let decoder = zydis::Decoder::new(machine_mode, addr_width)?;
@@ -290,8 +309,8 @@ fn get_decoder(bin: &binary::Binary) -> Result<zydis::Decoder, Box<dyn Error>> {
 
 // Get decoders for a list of binaries, any single failure -> all fail
 fn get_all_decoders(bins: &[binary::Binary]) -> Result<Vec<zydis::Decoder>, Box<dyn Error>> {
-
-    let (decoders, errors): (Vec<_>, Vec<_>) = bins.iter()
+    let (decoders, errors): (Vec<_>, Vec<_>) = bins
+        .iter()
         .map(|bin| get_decoder(bin))
         .partition(Result::is_ok);
 
@@ -310,9 +329,9 @@ fn get_decode_config<'a>(
     bin: &'a binary::Binary,
     seg: &'a binary::Segment,
     decoder: &'a zydis::Decoder,
-    flow_op_idx: usize, max_len: usize
+    flow_op_idx: usize,
+    max_len: usize,
 ) -> DecodeConfig<'a> {
-
     let mut stop_idx = 0;
 
     // Optional early stop
@@ -327,17 +346,19 @@ fn get_decode_config<'a>(
         decoder,
         stop_idx,
         flow_op_idx,
-        max_len
+        max_len,
     }
 }
 
 /// Iterative search backwards from instance of ret opcode
 fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<zydis::DecodedInstruction>, u64)> {
-
     let mut instr_sequences = Vec::new();
 
     // Early termination if no viable gadget tail, don't waste time on iterative decode backwards
-    match d_config.decoder.decode(&d_config.seg.bytes[d_config.flow_op_idx..]) {
+    match d_config
+        .decoder
+        .decode(&d_config.seg.bytes[d_config.flow_op_idx..])
+    {
         Err(_) => return instr_sequences,
         Ok(opt) => match opt {
             None => return instr_sequences,
@@ -346,7 +367,7 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<zydis::DecodedInstructi
                     return instr_sequences;
                 }
             }
-        }
+        },
     }
 
     for offset in (d_config.stop_idx..=d_config.flow_op_idx).rev() {
@@ -356,16 +377,18 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<zydis::DecodedInstructi
 
         // Zydis iterator implements early decode stop on invalid instruction
         // https://docs.rs/zydis/3.0.0/zydis/ffi/struct.Decoder.html#method.instruction_iterator
-        for (i, pc) in d_config.decoder.instruction_iterator(&d_config.seg.bytes[offset..], buf_start_addr) {
-
+        for (i, pc) in d_config
+            .decoder
+            .instruction_iterator(&d_config.seg.bytes[offset..], buf_start_addr)
+        {
             // Early decode stop if control flow doesn't reach ret opcode
             let gadget_tail = semantics::is_gadget_tail(&i);
-            if  (pc > flow_op_addr)
+            if (pc > flow_op_addr)
                 || ((pc != flow_op_addr) && gadget_tail)
                 || (semantics::is_call(&i) && !gadget_tail)
                 || (semantics::is_jmp(&i) && !gadget_tail)
-                || semantics::is_int(&i) {
-
+                || semantics::is_int(&i)
+            {
                 break;
             }
 
@@ -379,7 +402,6 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<zydis::DecodedInstructi
 
         // Find gadgets. Awww yisss.
         if let Some(i) = instrs.last() {
-
             // ROP
             if (semantics::is_ret(&i) && (instrs.len() > 1))
 
@@ -391,9 +413,9 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<zydis::DecodedInstructi
 
                 // SYS
                 || (semantics::is_syscall(&i)
-                    || (semantics::is_legacy_linux_syscall(&i) && (d_config.bin.format == binary::Format::ELF))) {
-
-                    instr_sequences.push((instrs, buf_start_addr));
+                    || (semantics::is_legacy_linux_syscall(&i) && (d_config.bin.format == binary::Format::ELF)))
+            {
+                instr_sequences.push((instrs, buf_start_addr));
             }
         }
     }
@@ -406,18 +428,18 @@ fn find_gadgets_single_bin<'a>(
     bin: &'a binary::Binary,
     decoder: &zydis::Decoder,
     max_len: usize,
-    config: SearchConfig
+    config: SearchConfig,
 ) -> FxHashSet<Gadget<'a>> {
-
-    let mut gadget_collector: FxHashMap<Vec<zydis::DecodedInstruction>, BTreeSet<u64>> = FxHashMap::default();
+    let mut gadget_collector: FxHashMap<Vec<zydis::DecodedInstruction>, BTreeSet<u64>> =
+        FxHashMap::default();
     let flow_op_codes = get_flow_opcodes(config);
 
     for seg in &bin.segments {
-
         let flow_op_idxs = seg.get_matching_offsets(&flow_op_codes);
 
         // Parallel search. Only dissemble offsets from existing ret opcodes (e.g. not entire segments)
-        let parallel_results: Vec<(Vec<zydis::DecodedInstruction>, u64)> = flow_op_idxs.par_iter()
+        let parallel_results: Vec<(Vec<zydis::DecodedInstruction>, u64)> = flow_op_idxs
+            .par_iter()
             .filter(|&offset| *offset != 0)
             .map(|&flow_op_idx| get_decode_config(bin, seg, decoder, flow_op_idx, max_len))
             .flat_map(|config| iterative_decode(&config))
@@ -428,7 +450,7 @@ fn find_gadgets_single_bin<'a>(
             match gadget_collector.get_mut(&instrs) {
                 Some(addrs) => {
                     addrs.insert(addr);
-                },
+                }
                 _ => {
                     let mut addrs = BTreeSet::new();
                     addrs.insert(addr);
@@ -439,7 +461,8 @@ fn find_gadgets_single_bin<'a>(
     }
 
     // Finalize parallel results
-    gadget_collector.into_iter()
+    gadget_collector
+        .into_iter()
         .map(|(instrs, addrs)| Gadget::new(instrs, addrs))
         .collect()
 }

@@ -1,12 +1,12 @@
-use std::error::Error;
 use std::any::Any;
+use std::collections::BTreeMap;
+use std::error::Error;
 use std::fmt::Write;
-use std::collections::{BTreeMap};
 
 use colored::Colorize;
 
-use crate::gadget;
 use crate::binary;
+use crate::gadget;
 
 // Public API ----------------------------------------------------------------------------------------------------------
 
@@ -14,9 +14,8 @@ use crate::binary;
 pub fn str_fmt_gadgets(
     gadgets: &[gadget::Gadget],
     att_syntax: bool,
-    color: bool
+    color: bool,
 ) -> Result<Vec<(String, String)>, Box<dyn Error>> {
-
     const BACKING_BUF_LEN: usize = 200;
     let mut backing_buf = [0_u8; BACKING_BUF_LEN];
     let mut format_buf = zydis::OutputBuffer::new(&mut backing_buf[..]);
@@ -34,7 +33,6 @@ pub fn str_fmt_gadgets(
     }
 
     for g in gadgets {
-
         let mut instr_str = String::new();
         let mut addrs_str = String::new();
 
@@ -51,7 +49,10 @@ pub fn str_fmt_gadgets(
         // Full match address
         if let Some(lowest_addr) = g.full_matches.iter().collect::<Vec<&u64>>().get(0) {
             if color {
-                addrs_str.push_str(&format!("[ {} ]", format!("0x{:016x}", lowest_addr).green()));
+                addrs_str.push_str(&format!(
+                    "[ {} ]",
+                    format!("0x{:016x}", lowest_addr).green()
+                ));
             } else {
                 addrs_str.push_str(&format!("[ 0x{:016x} ]", lowest_addr));
             }
@@ -79,10 +80,12 @@ pub fn str_fmt_gadgets(
 // Print time ............................. 147.605491848s
 //
 /// Print partial matches for a given gadget
-pub fn str_fmt_partial_matches(partial_matches: &BTreeMap<u64, Vec<&binary::Binary>>, color: bool) -> Option<String> {
-
-    if let Some((mut addr_largest_subset, mut bins_largest_subset)) = partial_matches.iter().next() {
-
+pub fn str_fmt_partial_matches(
+    partial_matches: &BTreeMap<u64, Vec<&binary::Binary>>,
+    color: bool,
+) -> Option<String> {
+    if let Some((mut addr_largest_subset, mut bins_largest_subset)) = partial_matches.iter().next()
+    {
         let mut match_str = String::new();
 
         // Find largest subset of binaries with match for a given address
@@ -100,7 +103,10 @@ pub fn str_fmt_partial_matches(partial_matches: &BTreeMap<u64, Vec<&binary::Bina
             }
             match_str.push_str(&format!("'{}': ", last_bin.name));
             if color {
-                match_str.push_str(&format!("{}", format!("0x{:016x}", addr_largest_subset).green()));
+                match_str.push_str(&format!(
+                    "{}",
+                    format!("0x{:016x}", addr_largest_subset).green()
+                ));
             } else {
                 match_str.push_str(&format!("0x{:016x}", addr_largest_subset));
             }
@@ -129,9 +135,9 @@ pub fn str_fmt_partial_matches(partial_matches: &BTreeMap<u64, Vec<&binary::Bina
             Some(remaining_match_str) => {
                 match_str.push_str(", ");
                 match_str.push_str(&remaining_match_str);
-                return Some(match_str)
-            },
-            None => return Some(match_str)
+                return Some(match_str);
+            }
+            None => return Some(match_str),
         }
     }
 
@@ -147,7 +153,6 @@ fn color_mnemonic_callback(
     ctx: &mut zydis::FormatterContext,
     _user_data: Option<&mut dyn Any>,
 ) -> Result<(), zydis::Status> {
-
     let instr = unsafe { &*ctx.instruction }; // Unsafe necessary due to Zydis CFFI
     buffer.append(zydis::TOKEN_MNEMONIC)?;
     let out_str = buffer.get_string()?;
@@ -165,13 +170,12 @@ fn color_reg_callback(
     reg: zydis::enums::Register,
     _user_data: Option<&mut dyn Any>,
 ) -> Result<(), zydis::Status> {
-
     buffer.append(zydis::TOKEN_REGISTER)?;
     let out_str = buffer.get_string()?;
     let reg_str = reg.get_string().ok_or(zydis::Status::User)?;
     let reg_str_colored = match reg {
-        zydis::Register::RSP | zydis::Register::ESP |zydis::Register::SP => reg_str.red(),
-        _ => reg_str.yellow()
+        zydis::Register::RSP | zydis::Register::ESP | zydis::Register::SP => reg_str.red(),
+        _ => reg_str.yellow(),
     };
 
     // TOOD: Without leading byte in format string, this panics...why?

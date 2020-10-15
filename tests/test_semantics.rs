@@ -2,13 +2,15 @@ use std::collections::BTreeSet;
 
 use rustc_hash::FxHashSet;
 
-
 mod test_utils;
 
 #[test]
 fn test_rop_semantics() {
-
-    let decoder = zydis::Decoder::new(zydis::enums::MachineMode::LONG_64, zydis::enums::AddressWidth::_64).unwrap();
+    let decoder = zydis::Decoder::new(
+        zydis::enums::MachineMode::LONG_64,
+        zydis::enums::AddressWidth::_64,
+    )
+    .unwrap();
 
     // ROP
     let ret: [u8; 1] = [0xc3];
@@ -35,8 +37,11 @@ fn test_rop_semantics() {
 
 #[test]
 fn test_jop_semantics() {
-
-    let decoder = zydis::Decoder::new(zydis::enums::MachineMode::LONG_64, zydis::enums::AddressWidth::_64).unwrap();
+    let decoder = zydis::Decoder::new(
+        zydis::enums::MachineMode::LONG_64,
+        zydis::enums::AddressWidth::_64,
+    )
+    .unwrap();
 
     // JOP
     let jmp_rax: [u8; 2] = [0xff, 0xe0];
@@ -101,7 +106,11 @@ fn test_jop_semantics() {
 
 #[test]
 fn test_sys_semantics() {
-    let decoder = zydis::Decoder::new(zydis::enums::MachineMode::LONG_64, zydis::enums::AddressWidth::_64).unwrap();
+    let decoder = zydis::Decoder::new(
+        zydis::enums::MachineMode::LONG_64,
+        zydis::enums::AddressWidth::_64,
+    )
+    .unwrap();
 
     // SYSCALL
     let syscall: [u8; 2] = [0x0f, 0x05];
@@ -137,7 +146,11 @@ fn test_gadget_hasher() {
     let jmp_rax: [u8; 2] = [0xff, 0xe0];
     let jmp_rax_deref: [u8; 2] = [0xff, 0x20];
 
-    let decoder = zydis::Decoder::new(zydis::enums::MachineMode::LONG_64, zydis::enums::AddressWidth::_64).unwrap();
+    let decoder = zydis::Decoder::new(
+        zydis::enums::MachineMode::LONG_64,
+        zydis::enums::AddressWidth::_64,
+    )
+    .unwrap();
     let jmp_rax_instr = decoder.decode(&jmp_rax).unwrap().unwrap();
     let jmp_rax_deref_instr = decoder.decode(&jmp_rax_deref).unwrap().unwrap();
     let pop_r15_instr = decoder.decode(&pop_r15).unwrap().unwrap();
@@ -149,22 +162,43 @@ fn test_gadget_hasher() {
     addr_2.insert(1);
 
     // Different instructions, different address - custom hash mismatch
-    let g1 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_instr.clone()], addr_1.clone());
-    let g2 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_deref_instr.clone()], addr_2.clone());
+    let g1 = xgadget::Gadget::new(
+        vec![pop_r15_instr.clone(), jmp_rax_instr.clone()],
+        addr_1.clone(),
+    );
+    let g2 = xgadget::Gadget::new(
+        vec![pop_r15_instr.clone(), jmp_rax_deref_instr.clone()],
+        addr_2.clone(),
+    );
     assert!(test_utils::hash(&g1) != test_utils::hash(&g2));
 
     // Different instructions, same address - custom hash mismatch
-    let g1 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_instr.clone()], addr_1.clone());
-    let g2 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_deref_instr.clone()], addr_1.clone());
+    let g1 = xgadget::Gadget::new(
+        vec![pop_r15_instr.clone(), jmp_rax_instr.clone()],
+        addr_1.clone(),
+    );
+    let g2 = xgadget::Gadget::new(
+        vec![pop_r15_instr.clone(), jmp_rax_deref_instr.clone()],
+        addr_1.clone(),
+    );
     assert!(test_utils::hash(&g1) != test_utils::hash(&g2));
 
     // Same instructions, same address - custom hash match
-    let g1 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_instr.clone()], addr_1.clone());
-    let g2 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_instr.clone()], addr_1.clone());
+    let g1 = xgadget::Gadget::new(
+        vec![pop_r15_instr.clone(), jmp_rax_instr.clone()],
+        addr_1.clone(),
+    );
+    let g2 = xgadget::Gadget::new(
+        vec![pop_r15_instr.clone(), jmp_rax_instr.clone()],
+        addr_1.clone(),
+    );
     assert!(test_utils::hash(&g1) == test_utils::hash(&g2));
 
     // Same instructions, different address - custom hash match
-    let g1 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_instr.clone()], addr_1.clone());
+    let g1 = xgadget::Gadget::new(
+        vec![pop_r15_instr.clone(), jmp_rax_instr.clone()],
+        addr_1.clone(),
+    );
     let g2 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_instr.clone()], addr_2);
     assert!(test_utils::hash(&g1) == test_utils::hash(&g2));
 
@@ -178,7 +212,7 @@ fn test_gadget_hasher() {
     let mut g_set_2 = FxHashSet::default();
     g_set_2.insert(g1.clone());
 
-    let g_set_intersect: FxHashSet<_>= g_set_1.intersection(&g_set_2).collect();
+    let g_set_intersect: FxHashSet<_> = g_set_1.intersection(&g_set_2).collect();
     assert!(g_set_intersect.contains(&g1));
     assert!(!g_set_intersect.contains(&g2));
 }

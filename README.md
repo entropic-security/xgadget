@@ -96,8 +96,8 @@ ARGS:
 Build from source and install locally:
 
 ```bash
-sudo apt-get install cmake  # Ubuntu-specific, adjust for your package manager
-cargo install xgadget       # Build on host (pre-req: https://www.rust-lang.org/tools/install)
+sudo apt-get install cmake                  # Ubuntu-specific, adjust for your package manager
+cargo install --features cli-bin xgadget    # Build on host (pre-req: https://www.rust-lang.org/tools/install)
 ```
 
 ### CLI Binary Releases for Linux
