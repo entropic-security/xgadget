@@ -23,13 +23,6 @@ lazy_static! {
     static ref VERSION_STR: String = format!("v{}", structopt::clap::crate_version!());
 }
 
-lazy_static! {
-    static ref TERM_WIDTH: usize = match term_size::dimensions() {
-        Some((w, _)) => w,
-        None => 0,
-    };
-}
-
 #[derive(StructOpt, Debug)]
 #[structopt(name = "xgadget", version = VERSION_STR.as_str(), about = ABOUT_STR.as_str())]
 struct CLIOpts {
@@ -136,24 +129,27 @@ impl CLIOpts {
         search_config
     }
 
-    // TODO: flag -e, --extended-fmt
     // If partial match, addr(s) right of instr(s), else addr left of instr(s)
-    fn fmt_gadget_output(&self, addrs: String, instrs: String) -> String {
+    fn fmt_gadget_output(&self, addrs: String, instrs: String, term_width: usize) -> String {
         let mut output;
         let plaintext_instrs_len = strip_ansi_escapes::strip(&instrs).unwrap().len();
         let plaintext_addrs_len = strip_ansi_escapes::strip(&addrs).unwrap().len();
         let content_len = plaintext_instrs_len + plaintext_addrs_len;
-        let term_width = *TERM_WIDTH;
 
         if self.extended_fmt || self.partial_match {
-            output = format!("{}", instrs);
+            output = instrs.to_string();
 
             if term_width > content_len {
                 let padding = (0..(term_width - 1 - content_len))
                     .map(|_| "-")
                     .collect::<String>();
-                output.push_str(&format!("{}", padding.bright_magenta()));
-                //output.push_str(&padding.bright_magenta()); // TODO: why doesn't this color, bug?
+
+                if self.no_color {
+                    output.push_str(&padding);
+                } else {
+                    output.push_str(&format!("{}", padding.bright_magenta()));
+                    //output.push_str(&padding.bright_magenta()); // TODO: why doesn't this color, bug?
+                }
             }
 
             output.push_str(&format!(" {}", addrs));
@@ -164,17 +160,17 @@ impl CLIOpts {
 
         output
     }
-}
 
-impl std::fmt::Display for CLIOpts {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let header = |s: String| {
+    // Helper for summary print
+    fn fmt_summary_item(&self, item: String, is_hdr: bool) -> colored::ColoredString {
+        let hdr = |s: String| {
             if self.no_color {
                 s.trim().normal()
             } else {
                 s.trim().bright_magenta()
             }
         };
+
         let param = |s: String| {
             if self.no_color {
                 s.trim().normal()
@@ -183,10 +179,19 @@ impl std::fmt::Display for CLIOpts {
             }
         };
 
+        match is_hdr {
+            true => hdr(item),
+            false => param(item),
+        }
+    }
+}
+
+impl std::fmt::Display for CLIOpts {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "{} [ search: {}, x_match: {}, max_len: {}, syntax: {}, regex_filter: {} ]",
-            { header("SUMMARY".to_string()) },
+            { self.fmt_summary_item("CONFIG".to_string(), true) },
             {
                 let mut search_mode = String::from("");
                 if self.rop {
@@ -211,7 +216,7 @@ impl std::fmt::Display for CLIOpts {
                     search_mode = String::from("ROP-JOP-SYS (default)")
                 };
 
-                param(search_mode)
+                self.fmt_summary_item(search_mode, false)
             },
             {
                 let x_match = if self.bin_paths.len() == 1 {
@@ -222,13 +227,13 @@ impl std::fmt::Display for CLIOpts {
                     "full"
                 };
 
-                param(x_match.to_string())
+                self.fmt_summary_item(x_match.to_string(), false)
             },
-            { param(format!("{}", self.max_len)) },
+            { self.fmt_summary_item(format!("{}", self.max_len), false) },
             {
                 let syntax = if self.att { "AT&T" } else { "Intel" };
 
-                param(syntax.to_string())
+                self.fmt_summary_item(syntax.to_string(), false)
             },
             {
                 let regex = if self.usr_regex.is_some() {
@@ -237,7 +242,7 @@ impl std::fmt::Display for CLIOpts {
                     String::from("none")
                 };
 
-                param(regex)
+                self.fmt_summary_item(regex, false)
             },
         )
     }
@@ -264,7 +269,11 @@ fn main() {
         .map(|path| xgadget::Binary::from_path_str(&path).unwrap())
         .map(|mut binary| {
             if binary.arch == xgadget::Arch::Unknown {
-                binary.arch = cli.arch
+                binary.arch = cli.arch;
+                assert!(
+                    binary.arch != xgadget::Arch::Unknown,
+                    "Please set \'--arch\' to \'x8086\' (16-bit), \'x86\' (32-bit), or \'x64\' (64-bit)"
+                );
             }
             binary
         })
@@ -277,7 +286,6 @@ fn main() {
     // Search ----------------------------------------------------------------------------------------------------------
 
     let start_time = Instant::now();
-    // TO
     let mut gadgets = xgadget::find_gadgets(&bins, cli.max_len, cli.get_search_config()).unwrap();
 
     if cli.stack_pivot {
@@ -296,13 +304,18 @@ fn main() {
 
     // Print Gadgets ---------------------------------------------------------------------------------------------------
 
+    let term_width: usize = match term_size::dimensions() {
+        Some((w, _)) => w,
+        None => 0,
+    };
+
     println!();
     for (instrs, addrs) in xgadget::str_fmt_gadgets(&gadgets, cli.att, !cli.no_color).unwrap() {
         let plaintext_instrs_bytes = strip_ansi_escapes::strip(&instrs).unwrap();
         let plaintext_instrs_str = std::str::from_utf8(&plaintext_instrs_bytes).unwrap();
 
         if (cli.usr_regex.is_none()) || filter_regex.is_match(plaintext_instrs_str) {
-            println!("{}", cli.fmt_gadget_output(addrs, instrs));
+            println!("{}", cli.fmt_gadget_output(addrs, instrs, term_width));
             if cli.usr_regex.is_some() {
                 filter_matches += 1;
             }
@@ -311,30 +324,27 @@ fn main() {
 
     // Print Summary ---------------------------------------------------------------------------------------------------
 
-    // TODO: change format to match summary Display trait
     println!("\n{}", cli);
-    if bins.len() > 1 {
-        println!(
-            "{:.<40} {:?}",
-            "Unique cross-variant gadgets found ",
-            gadgets.len()
-        );
-    } else {
-        println!(
-            "{:.<40} {:?}",
-            "Unique gadgets found ",
-            if cli.usr_regex.is_some() {
-                filter_matches
-            } else {
-                gadgets.len()
-            }
-        );
-    }
-
-    println!("{:.<40} {:?}", "Search/filter time ", run_time);
     println!(
-        "{:.<40} {:?}",
-        "Print time ",
-        start_time.elapsed() - run_time
+        "{} [ {}: {}, search_time: {}, print_time: {} ]",
+        { cli.fmt_summary_item("RESULT".to_string(), true) },
+        {
+            if bins.len() > 1 {
+                "unique_x_variant_gadgets".to_string()
+            } else {
+                "unique_gadgets".to_string()
+            }
+        },
+        {
+            let found_cnt = if cli.usr_regex.is_some() {
+                filter_matches.to_string()
+            } else {
+                gadgets.len().to_string()
+            };
+
+            cli.fmt_summary_item(found_cnt, false)
+        },
+        { cli.fmt_summary_item(format!("{:?}", run_time), false) },
+        { cli.fmt_summary_item(format!("{:?}", start_time.elapsed() - run_time), false) }
     );
 }

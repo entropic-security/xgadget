@@ -10,23 +10,23 @@ jobs:
     name: Upload binary release
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Verify code formatting
-        uses: actions-rs/cargo@v1
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
         with:
-          command: fmt -- --check
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Check code format
+        run: cargo fmt -- --check
+
+      - name: Run all test
+        run: cargo test --all-features
 
       - name: Cargo dependencies security audit
         uses: actions-rs/audit-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test --all-features
 
       - name: Binary release
         run: cargo build --release --locked
