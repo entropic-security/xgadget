@@ -37,13 +37,9 @@ struct CLIOpts {
     #[structopt(required = true, min_values = 1, value_name = "FILE(S)")]
     bin_paths: Vec<String>,
 
-    /// For raw (no header) files: assume x86 (32-bit) [default: assumes x64 (64-bit)]
-    #[structopt(short, long)]
-    x86: bool,
-
-    /// For raw (no header) files: assume 8086 (16-bit) [default: assumes x64 (64-bit)]
-    #[structopt(short = "8", long = "8086", conflicts_with = "x86")]
-    x8086: bool,
+    /// For raw (no header) files: specify arch ('x8086', 'x86', or 'x64')
+    #[structopt(short, long, default_value = "x64", value_name = "ARCH")]
+    arch: xgadget::Arch,
 
     /// Display gadgets using AT&T syntax [default: Intel syntax]
     #[structopt(short = "t", long)]
@@ -52,6 +48,10 @@ struct CLIOpts {
     /// Don't color output, useful for UNIX piping [default: color output]
     #[structopt(short, long)]
     no_color: bool,
+
+    /// Print in terminal-wide format [default: only used for partial match search]
+    #[structopt(short, long)]
+    extended_fmt: bool,
 
     /// Gadgets up to LEN instrs long. If 0: all gadgets, any length
     #[structopt(
@@ -101,23 +101,6 @@ struct CLIOpts {
 }
 
 impl CLIOpts {
-    // TODO: switch to --arch flag and enum!
-    // User flag -> bin.arch for raw files (no headers)
-    fn set_arch_raw(&self, mut bin: xgadget::Binary) -> xgadget::Binary {
-        if bin.arch == xgadget::Arch::Unknown {
-            assert!(!(self.x8086 && self.x86));
-            if self.x8086 {
-                bin.arch = xgadget::Arch::X8086;
-            } else if self.x86 {
-                bin.arch = xgadget::Arch::X86;
-            } else {
-                bin.arch = xgadget::Arch::X64;
-            }
-        }
-
-        bin
-    }
-
     // User flags -> Search config bitfield
     fn get_search_config(&self) -> xgadget::SearchConfig {
         let mut search_config = xgadget::SearchConfig::DEFAULT;
@@ -162,7 +145,7 @@ impl CLIOpts {
         let content_len = plaintext_instrs_len + plaintext_addrs_len;
         let term_width = *TERM_WIDTH;
 
-        if self.partial_match {
+        if self.extended_fmt || self.partial_match {
             output = format!("{}", instrs);
 
             if term_width > content_len {
@@ -279,7 +262,12 @@ fn main() {
         .bin_paths
         .par_iter()
         .map(|path| xgadget::Binary::from_path_str(&path).unwrap())
-        .map(|binary| cli.set_arch_raw(binary))
+        .map(|mut binary| {
+            if binary.arch == xgadget::Arch::Unknown {
+                binary.arch = cli.arch
+            }
+            binary
+        })
         .collect();
 
     for (i, bin) in bins.iter().enumerate() {

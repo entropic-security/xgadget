@@ -10,7 +10,7 @@ repository = "https://github.com/entropic-security/xgadget"
 documentation = "https://docs.rs/xgadget"
 keywords = ["rop", "jop", "gadget", "x86", "x64"]
 categories = ["algorithms", "development-tools", "command-line-utilities"]
-description = "Fast, parallel, cross-variant ROP/JOP gadget search for 8086/x86/x64 binaries."
+description = "Fast, parallel, cross-variant ROP/JOP gadget search for x86/x64 binaries."
 include = [
     "**/*.rs",
     "**/*.md",
@@ -49,11 +49,6 @@ name = "xgadget"
 path = "src/lib.rs"
 
 [[bin]]
-name = "xgadget"
-path = "src/cli.rs"
-required-features = ["cli-bin"]
-
-[[test]]
 name = "xgadget"
 path = "src/cli.rs"
 required-features = ["cli-bin"]

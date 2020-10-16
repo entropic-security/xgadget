@@ -2,6 +2,7 @@ use std::error::Error;
 use std::fmt;
 use std::fs;
 use std::path::Path;
+use std::str::FromStr;
 
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
@@ -40,7 +41,7 @@ impl Segment {
 // Binary --------------------------------------------------------------------------------------------------------------
 
 /// File format
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Format {
     Unknown,
     ELF,
@@ -48,13 +49,41 @@ pub enum Format {
     Raw,
 }
 
+impl FromStr for Format {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "unknown" => Ok(Format::Unknown),
+            "elf" => Ok(Format::ELF),
+            "pe" => Ok(Format::PE),
+            "raw" => Ok(Format::Raw),
+            _ => Err("Could not parse format string to enum"),
+        }
+    }
+}
+
 /// Architecture
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Arch {
     Unknown,
     X8086,
     X86,
     X64,
+}
+
+impl FromStr for Arch {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "unknown" => Ok(Arch::Unknown),
+            "x8086" => Ok(Arch::X8086),
+            "x86" => Ok(Arch::X86),
+            "x64" => Ok(Arch::X64),
+            _ => Err("Could not parse architecture string to enum"),
+        }
+    }
 }
 
 /// File format agnostic binary

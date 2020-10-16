@@ -6,6 +6,7 @@ use tempfile::NamedTempFile;
 // Non-exhaustive Error Cases ------------------------------------------------------------------------------------------
 
 #[test]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_no_arg_err() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
@@ -18,6 +19,7 @@ fn test_no_arg_err() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_file_not_found_err() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
@@ -29,6 +31,7 @@ fn test_file_not_found_err() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_conflicting_flags_rop_jop() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
@@ -46,6 +49,7 @@ fn test_conflicting_flags_rop_jop() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_conflicting_flags_dispatcher_stack_set_reg() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
@@ -63,23 +67,7 @@ fn test_conflicting_flags_dispatcher_stack_set_reg() {
 }
 
 #[test]
-fn test_conflicting_flags_x86_8086() {
-    let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
-
-    xgadget_bin
-        .arg("/usr/bin/some_file_83bb57de34d8713f6e4940b4bdda4bea")
-        .arg("-8")
-        .arg("-x");
-
-    xgadget_bin
-        .assert()
-        .failure()
-        .stderr(predicate::str::contains(
-            "The argument '--x86' cannot be used with '--8086'",
-        ));
-}
-
-#[test]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_conflicting_flags_imm16_jop() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
@@ -99,6 +87,7 @@ fn test_conflicting_flags_imm16_jop() {
 // Non-exhaustive Success Cases ----------------------------------------------------------------------------------------
 
 #[test]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_raw() {
     #[rustfmt::skip]
     pub const ADJACENT_JMP_X64: &[u8] = &[
@@ -126,8 +115,9 @@ fn test_raw() {
         .stdout(predicate::str::contains("jmp rcx;"));
 }
 
-#[cfg(target_os = "linux")]
 #[test]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
+#[cfg(target_os = "linux")]
 fn test_single_bin() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
@@ -135,8 +125,9 @@ fn test_single_bin() {
     xgadget_bin.assert().success();
 }
 
-#[cfg(target_os = "linux")]
 #[test]
+#[cfg(target_os = "linux")]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_dual_bin() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
@@ -145,8 +136,9 @@ fn test_dual_bin() {
     xgadget_bin.assert().success();
 }
 
-#[cfg(target_os = "linux")]
 #[test]
+#[cfg(target_os = "linux")]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_triple_bin_with_arg() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
@@ -160,8 +152,9 @@ fn test_triple_bin_with_arg() {
     xgadget_bin.assert().success();
 }
 
-#[cfg(target_os = "linux")]
 #[test]
+#[cfg(target_os = "linux")]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_search_args() {
     let output_all = String::from_utf8(
         Command::cargo_bin("xgadget")
@@ -260,8 +253,9 @@ fn test_search_args() {
     assert!(output_rop_imm16.len() >= output_rop.len());
 }
 
-#[cfg(target_os = "linux")]
 #[test]
+#[cfg(target_os = "linux")]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_max_len() {
     let output_def_len = String::from_utf8(
         Command::cargo_bin("xgadget")
@@ -288,8 +282,9 @@ fn test_max_len() {
     assert!(output_100_len.len() >= output_def_len.len());
 }
 
-#[cfg(target_os = "linux")]
 #[test]
+#[cfg(target_os = "linux")]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_color_filter_line_count() {
     #[cfg(target_arch = "x86")]
     let reg_name = "eax";
@@ -327,8 +322,9 @@ fn test_color_filter_line_count() {
     assert!(output_color_line_cnt == output_no_color_line_cnt);
 }
 
-#[cfg(target_os = "linux")]
 #[test]
+#[cfg(target_os = "linux")]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_regex() {
     let pop_pop_ret_regex = String::from_utf8(
         Command::cargo_bin("xgadget")

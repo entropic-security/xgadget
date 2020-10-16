@@ -64,14 +64,16 @@ pub fn filter_stack_set_regs<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::
         .par_iter()
         .filter(|g| {
             if let Some((tail_instr, preceding_instrs)) = g.instrs.split_last() {
-                if semantics::is_ret(tail_instr) || semantics::is_jop_gadget_tail(tail_instr) {
+                if (semantics::is_ret(tail_instr) || semantics::is_jop_gadget_tail(tail_instr))
+                    && (!preceding_instrs.is_empty())
+                {
                     // Preceded exclusively by pop instrs
-                    if !preceding_instrs.is_empty()
-                        && (preceding_instrs.iter().all(|i| {
-                            i.mnemonic == zydis::enums::Mnemonic::POP
-                                && semantics::is_single_reg_write(i)
-                        }))
-                    {
+                    let pop_chain = preceding_instrs.iter().all(|i| {
+                        i.mnemonic == zydis::enums::Mnemonic::POP
+                            && semantics::is_single_reg_write(i)
+                    });
+
+                    if pop_chain {
                         return true;
                     }
                 }
