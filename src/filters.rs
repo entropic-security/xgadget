@@ -83,3 +83,15 @@ pub fn filter_stack_set_regs<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::
         .cloned()
         .collect()
 }
+
+/*
+TODO: implement
+/// Parallel filter to gadget's whose addresses don't contain specified bytes
+pub fn filter_bad_addr_bytes<'a>(gadgets: &[gadget::Gadget<'a>], bad_bytes: &[u8]) -> Vec<gadget::Gadget<'a>> {
+    gadgets
+        .par_iter()
+        .filter(|g| {
+
+        })
+}
+*/
