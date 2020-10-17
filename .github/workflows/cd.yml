@@ -29,7 +29,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build binary release
-        run: cargo build --release --locked
+        run: cargo build --features cli-bin --release --locked
 
       # TODO: troubleshoot static binaries
       #run: |
