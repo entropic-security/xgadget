@@ -55,14 +55,14 @@ fn test_conflicting_flags_dispatcher_stack_set_reg() {
 
     xgadget_bin
         .arg("/usr/bin/some_file_83bb57de34d8713f6e4940b4bdda4bea")
-        .arg("-c")
+        .arg("-w")
         .arg("-d");
 
     xgadget_bin
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "The argument '--dispatcher' cannot be used with '--reg-ctrl'",
+            "The argument '--dispatcher' cannot be used with '--reg-write'",
         ));
 }
 
@@ -148,6 +148,19 @@ fn test_triple_bin_with_arg() {
         .arg("/bin/cp")
         .arg("--att")
         .arg("-r");
+
+    xgadget_bin.assert().success();
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
+fn test_checksec() {
+    let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
+
+    xgadget_bin
+        .arg("/bin/cat")
+        .arg("-c");
 
     xgadget_bin.assert().success();
 }
@@ -320,6 +333,39 @@ fn test_color_filter_line_count() {
     let output_no_color_line_cnt = output_no_color.lines().count();
 
     assert!(output_color_line_cnt == output_no_color_line_cnt);
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
+fn test_extended_line_count() {
+
+    let output_default = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/bin/cat")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    let output_default_line_cnt = output_default.lines().count();
+
+    let output_extended = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/bin/cat")
+            .arg("-e")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    let output_extended_line_cnt = output_extended.lines().count();
+
+    assert!(output_default_line_cnt == output_extended_line_cnt);
 }
 
 #[test]

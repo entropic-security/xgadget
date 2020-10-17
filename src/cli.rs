@@ -1,9 +1,11 @@
 use std::time::Instant;
+use std::fs;
 
 use colored::Colorize;
 use rayon::prelude::*;
 use regex::Regex;
 use structopt::StructOpt;
+use goblin::Object;
 
 #[macro_use]
 extern crate lazy_static;
@@ -85,12 +87,20 @@ struct CLIOpts {
     dispatcher: bool,
 
     /// Filter to 'pop {reg} * 1+, {ret or ctrl-ed jmp/call}' gadgets [default: all gadgets]
-    #[structopt(short = "c", long, conflicts_with = "dispatcher")]
-    reg_ctrl: bool,
+    #[structopt(short = "w", long, conflicts_with = "dispatcher")]
+    reg_write: bool,
 
     /// Filter to gadgets matching a regular expression
     #[structopt(short = "f", long = "regex-filter", value_name = "EXPR")]
     usr_regex: Option<String>,
+
+    /// Run checksec on the 1+ binaries instead of gadget search
+    #[structopt(short, long, conflicts_with_all = &[
+        "arch", "att", "extended_fmt", "max_len",
+        "rop", "jop", "sys", "imm16", "partial_match",
+        "stack_pivot", "dispatcher", "reg_write", "usr_regex"
+    ])] // TODO: Custom short name (e.g. "-m" for "--partial-match" not tagged as conflict)
+    check_sec: bool,
 }
 
 impl CLIOpts {
@@ -131,14 +141,12 @@ impl CLIOpts {
 
     // If partial match, addr(s) right of instr(s), else addr left of instr(s)
     fn fmt_gadget_output(&self, addrs: String, instrs: String, term_width: usize) -> String {
-        let mut output;
         let plaintext_instrs_len = strip_ansi_escapes::strip(&instrs).unwrap().len();
         let plaintext_addrs_len = strip_ansi_escapes::strip(&addrs).unwrap().len();
         let content_len = plaintext_instrs_len + plaintext_addrs_len;
+        let mut output = instrs;
 
         if self.extended_fmt || self.partial_match {
-            output = instrs.to_string();
-
             if term_width > content_len {
                 let padding = (0..(term_width - 1 - content_len))
                     .map(|_| "-")
@@ -155,7 +163,7 @@ impl CLIOpts {
             output.push_str(&format!(" {}", addrs));
         } else {
             let addr_no_bracket = &addrs[1..(addrs.len() - 1)].trim();
-            output = format!("{}{} {}", addr_no_bracket, ":".bright_magenta(), instrs);
+            output = format!("{}{} {}", addr_no_bracket, ":".bright_magenta(), output);
         }
 
         output
@@ -184,6 +192,24 @@ impl CLIOpts {
             false => param(item),
         }
     }
+
+    // Helper function for running checksec on requested binaries
+    fn run_checksec(&self) {
+        for path in &self.bin_paths {
+            println!("\n{}:", self.fmt_summary_item(path.to_string(), false));
+            let buf = fs::read(path).unwrap();
+            match Object::parse(&buf).unwrap() {
+                Object::Elf(elf) => {
+                    println!("{:#?}", checksec::elf::ElfCheckSecResults::parse(&elf));
+                },
+                Object::PE(pe) => {
+                    let mm_buf = unsafe { memmap::Mmap::map(&fs::File::open(path).unwrap()).unwrap() };
+                    println!("{:#?}", checksec::pe::PECheckSecResults::parse(&pe, &mm_buf));
+                },
+                _ => panic!("Only ELF and PE checksec currently supported!")
+            }
+        }
+    }
 }
 
 impl std::fmt::Display for CLIOpts {
@@ -209,7 +235,7 @@ impl std::fmt::Display for CLIOpts {
                 if self.dispatcher {
                     search_mode = format!("{} {}", search_mode, "Dispatcher-only")
                 };
-                if self.reg_ctrl {
+                if self.reg_write {
                     search_mode = format!("{} {}", search_mode, "Register-control-only")
                 };
                 if search_mode.is_empty() {
@@ -260,6 +286,13 @@ fn main() {
         filter_regex = Regex::new(cli.usr_regex.clone().unwrap().trim()).unwrap();
     }
 
+    // Checksec requested ----------------------------------------------------------------------------------------------
+
+    if cli.check_sec {
+        cli.run_checksec();
+        std::process::exit(0);
+    }
+
     // Process 1+ files ------------------------------------------------------------------------------------------------
 
     // File paths -> Binaries
@@ -296,7 +329,7 @@ fn main() {
         gadgets = xgadget::filter_dispatcher(&gadgets);
     }
 
-    if cli.reg_ctrl {
+    if cli.reg_write {
         gadgets = xgadget::filter_stack_set_regs(&gadgets);
     }
 
