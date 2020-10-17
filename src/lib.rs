@@ -95,7 +95,7 @@
 //!
 //!```bash
 //!sudo apt-get install cmake                  # Ubuntu-specific, adjust for your package manager
-//!cargo install --features cli-bin xgadget    # Build on host (pre-req: https://www.rust-lang.org/tools/install)
+//!cargo install xgadget --features cli-bin    # Build on host (pre-req: https://www.rust-lang.org/tools/install)
 //!```
 //!
 //!### CLI Binary Releases for Linux
