@@ -158,9 +158,7 @@ fn test_triple_bin_with_arg() {
 fn test_checksec() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
-    xgadget_bin
-        .arg("/bin/cat")
-        .arg("-c");
+    xgadget_bin.arg("/bin/cat").arg("-c");
 
     xgadget_bin.assert().success();
 }
@@ -339,7 +337,6 @@ fn test_color_filter_line_count() {
 #[cfg(target_os = "linux")]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_extended_line_count() {
-
     let output_default = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()

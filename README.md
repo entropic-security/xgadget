@@ -51,7 +51,7 @@ let bin_1 = xgadget::Binary::from_path_str("/path/to/bin_v1").unwrap();
 let bin_2 = xgadget::Binary::from_path_str("/path/to/bin_v2").unwrap();
 let bins = vec![bin_1, bin_2];
 let cross_gadgets = xgadget::find_gadgets(&bins, max_gadget_len, search_config).unwrap();
-let cross_reg_ctrl_gadgets = xgadget::filter_stack_set_regs(&cross_gadgets);
+let cross_reg_write_gadgets = xgadget::filter_stack_set_regs(&cross_gadgets);
 ```
 
 ### CLI Usage
@@ -59,33 +59,34 @@ let cross_reg_ctrl_gadgets = xgadget::filter_stack_set_regs(&cross_gadgets);
 Run `xgadget --help`:
 
 ```
-xgadget v0.1.3
+xgadget v0.2.0
 
-About:  Fast, parallel, cross-variant ROP/JOP gadget search for 8086/x86/x64 binaries.
-CPUs:   8 logical, 8 physical
+About:  Fast, parallel, cross-variant ROP/JOP gadget search for x86/x64 binaries.
+Cores:  8 logical, 8 physical
 
 USAGE:
     xgadget [FLAGS] [OPTIONS] <FILE(S)>...
 
 FLAGS:
-    -8, --8086             For raw (no header) files: assume 8086 (16-bit) [default: assumes x64 (64-bit)]
     -t, --att              Display gadgets using AT&T syntax [default: Intel syntax]
+    -c, --check-sec        Run checksec on the 1+ binaries instead of gadget search
     -d, --dispatcher       Filter to potential JOP 'dispatcher' gadgets [default: all gadgets]
+    -e, --extended-fmt     Print in terminal-wide format [default: only used for partial match search]
     -h, --help             Prints help information
     -i, --imm16            Include '{ret, ret far} imm16' (e.g. add to stack ptr) [default: don't include]
     -j, --jop              Search for JOP gadgets only [default: ROP, JOP, and SYSCALL]
     -n, --no-color         Don't color output, useful for UNIX piping [default: color output]
     -m, --partial-match    Include cross-variant partial matches [default: full matches only]
-    -p, --stack-pivot      Filter to gadgets that write the stack ptr [default: all gadgets]
-    -c, --reg-ctrl         Filter to 'pop {reg} * 1+, {ret or ctrl-ed jmp/call}' gadgets [default: all gadgets]
+    -w, --reg-write        Filter to 'pop {reg} * 1+, {ret or ctrl-ed jmp/call}' gadgets [default: all gadgets]
     -r, --rop              Search for ROP gadgets only [default: ROP, JOP, and SYSCALL]
+    -p, --stack-pivot      Filter to gadgets that write the stack ptr [default: all gadgets]
     -s, --sys              Search for SYSCALL gadgets only [default: ROP, JOP, and SYSCALL]
     -V, --version          Prints version information
-    -x, --x86              For raw (no header) files: assume x86 (32-bit) [default: assumes x64 (64-bit)]
 
 OPTIONS:
-    -f, --regex-filter <EXPR>    Filter to gadgets matching a regular expression
+    -a, --arch <ARCH>            For raw (no header) files: specify arch ('x8086', 'x86', or 'x64') [default: x64]
     -l, --max-len <LEN>          Gadgets up to LEN instrs long. If 0: all gadgets, any length [default: 5]
+    -f, --regex-filter <EXPR>    Filter to gadgets matching a regular expression
 
 ARGS:
     <FILE(S)>...    1+ binaries to gadget search. If > 1: gadgets common to all
