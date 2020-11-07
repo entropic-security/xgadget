@@ -1,11 +1,11 @@
-use std::time::Instant;
 use std::fs;
+use std::time::Instant;
 
 use colored::Colorize;
+use goblin::Object;
 use rayon::prelude::*;
 use regex::Regex;
 use structopt::StructOpt;
-use goblin::Object;
 
 #[macro_use]
 extern crate lazy_static;
@@ -14,7 +14,7 @@ extern crate lazy_static;
 
 lazy_static! {
     static ref ABOUT_STR: String = format!(
-        "\nAbout:\t{}\nCPUs:\t{} logical, {} physical",
+        "\nAbout:\t{}\nCores:\t{} logical, {} physical",
         structopt::clap::crate_description!(),
         num_cpus::get(),
         num_cpus::get_physical(),
@@ -146,7 +146,7 @@ impl CLIOpts {
         search_config
     }
 
-    // If partial match, addr(s) right of instr(s), else addr left of instr(s)
+    // If partial match or extended format flag, addr(s) right of instr(s), else addr left of instr(s)
     fn fmt_gadget_output(&self, addrs: String, instrs: String, term_width: usize) -> String {
         let plaintext_instrs_len = strip_ansi_escapes::strip(&instrs).unwrap().len();
         let plaintext_addrs_len = strip_ansi_escapes::strip(&addrs).unwrap().len();
@@ -200,7 +200,7 @@ impl CLIOpts {
         }
     }
 
-    // Helper function for running checksec on requested binaries
+    // Helper for running checksec on requested binaries
     fn run_checksec(&self) {
         for path in &self.bin_paths {
             println!("\n{}:", self.fmt_summary_item(path.to_string(), false));
@@ -208,12 +208,16 @@ impl CLIOpts {
             match Object::parse(&buf).unwrap() {
                 Object::Elf(elf) => {
                     println!("{:#?}", checksec::elf::ElfCheckSecResults::parse(&elf));
-                },
+                }
                 Object::PE(pe) => {
-                    let mm_buf = unsafe { memmap::Mmap::map(&fs::File::open(path).unwrap()).unwrap() };
-                    println!("{:#?}", checksec::pe::PECheckSecResults::parse(&pe, &mm_buf));
-                },
-                _ => panic!("Only ELF and PE checksec currently supported!")
+                    let mm_buf =
+                        unsafe { memmap::Mmap::map(&fs::File::open(path).unwrap()).unwrap() };
+                    println!(
+                        "{:#?}",
+                        checksec::pe::PECheckSecResults::parse(&pe, &mm_buf)
+                    );
+                }
+                _ => panic!("Only ELF and PE checksec currently supported!"),
             }
         }
     }
