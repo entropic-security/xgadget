@@ -90,12 +90,9 @@ struct CLIOpts {
     #[structopt(short = "w", long, conflicts_with = "dispatcher")]
     reg_write: bool,
 
-    /*
-    // TODO: implement
-    /// Filter to gadgets whose addresses don't contain specific bytes [default: all gadgets]
+    /// Filter to gadgets whose addrs don't contain given bytes [default: all gadgets]
     #[structopt(short, long, min_values = 1, value_name = "BYTE(S)")]
     bad_bytes: Vec<String>,
-    */
 
     /// Filter to gadgets matching a regular expression
     #[structopt(short = "f", long = "regex-filter", value_name = "EXPR")]
@@ -290,12 +287,14 @@ impl std::fmt::Display for CLIOpts {
 fn main() {
     let cli = CLIOpts::from_args();
 
-    #[allow(clippy::trivial_regex)]
-    let mut filter_regex = Regex::new("unused_but_initialized").unwrap();
     let mut filter_matches = 0;
-    if cli.usr_regex.is_some() {
-        filter_regex = Regex::new(cli.usr_regex.clone().unwrap().trim()).unwrap();
-    }
+    let filter_regex = Regex::new(
+        &cli.usr_regex
+            .clone()
+            .unwrap_or("unused_but_initialized".to_string())
+            .trim(),
+    )
+    .unwrap();
 
     // Checksec requested ----------------------------------------------------------------------------------------------
 
@@ -344,18 +343,16 @@ fn main() {
         gadgets = xgadget::filter_stack_set_regs(&gadgets);
     }
 
-    /*
-    // TODO: implement
     if !cli.bad_bytes.is_empty() {
-
-        let bytes = cli.bad_bytes
+        let bytes = cli
+            .bad_bytes
             .iter()
+            .map(|s| s.trim_start_matches("0x"))
             .map(|s| u8::from_str_radix(s, 16).unwrap())
             .collect::<Vec<u8>>();
 
         gadgets = xgadget::filter_bad_addr_bytes(&gadgets, bytes.as_slice());
     }
-    */
 
     let run_time = start_time.elapsed();
 

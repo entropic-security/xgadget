@@ -837,3 +837,27 @@ fn test_x64_filter_stack_set_regs() {
         "mov rax, 0x1337; jmp [rax];"
     ));
 }
+
+#[test]
+fn test_x64_filter_bad_bytes() {
+    let bin_filters = test_utils::get_raw_bin("bin_filters", &FILTERS_X64);
+    let bins = vec![bin_filters];
+    let gadgets = xgadget::find_gadgets(&bins, MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
+    let gadget_strs = test_utils::get_gadget_strs(&gadgets, false);
+    let good_bytes_gadgets =
+        xgadget::filter_bad_addr_bytes(&gadgets, &[0x10, 0x14, 0x15, 0xc, 0xd]);
+    let good_bytes_gadget_strs = test_utils::get_gadget_strs(&good_bytes_gadgets, false);
+    test_utils::print_gadget_strs(&good_bytes_gadget_strs);
+
+    // Positive
+    assert!(!test_utils::gadget_strs_contains_sub_str(
+        &good_bytes_gadget_strs,
+        "jmp rax;"
+    ));
+
+    // Negative
+    assert!(test_utils::gadget_strs_contains_sub_str(
+        &gadget_strs,
+        "jmp rax;"
+    ));
+}
