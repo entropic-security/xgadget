@@ -27,21 +27,13 @@ fn pivot_bench(c: &mut Criterion) {
 
     let readelf_bin = xgadget::Binary::from_path_str("/usr/bin/readelf").unwrap();
     let bins = vec![readelf_bin];
-    let readelf_gadgets = xgadget::find_gadgets(
-        &bins,
-        MAX_GADGET_LEN,
-        xgadget::SearchConfig::DEFAULT,
-    )
-    .unwrap();
+    let readelf_gadgets =
+        xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
 
     let gdb_bin = xgadget::Binary::from_path_str("/usr/bin/gdb").unwrap();
     let bins = vec![gdb_bin];
-    let gdb_gadgets = xgadget::find_gadgets(
-        &bins,
-        MAX_GADGET_LEN,
-        xgadget::SearchConfig::DEFAULT,
-    )
-    .unwrap();
+    let gdb_gadgets =
+        xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
 
     c.bench_function("readelf_pivot_filter_seq", |b| {
         b.iter(|| filter_stack_pivot_sequential(&readelf_gadgets))

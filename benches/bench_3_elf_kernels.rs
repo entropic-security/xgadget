@@ -19,12 +19,7 @@ fn elf_kernel_bench(c: &mut Criterion) {
 
     c.bench_function("10_kernel_search", |b| {
         b.iter(|| {
-            xgadget::find_gadgets(
-                &bins,
-                MAX_GADGET_LEN,
-                xgadget::SearchConfig::DEFAULT,
-            )
-            .unwrap()
+            xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::DEFAULT).unwrap()
         })
     });
 }

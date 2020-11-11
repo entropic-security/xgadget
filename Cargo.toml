@@ -22,15 +22,15 @@ include = [
 [dependencies]
 zydis = "3.1"
 goblin = "0.2"
-rayon = "1.4"
-bitflags = "1.2"
+rayon = "1"
+bitflags = "1"
 colored = "2"
 rustc-hash = "1"
 structopt = { version = "0.3", default-features = false, optional = true }
-num_cpus = { version = "1.13", optional = true }
+num_cpus = { version = "1", optional = true }
 regex = { version = "1", optional = true }
 strip-ansi-escapes = { version = "0.1", optional = true }
-lazy_static = { version = "1.4.0", optional = true }
+lazy_static = { version = "1.4", optional = true }
 term_size = { version = "0.3.2", optional = true }
 checksec = { version = "0.0.7", features = ["elf", "pe", "color"], optional = true }
 memmap = { version = "0.7.0", optional = true }
@@ -38,10 +38,10 @@ memmap = { version = "0.7.0", optional = true }
 [dev-dependencies]
 criterion = "0.3"
 rand = "0.7"
-dirs = "3.0"
-predicates = "1.0.5"
-assert_cmd = "1.0.1"
-tempfile = "3.1.0"
+dirs = "3"
+predicates = "1"
+assert_cmd = "1"
+tempfile = "3"
 
 [features]
 cli-bin = ["structopt", "num_cpus", "regex", "strip-ansi-escapes", "lazy_static", "term_size", "checksec", "memmap"]

@@ -2,12 +2,12 @@ use std::collections::BTreeSet;
 use std::error::Error;
 
 //use hashbrown::{HashMap, HashSet};
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use rayon::prelude::*;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::binary;
-use crate::semantics;
 use crate::gadget;
+use crate::semantics;
 
 /// Max instruction size in bytes
 pub const MAX_INSTR_BYTE_CNT: usize = 15;
@@ -23,7 +23,7 @@ bitflags! {
         const SYS   = 0b0000_0100;
         const IMM16 = 0b0000_1000;
         const PART  = 0b0001_0000;
-        const JMP   = 0b0010_0000;  // TODO: use this to allow search with mid-gadget jumps (non-default)
+        //const JMP   = 0b0010_0000;  // TODO: use this to allow search with mid-gadget jumps (non-default)
         const DEFAULT = Self::ROP.bits | Self::JOP.bits | Self::SYS.bits;
     }
 }
@@ -118,21 +118,29 @@ struct DecodeConfig<'a> {
 }
 
 // Get offsets of potential gadget tails within a segment
-fn get_gadget_tail_offsets(seg: &binary::Segment, s_config: SearchConfig, decoder: &zydis::Decoder) -> Vec<usize> {
-    (1..seg.bytes.len()).into_par_iter()
-        .filter(|offset| {
-            match decoder.decode(&seg.bytes[(*offset)..]) {
-                Ok(res) => match res {
-                    Some(instr) => {
-                        (s_config.intersects(SearchConfig::ROP) && semantics::is_ret(&instr) && !semantics::is_ret_imm16(&instr))
-                        || (s_config.intersects(SearchConfig::IMM16) && semantics::is_ret_imm16(&instr))
-                        || (s_config.intersects(SearchConfig::JOP) && semantics::is_jop_gadget_tail(&instr))
-                        || (s_config.intersects(SearchConfig::SYS) && semantics::is_sys_gadget_tail(&instr))
-                    },
-                    None => false
-                },
-                Err(_) => false
-            }
+fn get_gadget_tail_offsets(
+    seg: &binary::Segment,
+    s_config: SearchConfig,
+    decoder: &zydis::Decoder,
+) -> Vec<usize> {
+    (1..seg.bytes.len())
+        .into_par_iter()
+        .filter(|offset| match decoder.decode(&seg.bytes[(*offset)..]) {
+            Ok(res) => match res {
+                Some(instr) => {
+                    (s_config.intersects(SearchConfig::ROP)
+                        && semantics::is_ret(&instr)
+                        && !semantics::is_ret_imm16(&instr))
+                        || (s_config.intersects(SearchConfig::IMM16)
+                            && semantics::is_ret_imm16(&instr))
+                        || (s_config.intersects(SearchConfig::JOP)
+                            && semantics::is_jop_gadget_tail(&instr))
+                        || (s_config.intersects(SearchConfig::SYS)
+                            && semantics::is_sys_gadget_tail(&instr))
+                }
+                None => false,
+            },
+            Err(_) => false,
         })
         .collect()
 }
@@ -260,8 +268,6 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<zydis::DecodedInstructi
 
     instr_sequences
 }
-
-
 
 /// Search a binary for ROP gadgets
 fn find_gadgets_single_bin<'a>(

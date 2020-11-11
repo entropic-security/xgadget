@@ -1,11 +1,17 @@
+use std::fmt;
 use std::fs;
 use std::time::Instant;
 
+use checksec::elf::ElfCheckSecResults;
+use checksec::pe::PECheckSecResults;
 use colored::Colorize;
 use goblin::Object;
 use rayon::prelude::*;
 use regex::Regex;
 use structopt::StructOpt;
+
+mod checksec_fmt;
+use checksec_fmt::{CustomElfCheckSecResults, CustomPeCheckSecResults};
 
 #[macro_use]
 extern crate lazy_static;
@@ -204,14 +210,17 @@ impl CLIOpts {
             let buf = fs::read(path).unwrap();
             match Object::parse(&buf).unwrap() {
                 Object::Elf(elf) => {
-                    println!("{:#?}", checksec::elf::ElfCheckSecResults::parse(&elf));
+                    println!(
+                        "{}",
+                        CustomElfCheckSecResults(ElfCheckSecResults::parse(&elf))
+                    );
                 }
                 Object::PE(pe) => {
                     let mm_buf =
                         unsafe { memmap::Mmap::map(&fs::File::open(path).unwrap()).unwrap() };
                     println!(
-                        "{:#?}",
-                        checksec::pe::PECheckSecResults::parse(&pe, &mm_buf)
+                        "{}",
+                        CustomPeCheckSecResults(PECheckSecResults::parse(&pe, &mm_buf))
                     );
                 }
                 _ => panic!("Only ELF and PE checksec currently supported!"),
@@ -220,8 +229,8 @@ impl CLIOpts {
     }
 }
 
-impl std::fmt::Display for CLIOpts {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for CLIOpts {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{} [ search: {}, x_match: {}, max_len: {}, syntax: {}, regex_filter: {} ]",
@@ -291,7 +300,7 @@ fn main() {
     let filter_regex = Regex::new(
         &cli.usr_regex
             .clone()
-            .unwrap_or("unused_but_initialized".to_string())
+            .unwrap_or_else(|| "unused_but_initialized".to_string())
             .trim(),
     )
     .unwrap();

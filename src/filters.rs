@@ -115,7 +115,7 @@ pub fn filter_bad_addr_bytes<'a>(
             .partial_matches
             .iter()
             .filter(|(addr, _)| addr.to_le_bytes().iter().all(|b| !bad_bytes.contains(b)))
-            .map(|(addr, bins)| (addr.clone(), bins.clone()))
+            .map(|(addr, bins)| (*addr, bins.clone()))
             .collect();
 
         g.partial_matches = tmp_map;

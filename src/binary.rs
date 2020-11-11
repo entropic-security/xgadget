@@ -5,8 +5,8 @@ use std::path::Path;
 use std::str::FromStr;
 
 //use hashbrown::HashSet;
-use rustc_hash::FxHashSet as HashSet;
 use rayon::prelude::*;
+use rustc_hash::FxHashSet as HashSet;
 
 // Segment -------------------------------------------------------------------------------------------------------------
 

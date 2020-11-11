@@ -56,7 +56,7 @@
 //!Run `xgadget --help`:
 //!
 //!```ignore
-//!xgadget v0.2.0
+//!xgadget v0.3.0
 //!
 //!About:   Fast, parallel, cross-variant ROP/JOP gadget search for x86/x64 binaries.
 //!Cores:   8 logical, 8 physical
@@ -81,9 +81,10 @@
 //!    -V, --version          Prints version information
 //!
 //!OPTIONS:
-//!    -a, --arch <ARCH>            For raw (no header) files: specify arch ('x8086', 'x86', or 'x64') [default: x64]
-//!    -l, --max-len <LEN>          Gadgets up to LEN instrs long. If 0: all gadgets, any length [default: 5]
-//!    -f, --regex-filter <EXPR>    Filter to gadgets matching a regular expression
+//!    -a, --arch <ARCH>               For raw (no header) files: specify arch ('x8086', 'x86', or 'x64') [default: x64]
+//!    -b, --bad-bytes <BYTE(S)>...    Filter to gadgets whose addrs don't contain given bytes [default: all gadgets]
+//!    -l, --max-len <LEN>             Gadgets up to LEN instrs long. If 0: all gadgets, any length [default: 5]
+//!    -f, --regex-filter <EXPR>       Filter to gadgets matching a regular expression
 //!
 //!ARGS:
 //!    <FILE(S)>...    1+ binaries to gadget search. If > 1: gadgets common to all
@@ -114,11 +115,11 @@
 //!* `bench_setup_ubuntu.sh` downloads and builds 10 consecutive Linux kernels (versions `5.0.1` to `5.0.10` - with `x86_64_defconfig`).
 //!* `cargo bench`, among other benchmarks, searches all 10 kernels for common gadgets.
 //!
-//!On an i7-9700K (8C/8T, 3.6GHz base, 4.9 GHz max, e.g. an older-gen consumer CPU) machine with `gcc` version 8.4.0: the average runtime, to process *all ten 54MB kernels simultaneously* with a max gadget length of 5 instructions and full-match search for all gadget types (ROP, JOP, and syscall gadgets), is *only 26 seconds*!
+//!On an i7-9700K (8C/8T, 3.6GHz base, 4.9 GHz max, e.g. an older-gen consumer CPU) machine with `gcc` version 8.4.0: the average runtime, to process *all ten 54MB kernels simultaneously* with a max gadget length of 5 instructions and full-match search for all gadget types (ROP, JOP, and syscall gadgets), is *only 31 seconds*!
 //!
 //!Note this is a statistical benchmark that samples from many iterations, and requires a lot of RAM (> 32GB). If you just want to run `xgadget` on the 10 kernels once, use `./benches/run_on_bench_kernels.sh`.
 //!
-//!Searching all 10 kernels for *both* partial and full matches is still in beta, no benchmarks yet (implemented but not yet optimized). Because of the performance hit and the lower utility of partial gadget matches, this search option is disabled by default. It can be enabled with the `--partial-match` flag for the CLI, or via setting a configuration bit, e.g. `search_config |=  xgadget::SearchConfig::PART`, for the library API. Conversely, removing default options improves performance: searching all 10 kernels for only ROP gadgets (ignoring JOP and syscall gadgets) takes just 17 seconds. `xgadget` is designed to scale for large binaries while being easily configurable.
+//!Searching all 10 kernels for *both* partial and full matches is still in beta, no benchmarks yet (implemented but not yet optimized). Because of the performance hit and the lower utility of partial gadget matches, this search option is disabled by default. It can be enabled with the `--partial-match` flag for the CLI, or via setting a configuration bit, e.g. `search_config |=  xgadget::SearchConfig::PART`, for the library API. Conversely, removing default options improves performance: searching all 10 kernels for only ROP gadgets (ignoring JOP and syscall gadgets) takes just 22 seconds. `xgadget` is designed to scale for large binaries while being easily configurable.
 //!
 //!### Acknowledgements
 //!
