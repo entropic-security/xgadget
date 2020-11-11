@@ -151,6 +151,13 @@ pub fn is_ret(instr: &zydis::DecodedInstruction) -> bool {
     instr.meta.category == zydis::enums::InstructionCategory::RET
 }
 
+/// Check if return instruction that adds to stack pointer
+#[inline(always)]
+pub fn is_ret_imm16(instr: &zydis::DecodedInstruction) -> bool {
+    instr.meta.category == zydis::enums::InstructionCategory::RET
+    && (instr.operands.iter().filter(|&o| o.ty == zydis::enums::OperandType::IMMEDIATE).count() == 1)
+}
+
 /// Check if call instruction
 #[inline(always)]
 pub fn is_call(instr: &zydis::DecodedInstruction) -> bool {

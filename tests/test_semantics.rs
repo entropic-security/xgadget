@@ -1,6 +1,4 @@
-use std::collections::BTreeSet;
-
-use rustc_hash::FxHashSet;
+use std::collections::{BTreeSet, HashSet};
 
 mod test_utils;
 
@@ -19,18 +17,23 @@ fn test_rop_semantics() {
     let ret_far_imm: [u8; 3] = [0xca, 0xaa, 0xbb];
 
     let instr = decoder.decode(&ret).unwrap().unwrap();
+    assert!(!xgadget::is_ret_imm16(&instr));
+    assert!(xgadget::is_ret(&instr));
     assert!(xgadget::is_ret(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
 
     let instr = decoder.decode(&ret_far).unwrap().unwrap();
+    assert!(!xgadget::is_ret_imm16(&instr));
     assert!(xgadget::is_ret(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
 
     let instr = decoder.decode(&ret_imm).unwrap().unwrap();
+    assert!(xgadget::is_ret_imm16(&instr));
     assert!(xgadget::is_ret(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
 
     let instr = decoder.decode(&ret_far_imm).unwrap().unwrap();
+    assert!(xgadget::is_ret_imm16(&instr));
     assert!(xgadget::is_ret(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
 }
@@ -205,14 +208,14 @@ fn test_gadget_hasher() {
     let g1 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_instr], addr_1.clone());
     let g2 = xgadget::Gadget::new(vec![pop_r15_instr, jmp_rax_deref_instr], addr_1);
 
-    let mut g_set_1 = FxHashSet::default();
+    let mut g_set_1: HashSet<_> = HashSet::default();
     g_set_1.insert(g1.clone());
     g_set_1.insert(g2.clone());
 
-    let mut g_set_2 = FxHashSet::default();
+    let mut g_set_2 = HashSet::default();
     g_set_2.insert(g1.clone());
 
-    let g_set_intersect: FxHashSet<_> = g_set_1.intersection(&g_set_2).collect();
+    let g_set_intersect: HashSet<_> = g_set_1.intersection(&g_set_2).collect();
     assert!(g_set_intersect.contains(&g1));
     assert!(!g_set_intersect.contains(&g2));
 }

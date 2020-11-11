@@ -146,6 +146,9 @@ pub use crate::binary::*;
 pub mod gadget;
 pub use crate::gadget::*;
 
+pub mod search;
+pub use crate::search::*;
+
 pub mod filters;
 pub use crate::filters::*;
 

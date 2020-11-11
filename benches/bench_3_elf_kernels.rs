@@ -22,7 +22,7 @@ fn elf_kernel_bench(c: &mut Criterion) {
             xgadget::find_gadgets(
                 &bins,
                 MAX_GADGET_LEN,
-                xgadget::gadget::SearchConfig::DEFAULT,
+                xgadget::SearchConfig::DEFAULT,
             )
             .unwrap()
         })

@@ -4,8 +4,9 @@ use std::fs;
 use std::path::Path;
 use std::str::FromStr;
 
+//use hashbrown::HashSet;
+use rustc_hash::FxHashSet as HashSet;
 use rayon::prelude::*;
-use rustc_hash::FxHashSet;
 
 // Segment -------------------------------------------------------------------------------------------------------------
 
@@ -93,7 +94,7 @@ pub struct Binary {
     pub format: Format,
     pub arch: Arch,
     pub entry: u64,
-    pub segments: FxHashSet<Segment>,
+    pub segments: HashSet<Segment>,
 }
 
 impl Binary {
@@ -122,10 +123,11 @@ impl Binary {
             format: Format::Unknown,
             arch: Arch::Unknown,
             entry: 0,
-            segments: FxHashSet::default(),
+            segments: HashSet::default(),
         }
     }
 
+    // Bytes -> Binary
     fn priv_from_buf(name: &str, bytes: &[u8]) -> Result<Binary, Box<dyn Error>> {
         match goblin::Object::parse(&bytes)? {
             goblin::Object::Elf(elf) => Binary::from_elf(name, &bytes, &elf),
