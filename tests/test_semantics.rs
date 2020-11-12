@@ -1,6 +1,6 @@
 use std::collections::{BTreeSet, HashSet};
 
-mod test_utils;
+mod common;
 
 #[test]
 fn test_rop_semantics() {
@@ -173,7 +173,7 @@ fn test_gadget_hasher() {
         vec![pop_r15_instr.clone(), jmp_rax_deref_instr.clone()],
         addr_2.clone(),
     );
-    assert!(test_utils::hash(&g1) != test_utils::hash(&g2));
+    assert!(common::hash(&g1) != common::hash(&g2));
 
     // Different instructions, same address - custom hash mismatch
     let g1 = xgadget::Gadget::new(
@@ -184,7 +184,7 @@ fn test_gadget_hasher() {
         vec![pop_r15_instr.clone(), jmp_rax_deref_instr.clone()],
         addr_1.clone(),
     );
-    assert!(test_utils::hash(&g1) != test_utils::hash(&g2));
+    assert!(common::hash(&g1) != common::hash(&g2));
 
     // Same instructions, same address - custom hash match
     let g1 = xgadget::Gadget::new(
@@ -195,7 +195,7 @@ fn test_gadget_hasher() {
         vec![pop_r15_instr.clone(), jmp_rax_instr.clone()],
         addr_1.clone(),
     );
-    assert!(test_utils::hash(&g1) == test_utils::hash(&g2));
+    assert!(common::hash(&g1) == common::hash(&g2));
 
     // Same instructions, different address - custom hash match
     let g1 = xgadget::Gadget::new(
@@ -203,7 +203,7 @@ fn test_gadget_hasher() {
         addr_1.clone(),
     );
     let g2 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_instr.clone()], addr_2);
-    assert!(test_utils::hash(&g1) == test_utils::hash(&g2));
+    assert!(common::hash(&g1) == common::hash(&g2));
 
     let g1 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_instr], addr_1.clone());
     let g2 = xgadget::Gadget::new(vec![pop_r15_instr, jmp_rax_deref_instr], addr_1);

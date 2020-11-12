@@ -7,7 +7,7 @@ use crate::binary;
 /// Gadget instructions (data) coupled with occurrence addresses for full and partial matches (metadata).
 /// Gadgets sortable by lowest occurrence address.
 /// Hash and equality consider only gadget instructions, not occurrence addresses (fast de-duplication via sets).
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Gadget<'a> {
     pub instrs: Vec<zydis::DecodedInstruction>,
     pub full_matches: BTreeSet<u64>,
@@ -28,6 +28,16 @@ impl<'a> Gadget<'a> {
     pub fn last_instr(&self) -> Option<&zydis::DecodedInstruction> {
         self.instrs.iter().next_back()
     }
+
+    /// Get first full match
+    pub fn first_full_match(&self) -> Option<u64> {
+        match self.full_matches.iter().next() {
+            Some(addr) => Some(*addr),
+            None => None,
+        }
+    }
+
+    // TODO: other APIs and private fields?
 
     // Ord helper: Lowest gadget occurrence address, full matches preferred
     fn min_addr(&self) -> Option<&u64> {

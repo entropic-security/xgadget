@@ -10,7 +10,7 @@ use crate::gadget;
 
 // Public API ----------------------------------------------------------------------------------------------------------
 
-/// Print list of gadgets using a single formatter instance
+/// Format list of gadgets using a single formatter instance
 pub fn str_fmt_gadgets(
     gadgets: &[gadget::Gadget],
     att_syntax: bool,
@@ -47,7 +47,7 @@ pub fn str_fmt_gadgets(
         }
 
         // Full match address
-        if let Some(lowest_addr) = g.full_matches.iter().collect::<Vec<&u64>>().get(0) {
+        if let Some(lowest_addr) = g.first_full_match() {
             if color {
                 addrs_str.push_str(&format!(
                     "[ {} ]",
@@ -73,78 +73,70 @@ pub fn str_fmt_gadgets(
     Ok(instr_addr_str_tuples)
 }
 
-// TODO (tnballo): the output is clean, but the performance of this function is awful!!! E.g.
-//
-// Unique cross-variant gadgets found ..... 174839
-// Search/filter time ..................... 8.234118991s
-// Print time ............................. 147.605491848s
-//
-/// Print partial matches for a given gadget
+/// Format partial matches for a given gadget
 pub fn str_fmt_partial_matches(
     partial_matches: &BTreeMap<u64, Vec<&binary::Binary>>,
     color: bool,
 ) -> Option<String> {
-    if let Some((mut addr_largest_subset, mut bins_largest_subset)) = partial_matches.iter().next()
-    {
-        let mut match_str = String::new();
-
-        // Find largest subset of binaries with match for a given address
-        for (addr, bins) in partial_matches {
-            if bins.len() > bins_largest_subset.len() {
-                addr_largest_subset = &addr;
-                bins_largest_subset = &bins;
-            }
-        }
-
-        // Commit result to string
-        if let Some((last_bin, prior_bins)) = bins_largest_subset.split_last() {
-            for pb in prior_bins {
-                match_str.push_str(&format!("'{}', ", pb.name));
-            }
-            match_str.push_str(&format!("'{}': ", last_bin.name));
-            if color {
-                match_str.push_str(&format!(
-                    "{}",
-                    format!("0x{:016x}", addr_largest_subset).green()
-                ));
-            } else {
-                match_str.push_str(&format!("0x{:016x}", addr_largest_subset));
-            }
-        } else {
-            return None;
-        }
-
-        // Remove committed binaries from the remainder of partial matches
-        let mut remaining_matches = partial_matches.clone();
-        remaining_matches.remove(addr_largest_subset);
-
-        let mut empty_addrs = Vec::new();
-        for (addr, bins) in remaining_matches.iter_mut() {
-            bins.retain(|&b| !bins_largest_subset.contains(&b));
-            if bins.is_empty() {
-                empty_addrs.push(*addr);
-            }
-        }
-
-        for addr in empty_addrs {
-            remaining_matches.remove(&addr);
-        }
-
-        // Recursively repeat!
-        match str_fmt_partial_matches(&remaining_matches, color) {
-            Some(remaining_match_str) => {
-                match_str.push_str(", ");
-                match_str.push_str(&remaining_match_str);
-                return Some(match_str);
-            }
-            None => return Some(match_str),
-        }
-    }
-
-    None
+    str_fmt_partial_matches_internal(&mut partial_matches.clone(), color)
 }
 
 // Private API ---------------------------------------------------------------------------------------------------------
+
+// Partial match format helper, recursively shrinks a working set
+fn str_fmt_partial_matches_internal(
+    mut partial_matches: &mut BTreeMap<u64, Vec<&binary::Binary>>,
+    color: bool,
+) -> Option<String> {
+    // Find largest subset of binaries with match for a given address (best partial match)
+    match partial_matches
+        .iter()
+        .max_by(|a, b| a.1.len().cmp(&b.1.len()))
+    {
+        Some((bpm_addr, bpm_bins)) => {
+            let mut match_str = String::new();
+
+            // This pair of clones ends a borrow fo partial_matches and lets us remove from it later
+            // This eliminates the need to clone the whole map each level of recursion
+            let bpm_addr = *bpm_addr;
+            let mut bpm_bins = bpm_bins.clone();
+            bpm_bins.sort_by(|b1, b2| b1.name.to_lowercase().cmp(&b2.name.to_lowercase()));
+
+            // Commit best partial match
+            match bpm_bins.split_last() {
+                Some((last_bin, prior_bpm_bins)) => {
+                    for pb in prior_bpm_bins {
+                        match_str.push_str(&format!("'{}', ", pb.name));
+                    }
+                    match_str.push_str(&format!("'{}': ", last_bin.name));
+                    if color {
+                        match_str.push_str(&format!("{}", format!("0x{:016x}", bpm_addr).green()));
+                    } else {
+                        match_str.push_str(&format!("0x{:016x}", bpm_addr));
+                    }
+                }
+                None => return None,
+            }
+
+            // Remove committed binaries from the remainder of partial matches
+            partial_matches.remove(&bpm_addr);
+            partial_matches
+                .iter_mut()
+                .for_each(|(_, bins)| bins.retain(|&b| !bpm_bins.contains(&b)));
+
+            // Recursion depth bound by number of binaries
+            match str_fmt_partial_matches_internal(&mut partial_matches, color) {
+                Some(remaining_match_str) => {
+                    match_str.push_str(", ");
+                    match_str.push_str(&remaining_match_str);
+                    Some(match_str)
+                }
+                None => Some(match_str),
+            }
+        }
+        None => None,
+    }
+}
 
 // Mnemonic coloring CFFI callback
 fn color_mnemonic_callback(

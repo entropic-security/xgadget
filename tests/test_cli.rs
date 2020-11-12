@@ -3,6 +3,8 @@ use predicates::prelude::*;
 use std::io::Write;
 use tempfile::NamedTempFile;
 
+mod common;
+
 // Non-exhaustive Error Cases ------------------------------------------------------------------------------------------
 
 #[test]
@@ -89,16 +91,8 @@ fn test_conflicting_flags_imm16_jop() {
 #[test]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_raw() {
-    #[rustfmt::skip]
-    pub const ADJACENT_JMP_X64: &[u8] = &[
-        0x48, 0x8d, 0x0d, 0xe1, 0xdd, 0x05, 0x00,               // lea rcx,[rip+0x5DDE1]
-        0xff, 0xe1,                                             // jmp rcx
-        0x48, 0x8d, 0x0d, 0xcb, 0xdd, 0x05, 0x00,               // lea rax,[rip+0x5DDCB]
-        0xff, 0x21,                                             // jmp [rcx]
-    ];
-
     let mut raw_file = NamedTempFile::new().unwrap();
-    raw_file.write(ADJACENT_JMP_X64).unwrap();
+    raw_file.write(common::ADJACENT_JMP_X64).unwrap();
 
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
     xgadget_bin.arg(raw_file.path()).arg("-n");
