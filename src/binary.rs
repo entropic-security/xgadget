@@ -66,10 +66,17 @@ impl FromStr for Format {
 /// Architecture
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Arch {
-    Unknown,
-    X8086,
-    X86,
-    X64,
+    Unknown = 0,
+    X8086 = 16,
+    X86 = 32,
+    X64 = 64,
+}
+
+impl Arch {
+    /// Arch -> bitness
+    pub fn bits(&self) -> u32 {
+        *self as u32
+    }
 }
 
 impl FromStr for Arch {
@@ -98,6 +105,11 @@ pub struct Binary {
 
 impl Binary {
     // Binary Public API -----------------------------------------------------------------------------------------------
+
+    /// Binary -> bitness
+    pub fn bits(&self) -> u32 {
+        self.arch.bits()
+    }
 
     /// Byte slice -> Binary
     pub fn from_bytes(name: &str, bytes: &[u8]) -> Result<Binary, Box<dyn Error>> {

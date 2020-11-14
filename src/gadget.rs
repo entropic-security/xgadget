@@ -2,21 +2,26 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::hash::{Hash, Hasher};
 
+use iced_x86;
+
 use crate::binary;
+
+// TODO: implement Ord for binary, use BTReeSet instead of Vector to maintain sorted order on insertion - will have nicer output at partial match at cost of speed (how much?)
 
 /// Gadget instructions (data) coupled with occurrence addresses for full and partial matches (metadata).
 /// Gadgets sortable by lowest occurrence address.
 /// Hash and equality consider only gadget instructions, not occurrence addresses (fast de-duplication via sets).
 #[derive(Clone, Debug)]
 pub struct Gadget<'a> {
-    pub instrs: Vec<zydis::DecodedInstruction>,
+    pub instrs: Vec<iced_x86::Instruction>,
     pub full_matches: BTreeSet<u64>,
     pub partial_matches: BTreeMap<u64, Vec<&'a binary::Binary>>,
 }
 
+// TODO: other/getter/setter APIs and private fields?
 impl<'a> Gadget<'a> {
     /// Assumes instructions are correctly sorted, address guaranteed to be sorted
-    pub fn new(instrs: Vec<zydis::DecodedInstruction>, full_matches: BTreeSet<u64>) -> Gadget<'a> {
+    pub fn new(instrs: Vec<iced_x86::Instruction>, full_matches: BTreeSet<u64>) -> Gadget<'a> {
         Gadget {
             instrs,
             full_matches,
@@ -25,7 +30,7 @@ impl<'a> Gadget<'a> {
     }
 
     /// Get tail
-    pub fn last_instr(&self) -> Option<&zydis::DecodedInstruction> {
+    pub fn last_instr(&self) -> Option<&iced_x86::Instruction> {
         self.instrs.iter().next_back()
     }
 
@@ -37,7 +42,20 @@ impl<'a> Gadget<'a> {
         }
     }
 
-    // TODO: other APIs and private fields?
+    // TODO: use this API
+    /// Add a new partial match address/binary tuple
+    pub fn add_partial_match(&mut self, addr: u64, bin: &'a binary::Binary) {
+        match self.partial_matches.get_mut(&addr) {
+            Some(bins) => bins.push(bin),
+            None => {
+                // TODO: Use unwrap_none() once on stable
+                match self.partial_matches.insert(addr, vec![bin]) {
+                    Some(_) => return,
+                    None => return,
+                }
+            }
+        };
+    }
 
     // Ord helper: Lowest gadget occurrence address, full matches preferred
     fn min_addr(&self) -> Option<&u64> {

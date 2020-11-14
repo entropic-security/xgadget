@@ -1,19 +1,27 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-// Stack Pivot Filter --------------------------------------------------------------------------------------------------
+// Stack Pivot Filter (sequential baseline) ----------------------------------------------------------------------------
 
 pub fn filter_stack_pivot_sequential<'a>(
     gadgets: &Vec<xgadget::gadget::Gadget<'a>>,
 ) -> Vec<xgadget::gadget::Gadget<'a>> {
+    let rsp_write = iced_x86::UsedRegister::new(iced_x86::Register::RSP, iced_x86::OpAccess::Write);
+    let esp_write = iced_x86::UsedRegister::new(iced_x86::Register::ESP, iced_x86::OpAccess::Write);
+    let sp_write = iced_x86::UsedRegister::new(iced_x86::Register::SP, iced_x86::OpAccess::Write);
+
     gadgets
         .iter()
         .filter(|g| {
-            for i in &g.instrs {
-                for o in &i.operands {
-                    if (o.reg == zydis::Register::RSP || o.reg == zydis::Register::ESP)
-                        && (o.action == zydis::OperandAction::WRITE)
-                    {
-                        return true;
-                    }
+            for instr in &g.instrs {
+                let mut info_factory = iced_x86::InstructionInfoFactory::new();
+
+                let info = info_factory
+                    .info_options(&instr, iced_x86::InstructionInfoOptions::NO_MEMORY_USAGE);
+
+                if info.used_registers().contains(&rsp_write)
+                    || info.used_registers().contains(&esp_write)
+                    || info.used_registers().contains(&sp_write)
+                {
+                    return true;
                 }
             }
             false

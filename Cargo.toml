@@ -1,6 +1,6 @@
 [package]
 name = "xgadget"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Tiemoko Ballo"]
 edition = "2018"
 license = "MIT"
@@ -20,7 +20,7 @@ include = [
 ]
 
 [dependencies]
-zydis = "3.1"
+iced-x86 = "1.9.1"
 goblin = "0.2"
 rayon = "1"
 bitflags = "1"

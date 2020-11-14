@@ -77,8 +77,12 @@ struct CLIOpts {
     sys: bool,
 
     /// Include '{ret, ret far} imm16' (e.g. add to stack ptr) [default: don't include]
-    #[structopt(short, long, conflicts_with = "jop")]
-    imm16: bool,
+    #[structopt(long, conflicts_with = "jop")]
+    inc_imm16: bool,
+
+    /// Include gadgets containing a call [default: don't include]
+    #[structopt(long)]
+    inc_call: bool,
 
     /// Include cross-variant partial matches [default: full matches only]
     #[structopt(short = "m", long)]
@@ -122,8 +126,11 @@ impl CLIOpts {
         if self.partial_match {
             search_config |= xgadget::SearchConfig::PART;
         }
-        if self.imm16 {
+        if self.inc_imm16 {
             search_config |= xgadget::SearchConfig::IMM16;
+        }
+        if self.inc_call {
+            search_config |= xgadget::SearchConfig::CALL;
         }
 
         // Subtract from default
@@ -253,7 +260,7 @@ impl fmt::Display for CLIOpts {
                     search_mode = format!("{} {}", search_mode, "Dispatcher-only")
                 };
                 if self.reg_write {
-                    search_mode = format!("{} {}", search_mode, "Register-control-only")
+                    search_mode = format!("{} {}", search_mode, "Register-pop-only")
                 };
                 if search_mode.is_empty() {
                     search_mode = String::from("ROP-JOP-SYS (default)")
@@ -373,7 +380,7 @@ fn main() {
     };
 
     println!();
-    for (instrs, addrs) in xgadget::str_fmt_gadgets(&gadgets, cli.att, !cli.no_color).unwrap() {
+    for (instrs, addrs) in xgadget::str_fmt_gadgets(&gadgets, cli.att, !cli.no_color) {
         let plaintext_instrs_bytes = strip_ansi_escapes::strip(&instrs).unwrap();
         let plaintext_instrs_str = std::str::from_utf8(&plaintext_instrs_bytes).unwrap();
 
