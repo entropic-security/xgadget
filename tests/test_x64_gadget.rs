@@ -1,51 +1,4 @@
-use std::error::Error;
-
 mod common;
-
-#[test]
-fn test_x64_zydis_buffer() -> Result<(), Box<dyn Error>> {
-    let formatter = zydis::Formatter::new(zydis::FormatterStyle::INTEL)?;
-    let decoder = zydis::Decoder::new(
-        zydis::enums::MachineMode::LONG_64,
-        zydis::enums::AddressWidth::_64,
-    )
-    .unwrap();
-    let mut backing_buffer = [0u8; 200];
-    let mut buffer = zydis::OutputBuffer::new(&mut backing_buffer[..]);
-
-    let mut instr_strs = Vec::new();
-    for (instr, _) in decoder.instruction_iterator(&common::RET_AFTER_JNE_X64[..], 0) {
-        formatter.format_instruction(&instr, &mut buffer, None, None)?;
-        //instr_strs.push(buffer.as_str().unwrap()); // TODO (tnballo): debug why this doesn't work?
-        instr_strs.push(format!("{}", buffer));
-    }
-
-    assert_eq!("mov rax, [rsp+0xB8]", instr_strs[0]);
-    assert_eq!("xor rax, fs:[0x28]", instr_strs[1]);
-    assert_eq!("jnz +0x1F6", instr_strs[2]);
-    assert_eq!("add rsp, 0xC8", instr_strs[3]);
-    assert_eq!("mov eax, r12d", instr_strs[4]);
-    assert_eq!("pop rbx", instr_strs[5]);
-    assert_eq!("pop rbp", instr_strs[6]);
-    assert_eq!("pop r12", instr_strs[7]);
-    assert_eq!("pop r13", instr_strs[8]);
-    assert_eq!("pop r14", instr_strs[9]);
-    assert_eq!("pop r15", instr_strs[10]);
-    assert_eq!("ret", instr_strs[11]);
-
-    instr_strs.clear();
-    for (instr, _) in decoder.instruction_iterator(&common::ADJACENT_RET_X64[..], 0) {
-        formatter.format_instruction(&instr, &mut buffer, None, None)?;
-        instr_strs.push(format!("{}", buffer));
-    }
-
-    assert_eq!("lea rax, [rip+0x5DDE1]", instr_strs[0]);
-    assert_eq!("ret", instr_strs[1]);
-    assert_eq!("lea rax, [rip+0x5DDCB]", instr_strs[2]);
-    assert_eq!("ret 0x1337", instr_strs[3]);
-
-    Ok(())
-}
 
 #[test]
 fn test_x64_ret_after_jne() {
@@ -109,31 +62,31 @@ fn test_x64_adjacent_ret() {
 
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "add eax, 0x5DDE1; ret;"
+        "add eax, 0x5dde1; ret;"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "add eax, 0x5DDCB; ret 0x1337;"
+        "add eax, 0x5ddcb; ret 0x1337;"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "lea eax, [rip+0x5DDCB]; ret 0x1337;"
+        "lea eax, [rip+0x5ddcb]; ret 0x1337;"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "lea eax, [rip+0x5DDE1]; ret;"
+        "lea eax, [rip+0x5dde1]; ret;"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "lea rax, [rip+0x5DDCB]; ret 0x1337;"
+        "lea rax, [rip+0x5ddcb]; ret 0x1337;"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "lea rax, [rip+0x5DDE1]; ret;"
+        "lea rax, [rip+0x5dde1]; ret;"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "add eax, 0x8D48C300; add eax, 0x5DDCB; ret 0x1337;"
+        "add eax, 0x8d48c300; add eax, 0x5ddcb; ret 0x1337;"
     ));
 }
 
@@ -152,15 +105,15 @@ fn test_x64_adjacent_call() {
 
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "add bh, bh; ror dword ptr [rax-0x73], cl; sbb eax, 0x5DDCB; call [rbx];"
+        "add bh, bh; ror dword ptr [rax-0x73], cl; sbb eax, 0x5ddcb; call qword ptr [rbx];"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "add eax, 0x48D3FF00; lea ebx, [rip+0x5DDCB]; call [rbx];"
+        "add eax, 0x48d3ff00; lea ebx, [rip+0x5ddcb]; call qword ptr [rbx];"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "call [rbx];"
+        "call qword ptr [rbx];"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
@@ -168,39 +121,39 @@ fn test_x64_adjacent_call() {
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "fld st0, qword ptr [rip+0x48D3FF00]; lea ebx, [rip+0x5DDCB]; call [rbx];"
+        "fld st, qword ptr [rip+0x48d3ff00]; lea ebx, [rip+0x5ddcb]; call qword ptr [rbx];"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "lea ebx, [rip+0x5DDCB]; call [rbx];"
+        "lea ebx, [rip+0x5ddcb]; call qword ptr [rbx];"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "lea ebx, [rip+0x5DDE1]; call rbx;"
+        "lea ebx, [rip+0x5dde1]; call rbx;"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "lea rbx, [rip+0x5DDCB]; call [rbx];"
+        "lea rbx, [rip+0x5ddcb]; call qword ptr [rbx];"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "lea rbx, [rip+0x5DDE1]; call rbx;"
+        "lea rbx, [rip+0x5dde1]; call rbx;"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "loope -0x21; add eax, 0x48D3FF00; lea ebx, [rip+0x5DDCB]; call [rbx];"
+        "loope 0xffffffffffffffe2; add eax, 0x48d3ff00; lea ebx, [rip+0x5ddcb]; call qword ptr [rbx];"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "ror dword ptr [rax-0x73], cl; sbb eax, 0x5DDCB; call [rbx];"
+        "ror dword ptr [rax-0x73], cl; sbb eax, 0x5ddcb; call qword ptr [rbx];"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "sbb eax, 0x5DDCB; call [rbx];"
+        "sbb eax, 0x5ddcb; call qword ptr [rbx];"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "sbb eax, 0x5DDE1; call rbx;"
+        "sbb eax, 0x5dde1; call rbx;"
     ));
 }
 
@@ -215,15 +168,15 @@ fn test_x64_adjacent_jmp() {
 
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "add eax, 0x48E1FF00; lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+        "add eax, 0x48e1ff00; lea ecx, [rip+0x5ddcb]; jmp qword ptr [rcx];"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "fld st0, qword ptr [rip+0x48E1FF00]; lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+        "fld st, qword ptr [rip+0x48e1ff00]; lea ecx, [rip+0x5ddcb]; jmp qword ptr [rcx];"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "jmp [rcx];"
+        "jmp qword ptr [rcx];"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
@@ -231,30 +184,30 @@ fn test_x64_adjacent_jmp() {
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+        "lea ecx, [rip+0x5ddcb]; jmp qword ptr [rcx];"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "lea ecx, [rip+0x5DDE1]; jmp rcx;"
+        "lea ecx, [rip+0x5dde1]; jmp rcx;"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "lea rcx, [rip+0x5DDCB]; jmp [rcx];"
+        "lea rcx, [rip+0x5ddcb]; jmp qword ptr [rcx];"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "lea rcx, [rip+0x5DDE1]; jmp rcx;"
+        "lea rcx, [rip+0x5dde1]; jmp rcx;"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "loope -0x21; add eax, 0x48E1FF00; lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+        "loope 0xffffffffffffffe2; add eax, 0x48e1ff00; lea ecx, [rip+0x5ddcb]; jmp qword ptr [rcx];"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "or eax, 0x5DDCB; jmp [rcx];"
+        "or eax, 0x5ddcb; jmp qword ptr [rcx];"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "or eax, 0x5DDE1; jmp rcx;"
+        "or eax, 0x5dde1; jmp rcx;"
     ));
 }

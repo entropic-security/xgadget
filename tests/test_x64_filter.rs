@@ -52,7 +52,7 @@ fn test_x64_filter_dispatcher() {
     // Positive
     assert!(common::gadget_strs_contains_sub_str(
         &dispatcher_gadget_strs,
-        "add rax, 0x08; jmp rax;"
+        "add rax, 0x8; jmp rax;"
     ));
 
     // Negative

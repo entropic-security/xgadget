@@ -46,7 +46,7 @@ pub fn str_fmt_gadgets(
                 if color {
                     instr_str.push_str(&format!("{} ", ";".bright_magenta()));
                 } else {
-                    instr_str.push_str(";");
+                    instr_str.push_str("; ");
                 }
             }
 
@@ -102,6 +102,9 @@ fn config_formatter<F: iced_x86::Formatter>(formatter: &mut F) {
     formatter
         .options_mut()
         .set_hex_suffix_string("".to_string());
+    formatter
+        .options_mut()
+        .set_small_hex_numbers_in_decimal(false);
     formatter
         .options_mut()
         .set_space_after_operand_separator(true);

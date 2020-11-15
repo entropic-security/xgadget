@@ -132,6 +132,14 @@ pub const FILTERS_X64: &[u8] = &[
 // Test Utils ----------------------------------------------------------------------------------------------------------
 
 #[allow(dead_code)]
+pub fn decode_single_x64_instr(ip: u64, bytes: &[u8]) -> iced_x86::Instruction {
+    let mut decoder = iced_x86::Decoder::new(64, &bytes, iced_x86::DecoderOptions::NONE);
+    decoder.set_ip(ip);
+
+    decoder.decode()
+}
+
+#[allow(dead_code)]
 pub fn get_raw_bin(name: &str, bytes: &[u8]) -> xgadget::Binary {
     let mut bin = xgadget::Binary::from_bytes(&name, &bytes).unwrap();
     assert_eq!(bin.format, xgadget::Format::Raw);

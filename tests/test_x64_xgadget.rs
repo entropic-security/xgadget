@@ -55,15 +55,15 @@ fn test_x64_cross_variant_full_matches() {
     // Negative tests for unique - common::ADJACENT_CALL_X64
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "add eax, 0x48E1FF00; lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+        "add eax, 0x48e1ff00; lea ecx, [rip+0x5ddcb]; jmp qword ptr [rcx];"
     ));
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "fld st0, qword ptr [rip+0x48E1FF00]; lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+        "fld st0, qword ptr [rip+0x48e1ff00]; lea ecx, [rip+0x5ddcb]; jmp qword ptr [rcx];"
     ));
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "jmp [rcx];"
+        "jmp qword ptr [rcx];"
     ));
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
@@ -71,45 +71,45 @@ fn test_x64_cross_variant_full_matches() {
     ));
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+        "lea ecx, [rip+0x5ddcb]; jmp qword ptr [rcx];"
     ));
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "lea ecx, [rip+0x5DDE1]; jmp rcx;"
+        "lea ecx, [rip+0x5dde1]; jmp rcx;"
     ));
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "lea rcx, [rip+0x5DDCB]; jmp [rcx];"
+        "lea rcx, [rip+0x5ddcb]; jmp qword ptr [rcx];"
     ));
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "lea rcx, [rip+0x5DDE1]; jmp rcx;"
+        "lea rcx, [rip+0x5dde1]; jmp rcx;"
     ));
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "loope -0x21; add eax, 0x48E1FF00; lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+        "loope -0x21; add eax, 0x48e1ff00; lea ecx, [rip+0x5ddcb]; jmp qword ptr [rcx];"
     ));
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "or eax, 0x5DDCB; jmp [rcx];"
+        "or eax, 0x5ddcb; jmp qword ptr [rcx];"
     ));
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "or eax, 0x5DDE1; jmp rcx;"
+        "or eax, 0x5dde1; jmp rcx;"
     ));
 
     // Negative tests for unique - common::ADJACENT_JMP_X64
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "add eax, 0x48E1FF00; lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+        "add eax, 0x48e1ff00; lea ecx, [rip+0x5ddcb]; jmp qword ptr [rcx];"
     ));
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "fld st0, qword ptr [rip+0x48E1FF00]; lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+        "fld st0, qword ptr [rip+0x48e1ff00]; lea ecx, [rip+0x5ddcb]; jmp qword ptr [rcx];"
     ));
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "jmp [rcx];"
+        "jmp qword ptr [rcx];"
     ));
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
@@ -117,31 +117,31 @@ fn test_x64_cross_variant_full_matches() {
     ));
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+        "lea ecx, [rip+0x5ddcb]; jmp qword ptr [rcx];"
     ));
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "lea ecx, [rip+0x5DDE1]; jmp rcx;"
+        "lea ecx, [rip+0x5dde1]; jmp rcx;"
     ));
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "lea rcx, [rip+0x5DDCB]; jmp [rcx];"
+        "lea rcx, [rip+0x5ddcb]; jmp qword ptr [rcx];"
     ));
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "lea rcx, [rip+0x5DDE1]; jmp rcx;"
+        "lea rcx, [rip+0x5dde1]; jmp rcx;"
     ));
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "loope -0x21; add eax, 0x48E1FF00; lea ecx, [rip+0x5DDCB]; jmp [rcx];"
+        "loope -0x21; add eax, 0x48e1ff00; lea ecx, [rip+0x5ddcb]; jmp qword ptr [rcx];"
     ));
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "or eax, 0x5DDCB; jmp [rcx];"
+        "or eax, 0x5ddcb; jmp qword ptr [rcx];"
     ));
     assert!(!common::gadget_strs_contains_sub_str(
         &gadget_strs,
-        "or eax, 0x5DDE1; jmp rcx;"
+        "or eax, 0x5dde1; jmp rcx;"
     ));
 }
 
@@ -170,7 +170,7 @@ fn test_x64_cross_variant_full_and_partial_matches_1() {
     // Positive
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs_full_match,
-        "jmp [rcx];"
+        "jmp qword ptr [rcx];"
     ));
 
     // Negative
@@ -200,7 +200,7 @@ fn test_x64_cross_variant_full_and_partial_matches_1() {
     // Positive
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs_full_match,
-        "jmp [rcx];"
+        "jmp qword ptr [rcx];"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs_part_match,
@@ -247,7 +247,7 @@ fn test_x64_cross_variant_full_and_partial_matches_2() {
     // Positive
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs_full_match,
-        "lea rbx, [rip+0x5DDE1]; call rbx;"
+        "lea rbx, [rip+0x5dde1]; call rbx;"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs_full_match,
@@ -281,7 +281,7 @@ fn test_x64_cross_variant_full_and_partial_matches_2() {
     // Positive
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs_full_match,
-        "lea rbx, [rip+0x5DDE1]; call rbx;"
+        "lea rbx, [rip+0x5dde1]; call rbx;"
     ));
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs_full_match,

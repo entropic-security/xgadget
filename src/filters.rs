@@ -41,10 +41,12 @@ pub fn filter_dispatcher<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::Gadg
         .filter(|g| {
             if let Some((tail_instr, preceding_instrs)) = g.instrs.split_last() {
                 if semantics::is_jop_gadget_tail(tail_instr) {
-                    // JOP tail should always have a single register operand
+                    // JOP tail should always have a single reg or reg-based deref operand
                     debug_assert!(
                         (tail_instr.op_count() == 1)
-                            && tail_instr.op_kind(0) == iced_x86::OpKind::Register
+                            && ((tail_instr.op_kind(0) == iced_x86::OpKind::Register)
+                                || ((tail_instr.op0_kind() == iced_x86::OpKind::Memory)
+                                    && (tail_instr.memory_base() != iced_x86::Register::None)))
                     );
 
                     // Predictable update of dispatch register

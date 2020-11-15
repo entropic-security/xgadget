@@ -4,35 +4,29 @@ mod common;
 
 #[test]
 fn test_rop_semantics() {
-    let decoder = zydis::Decoder::new(
-        zydis::enums::MachineMode::LONG_64,
-        zydis::enums::AddressWidth::_64,
-    )
-    .unwrap();
-
     // ROP
     let ret: [u8; 1] = [0xc3];
     let ret_far: [u8; 1] = [0xcb];
     let ret_imm: [u8; 3] = [0xc2, 0xaa, 0xbb];
     let ret_far_imm: [u8; 3] = [0xca, 0xaa, 0xbb];
 
-    let instr = decoder.decode(&ret).unwrap().unwrap();
+    let instr = common::decode_single_x64_instr(0, &ret);
     assert!(!xgadget::is_ret_imm16(&instr));
     assert!(xgadget::is_ret(&instr));
     assert!(xgadget::is_ret(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
 
-    let instr = decoder.decode(&ret_far).unwrap().unwrap();
+    let instr = common::decode_single_x64_instr(0, &ret_far);
     assert!(!xgadget::is_ret_imm16(&instr));
     assert!(xgadget::is_ret(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
 
-    let instr = decoder.decode(&ret_imm).unwrap().unwrap();
+    let instr = common::decode_single_x64_instr(0, &ret_imm);
     assert!(xgadget::is_ret_imm16(&instr));
     assert!(xgadget::is_ret(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
 
-    let instr = decoder.decode(&ret_far_imm).unwrap().unwrap();
+    let instr = common::decode_single_x64_instr(0, &ret_far_imm);
     assert!(xgadget::is_ret_imm16(&instr));
     assert!(xgadget::is_ret(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
@@ -40,12 +34,6 @@ fn test_rop_semantics() {
 
 #[test]
 fn test_jop_semantics() {
-    let decoder = zydis::Decoder::new(
-        zydis::enums::MachineMode::LONG_64,
-        zydis::enums::AddressWidth::_64,
-    )
-    .unwrap();
-
     // JOP
     let jmp_rax: [u8; 2] = [0xff, 0xe0];
     let jmp_rax_deref: [u8; 2] = [0xff, 0x20];
@@ -56,91 +44,84 @@ fn test_jop_semantics() {
     let call_rax_deref_offset: [u8; 3] = [0xff, 0x50, 0x10];
     let call_fixed_deref: [u8; 7] = [0xff, 0x14, 0x25, 0x10, 0x00, 0x00, 0x00];
 
-    let instr = decoder.decode(&jmp_rax).unwrap().unwrap();
-    assert!(xgadget::is_single_reg_read(&instr));
-    assert!(xgadget::is_reg_set_jmp(&instr));
+    let instr = common::decode_single_x64_instr(0, &jmp_rax);
+    assert!(xgadget::is_reg_indirect_jmp(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_jop_gadget_tail(&instr));
 
-    let instr = decoder.decode(&jmp_rax_deref).unwrap().unwrap();
-    assert!(xgadget::is_single_reg_deref_read(&instr));
-    assert!(xgadget::is_mem_ptr_set_jmp(&instr));
+    let instr = common::decode_single_x64_instr(0, &jmp_rax_deref);
+    assert!(xgadget::is_reg_indirect_jmp(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_jop_gadget_tail(&instr));
 
-    let instr = decoder.decode(&jmp_rax_deref_offset).unwrap().unwrap();
-    assert!(xgadget::is_single_reg_deref_read(&instr));
-    assert!(xgadget::is_mem_ptr_set_jmp(&instr));
+    let instr = common::decode_single_x64_instr(0, &jmp_rax_deref_offset);
+    assert!(xgadget::is_reg_indirect_jmp(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_jop_gadget_tail(&instr));
 
     // Negative test
-    let instr = decoder.decode(&jmp_fixed_deref).unwrap().unwrap();
-    assert!(!xgadget::is_single_reg_deref_read(&instr));
-    assert!(!xgadget::is_mem_ptr_set_jmp(&instr));
+    let instr = common::decode_single_x64_instr(0, &jmp_fixed_deref);
+    assert!(!xgadget::is_reg_indirect_jmp(&instr));
     assert!(!xgadget::is_gadget_tail(&instr));
     assert!(!xgadget::is_jop_gadget_tail(&instr));
 
-    let instr = decoder.decode(&call_rax).unwrap().unwrap();
-    assert!(xgadget::is_single_reg_read(&instr));
-    assert!(xgadget::is_reg_set_call(&instr));
+    let instr = common::decode_single_x64_instr(0, &call_rax);
+    assert!(xgadget::is_reg_indirect_call(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_jop_gadget_tail(&instr));
 
-    let instr = decoder.decode(&call_rax_deref).unwrap().unwrap();
-    assert!(xgadget::is_single_reg_deref_read(&instr));
-    assert!(xgadget::is_mem_ptr_set_call(&instr));
+    let instr = common::decode_single_x64_instr(0, &call_rax_deref);
+    assert!(xgadget::is_reg_indirect_call(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_jop_gadget_tail(&instr));
 
-    let instr = decoder.decode(&call_rax_deref_offset).unwrap().unwrap();
-    assert!(xgadget::is_single_reg_deref_read(&instr));
-    assert!(xgadget::is_mem_ptr_set_call(&instr));
+    let instr = common::decode_single_x64_instr(0, &call_rax_deref_offset);
+    assert!(xgadget::is_reg_indirect_call(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_jop_gadget_tail(&instr));
 
     // Negative test
-    let instr = decoder.decode(&call_fixed_deref).unwrap().unwrap();
-    assert!(!xgadget::is_single_reg_deref_read(&instr));
-    assert!(!xgadget::is_mem_ptr_set_call(&instr));
+    let instr = common::decode_single_x64_instr(0, &call_fixed_deref);
+    assert!(!xgadget::is_reg_indirect_call(&instr));
     assert!(!xgadget::is_gadget_tail(&instr));
     assert!(!xgadget::is_jop_gadget_tail(&instr));
 }
 
 #[test]
 fn test_sys_semantics() {
-    let decoder = zydis::Decoder::new(
-        zydis::enums::MachineMode::LONG_64,
-        zydis::enums::AddressWidth::_64,
-    )
-    .unwrap();
-
     // SYSCALL
     let syscall: [u8; 2] = [0x0f, 0x05];
     let sysenter: [u8; 2] = [0x0f, 0x34];
     let int_0x80: [u8; 2] = [0xcd, 0x80];
     let int_0x10: [u8; 2] = [0xcd, 0x10];
 
-    let instr = decoder.decode(&syscall).unwrap().unwrap();
+    let instr = common::decode_single_x64_instr(0, &syscall);
     assert!(xgadget::is_syscall(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_sys_gadget_tail(&instr));
 
-    let instr = decoder.decode(&sysenter).unwrap().unwrap();
+    let instr = common::decode_single_x64_instr(0, &sysenter);
     assert!(xgadget::is_syscall(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_sys_gadget_tail(&instr));
 
-    let instr = decoder.decode(&int_0x80).unwrap().unwrap();
+    let instr = common::decode_single_x64_instr(0, &int_0x80);
     assert!(xgadget::is_legacy_linux_syscall(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_sys_gadget_tail(&instr));
 
     // Negative test
-    let instr = decoder.decode(&int_0x10).unwrap().unwrap();
+    let instr = common::decode_single_x64_instr(0, &int_0x10);
     assert!(!xgadget::is_legacy_linux_syscall(&instr));
     assert!(!xgadget::is_gadget_tail(&instr));
     assert!(!xgadget::is_sys_gadget_tail(&instr));
+}
+
+#[test]
+fn test_rw_semantics() {
+    let add_rax_0x08: [u8; 4] = [0x48, 0x83, 0xc0, 0x08];
+    let instr = common::decode_single_x64_instr(0, &add_rax_0x08);
+    assert!(xgadget::semantics::is_reg_rw(&instr, &iced_x86::Register::RAX));
 }
 
 #[test]
@@ -149,14 +130,9 @@ fn test_gadget_hasher() {
     let jmp_rax: [u8; 2] = [0xff, 0xe0];
     let jmp_rax_deref: [u8; 2] = [0xff, 0x20];
 
-    let decoder = zydis::Decoder::new(
-        zydis::enums::MachineMode::LONG_64,
-        zydis::enums::AddressWidth::_64,
-    )
-    .unwrap();
-    let jmp_rax_instr = decoder.decode(&jmp_rax).unwrap().unwrap();
-    let jmp_rax_deref_instr = decoder.decode(&jmp_rax_deref).unwrap().unwrap();
-    let pop_r15_instr = decoder.decode(&pop_r15).unwrap().unwrap();
+    let jmp_rax_instr = common::decode_single_x64_instr(0, &jmp_rax);
+    let jmp_rax_deref_instr = common::decode_single_x64_instr(0, &jmp_rax_deref);
+    let pop_r15_instr = common::decode_single_x64_instr(0, &pop_r15);
 
     let mut addr_1 = BTreeSet::new();
     addr_1.insert(0);

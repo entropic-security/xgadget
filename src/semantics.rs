@@ -9,7 +9,7 @@ pub fn is_gadget_tail(instr: &iced_x86::Instruction) -> bool {
 /// Check if instruction is a JOP gadget tail
 #[inline(always)]
 pub fn is_jop_gadget_tail(instr: &iced_x86::Instruction) -> bool {
-    is_indirect_call(instr) || is_indirect_jmp(instr)
+    is_reg_indirect_call(instr) || is_reg_indirect_jmp(instr)
 }
 
 /// Check if instruction is a SYS gadget tail
@@ -22,14 +22,20 @@ pub fn is_sys_gadget_tail(instr: &iced_x86::Instruction) -> bool {
 
 /// Check if call instruction with register-controlled target
 #[inline(always)]
-pub fn is_indirect_call(instr: &iced_x86::Instruction) -> bool {
-    instr.flow_control() == iced_x86::FlowControl::IndirectCall
+pub fn is_reg_indirect_call(instr: &iced_x86::Instruction) -> bool {
+    (instr.flow_control() == iced_x86::FlowControl::IndirectCall)
+        && ((instr.op0_kind() == iced_x86::OpKind::Register)
+            || ((instr.op0_kind() == iced_x86::OpKind::Memory)
+                && instr.memory_base() != iced_x86::Register::None))
 }
 
 /// Check if jump instruction with register-controlled target
 #[inline(always)]
-pub fn is_indirect_jmp(instr: &iced_x86::Instruction) -> bool {
-    instr.flow_control() == iced_x86::FlowControl::IndirectBranch
+pub fn is_reg_indirect_jmp(instr: &iced_x86::Instruction) -> bool {
+    (instr.flow_control() == iced_x86::FlowControl::IndirectBranch)
+        && ((instr.op0_kind() == iced_x86::OpKind::Register)
+            || ((instr.op0_kind() == iced_x86::OpKind::Memory)
+                && instr.memory_base() != iced_x86::Register::None))
 }
 
 /// Check if return instruction
@@ -46,13 +52,13 @@ pub fn is_ret_imm16(instr: &iced_x86::Instruction) -> bool {
 
 /// Check if call instruction
 #[inline(always)]
-pub fn is_call(instr: &iced_x86::Instruction) -> bool {
-    instr.mnemonic() == iced_x86::Mnemonic::Call
+pub fn is_fixed_call(instr: &iced_x86::Instruction) -> bool {
+    (instr.mnemonic() == iced_x86::Mnemonic::Call) && (!is_reg_indirect_call(instr))
 }
 
 /// Check if unconditional jmp instruction
-pub fn is_uncond_jmp(instr: &iced_x86::Instruction) -> bool {
-    instr.mnemonic() == iced_x86::Mnemonic::Jmp
+pub fn is_uncond_fixed_jmp(instr: &iced_x86::Instruction) -> bool {
+    (instr.mnemonic() == iced_x86::Mnemonic::Jmp) && (!is_reg_indirect_jmp(instr))
 }
 
 /// Check if interrupt instruction
@@ -87,8 +93,7 @@ pub fn is_legacy_linux_syscall(instr: &iced_x86::Instruction) -> bool {
 pub fn is_reg_rw(instr: &iced_x86::Instruction, reg: &iced_x86::Register) -> bool {
     let mut info_factory = iced_x86::InstructionInfoFactory::new();
     let info = info_factory.info_options(&instr, iced_x86::InstructionInfoOptions::NO_MEMORY_USAGE);
-    let reg_read = iced_x86::UsedRegister::new(*reg, iced_x86::OpAccess::Read);
-    let reg_write = iced_x86::UsedRegister::new(*reg, iced_x86::OpAccess::Write);
+    let reg_rw = iced_x86::UsedRegister::new(*reg, iced_x86::OpAccess::ReadWrite);
 
-    info.used_registers().contains(&reg_read) && info.used_registers().contains(&reg_write)
+    info.used_registers().contains(&reg_rw)
 }

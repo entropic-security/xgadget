@@ -75,14 +75,14 @@ fn test_conflicting_flags_imm16_jop() {
 
     xgadget_bin
         .arg("/usr/bin/some_file_83bb57de34d8713f6e4940b4bdda4bea")
-        .arg("-i")
+        .arg("--inc-imm16")
         .arg("-j");
 
     xgadget_bin
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "The argument '--jop' cannot be used with '--imm16'",
+            "The argument '--jop' cannot be used with '--inc-imm16'",
         ));
 }
 
@@ -101,7 +101,7 @@ fn test_raw() {
         .assert()
         .success()
         .stdout(predicate::str::contains(
-            "lea ecx, [rip+0x5DDCB]; jmp [rcx];",
+            "lea ecx, [rip+0x5ddcb]; jmp qword ptr [rcx];",
         ));
     xgadget_bin
         .assert()
@@ -187,7 +187,7 @@ fn test_search_args() {
             .unwrap()
             .arg("/bin/cat")
             .arg("-r")
-            .arg("-i")
+            .arg("--inc-imm16")
             .output()
             .unwrap()
             .stdout,
