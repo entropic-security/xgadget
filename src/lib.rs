@@ -91,9 +91,9 @@
 //!    <FILE(S)>...    1+ binaries to gadget search. If > 1: gadgets common to all
 //!```
 //!
-//!### CLI Build and Install
+//!### CLI Build and Install (Recommended)
 //!
-//!Build from source and install locally:
+//!Build a dynamically-linked binary from source and install it locally:
 //!
 //!```bash
 //!cargo install xgadget --features cli-bin    # Build on host (pre-req: https://www.rust-lang.org/tools/install)
@@ -104,6 +104,9 @@
 //!Commits to this repo's `master` branch automatically run integration tests and build a statically-linked binary for 64-bit Linux.
 //!You can [download it here](https://github.com/entropic-security/xgadget/releases) and use the CLI immediately, instead of building from source.
 //!Static binaries for Windows may also be supported in the future.
+//!
+//!The statically-linked binary is about 8x slower, presumably due to the built-in memory allocator for target `x86_64-unknown-linux-musl`.
+//!Building a dynamically-linked binary from source with the above `cargo install` command is *highly* recommended.
 //!
 //!### ~~Yeah, but can it do 10 OS kernels under 10 seconds?!~~ Repeatable Benchmark Harness
 //!
