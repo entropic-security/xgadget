@@ -4,7 +4,7 @@
 ![GitHub Actions](https://github.com/entropic-security/xgadget/workflows/test/badge.svg)
 
 Fast, parallel, cross-variant ROP/JOP gadget search for x86 (32-bit) and x64 (64-bit) binaries.
-Uses official Rust bindings for the [zydis disassembler library](https://github.com/zyantific/zydis).
+Uses the [iced-x86 disassembler library](https://github.com/0xd4d/iced).
 
 **Current state:** decent test coverage, but still in beta. Issues/PRs welcome :)
 
@@ -59,7 +59,7 @@ let cross_reg_write_gadgets = xgadget::filter_stack_set_regs(&cross_gadgets);
 Run `xgadget --help`:
 
 ```
-xgadget v0.3.0
+xgadget v0.4.0
 
 About:  Fast, parallel, cross-variant ROP/JOP gadget search for x86/x64 binaries.
 Cores:  8 logical, 8 physical
@@ -73,7 +73,8 @@ FLAGS:
     -d, --dispatcher       Filter to potential JOP 'dispatcher' gadgets [default: all gadgets]
     -e, --extended-fmt     Print in terminal-wide format [default: only used for partial match search]
     -h, --help             Prints help information
-    -i, --imm16            Include '{ret, ret far} imm16' (e.g. add to stack ptr) [default: don't include]
+        --inc-call         Include gadgets containing a call [default: don't include]
+        --inc-imm16        Include '{ret, ret far} imm16' (e.g. add to stack ptr) [default: don't include]
     -j, --jop              Search for JOP gadgets only [default: ROP, JOP, and SYSCALL]
     -n, --no-color         Don't color output, useful for UNIX piping [default: color output]
     -m, --partial-match    Include cross-variant partial matches [default: full matches only]
@@ -98,17 +99,16 @@ ARGS:
 Build from source and install locally:
 
 ```bash
-sudo apt-get install cmake                  # Ubuntu-specific, adjust for your package manager
 cargo install xgadget --features cli-bin    # Build on host (pre-req: https://www.rust-lang.org/tools/install)
 ```
 
 ### CLI Binary Releases for Linux
 
-Commits to this repo's `master` branch automatically run integration tests and build a dynamically-linked binary for 64-bit Linux.
+Commits to this repo's `master` branch automatically run integration tests and build a statically-linked binary for 64-bit Linux.
 You can [download it here](https://github.com/entropic-security/xgadget/releases) and use the CLI immediately, instead of building from source.
-Static binaries for Linux and Windows may be supported in the future.
+Static binaries for Windows may also be supported in the future.
 
-### ~~Yeah, but can it do 10 OS kernels in 30 seconds?!~~ Repeatable Benchmark Harness
+### ~~Yeah, but can it do 10 OS kernels under 10 seconds?!~~ Repeatable Benchmark Harness
 
 ```bash
 bash ./benches/bench_setup_ubuntu.sh    # Ubuntu-specific, download/build 10 kernel versions
@@ -118,11 +118,7 @@ cargo bench                             # Grab a coffee, this'll take a while...
 * `bench_setup_ubuntu.sh` downloads and builds 10 consecutive Linux kernels (versions `5.0.1` to `5.0.10` - with `x86_64_defconfig`).
 * `cargo bench`, among other benchmarks, searches all 10 kernels for common gadgets.
 
-On an i7-9700K (8C/8T, 3.6GHz base, 4.9 GHz max, e.g. an older-gen consumer CPU) machine with `gcc` version 8.4.0: the average runtime, to process *all ten 54MB kernels simultaneously* with a max gadget length of 5 instructions and full-match search for all gadget types (ROP, JOP, and syscall gadgets), is *only 31 seconds*!
-
-Note this is a statistical benchmark that samples from many iterations, and requires a lot of RAM (> 32GB). If you just want to run `xgadget` on the 10 kernels once, use `./benches/run_on_bench_kernels.sh`.
-
-Searching all 10 kernels for *both* partial and full matches is still in beta, no benchmarks yet (implemented but not yet optimized). Because of the performance hit and the lower utility of partial gadget matches, this search option is disabled by default. It can be enabled with the `--partial-match` flag for the CLI, or via setting a configuration bit, e.g. `search_config |=  xgadget::SearchConfig::PART`, for the library API. Conversely, removing default options improves performance: searching all 10 kernels for only ROP gadgets (ignoring JOP and syscall gadgets) takes just 22 seconds. `xgadget` is designed to scale for large binaries while being easily configurable.
+On an i7-9700K (8C/8T, 3.6GHz base, 4.9 GHz max) machine with `gcc` version 8.4.0: the average runtime, to process *all ten 54MB kernels simultaneously* with a max gadget length of 5 instructions and full-match search for all gadget types (ROP, JOP, and syscall gadgets), is *only 5.8 seconds*! Including partial matches as well takes *just 7.2 seconds*.
 
 ### Acknowledgements
 
@@ -134,5 +130,5 @@ This project started as an optimized solution to Chapter 8, exercise 3 of "Pract
 * [2] [`rayon` crate by Josh Stone, Niko Matsakis](https://crates.io/crates/rayon)
 * [3] [`xgadget/.github/workflows`](https://github.com/entropic-security/xgadget/tree/master/.github/workflows)
 * [4] [`criterion` crate by Brook Heisler, Jorge Aparicio](https://crates.io/crates/criterion)
-* [5] [`zydis` bindings by Joel Honer, Timo von Hartz](https://crates.io/crates/zydis)
+* [5] [`iced-x86` crate by 0xd4d](https://crates.io/crates/iced-x86)
 * [6] ["Practical Binary Analysis" by Dennis Andreisse](https://practicalbinaryanalysis.com/)

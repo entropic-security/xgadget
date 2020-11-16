@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use iced_x86;
 use rayon::prelude::*;
 
 use crate::gadget;
@@ -87,7 +86,7 @@ pub fn filter_stack_set_regs<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::
                             || instr.mnemonic() == iced_x86::Mnemonic::Popa
                     });
 
-                    if pop_chain {
+                    if pop_chain && !preceding_instrs.is_empty() {
                         return true;
                     }
                 }

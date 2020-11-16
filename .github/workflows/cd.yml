@@ -29,12 +29,9 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build binary release
-        run: cargo build --features cli-bin --release --locked
-
-      # TODO: troubleshoot static binaries
-      #run: |
-      #  rustup target add x86_64-unknown-linux-musl
-      #  cargo build --target x86_64-unknown-linux-musl --release --locked
+        run: |
+          rustup target add x86_64-unknown-linux-musl
+          cargo build --target x86_64-unknown-linux-musl --features cli-bin --release --locked
 
       - name: Create Release
         id: create_release
@@ -53,7 +50,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./target/release/xgadget
+          asset_path: ./target/x86_64-unknown-linux-musl/release/xgadget
           asset_name: xgadget-linux-x64
           asset_content_type: application/octet-stream
 

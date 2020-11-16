@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 
 use colored::Colorize;
-use iced_x86;
 use rayon::prelude::*;
 
 use crate::binary;
@@ -190,7 +189,7 @@ fn set_color(s: &str, kind: iced_x86::FormatterTextKind) -> colored::ColoredStri
         iced_x86::FormatterTextKind::Directive | iced_x86::FormatterTextKind::Keyword => s.blue(),
         iced_x86::FormatterTextKind::Prefix | iced_x86::FormatterTextKind::Mnemonic => s.cyan(),
         iced_x86::FormatterTextKind::Register => s.yellow(),
-        iced_x86::FormatterTextKind::Number => s.white().bold(),
+        iced_x86::FormatterTextKind::Punctuation => s.bright_magenta(),
         _ => s.white(),
     }
 }

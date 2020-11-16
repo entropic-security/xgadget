@@ -93,7 +93,7 @@ struct CLIOpts {
     stack_pivot: bool,
 
     /// Filter to potential JOP 'dispatcher' gadgets [default: all gadgets]
-    #[structopt(short, long, conflicts_with = "stack_pivot")]
+    #[structopt(short, long, conflicts_with_all = &["rop", "stack_pivot"])]
     dispatcher: bool,
 
     /// Filter to 'pop {reg} * 1+, {ret or ctrl-ed jmp/call}' gadgets [default: all gadgets]

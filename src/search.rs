@@ -1,7 +1,6 @@
 use std::collections::BTreeSet;
 use std::error::Error;
 
-use iced_x86;
 use rayon::prelude::*;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 

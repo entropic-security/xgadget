@@ -2,8 +2,6 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::hash::{Hash, Hasher};
 
-use iced_x86;
-
 use crate::binary;
 
 // TODO: implement Ord for binary, use BTReeSet instead of Vector to maintain sorted order on insertion - will have nicer output at partial match at cost of speed (how much?)
@@ -48,11 +46,7 @@ impl<'a> Gadget<'a> {
         match self.partial_matches.get_mut(&addr) {
             Some(bins) => bins.push(bin),
             None => {
-                // TODO: Use unwrap_none() once on stable
-                match self.partial_matches.insert(addr, vec![bin]) {
-                    Some(_) => return,
-                    None => return,
-                }
+                self.partial_matches.insert(addr, vec![bin]);
             }
         };
     }

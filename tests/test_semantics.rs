@@ -121,7 +121,10 @@ fn test_sys_semantics() {
 fn test_rw_semantics() {
     let add_rax_0x08: [u8; 4] = [0x48, 0x83, 0xc0, 0x08];
     let instr = common::decode_single_x64_instr(0, &add_rax_0x08);
-    assert!(xgadget::semantics::is_reg_rw(&instr, &iced_x86::Register::RAX));
+    assert!(xgadget::semantics::is_reg_rw(
+        &instr,
+        &iced_x86::Register::RAX
+    ));
 }
 
 #[test]
