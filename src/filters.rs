@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use iced_x86;
 use rayon::prelude::*;
 
 use crate::gadget;

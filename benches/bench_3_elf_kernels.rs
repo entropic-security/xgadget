@@ -17,9 +17,20 @@ fn elf_kernel_bench(c: &mut Criterion) {
         .map(|path| xgadget::Binary::from_path_str(path.to_str().unwrap()).unwrap())
         .collect();
 
-    c.bench_function("10_kernel_search", |b| {
+    c.bench_function("10_kernel_search_full_match", |b| {
         b.iter(|| {
             xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::DEFAULT).unwrap()
+        })
+    });
+
+    c.bench_function("10_kernel_search_part_match", |b| {
+        b.iter(|| {
+            xgadget::find_gadgets(
+                &bins,
+                MAX_GADGET_LEN,
+                xgadget::SearchConfig::DEFAULT | xgadget::SearchConfig::PART,
+            )
+            .unwrap()
         })
     });
 }
