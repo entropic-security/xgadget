@@ -109,58 +109,60 @@ fn config_formatter<F: iced_x86::Formatter>(formatter: &mut F) {
         .set_space_after_operand_separator(true);
 }
 
-// Partial match format helper, recursively shrinks a working set
+// Partial match format helper, shrinks a working set
 fn str_fmt_partial_matches_internal(
-    mut partial_matches: &mut BTreeMap<u64, Vec<&binary::Binary>>,
+    partial_matches: &mut BTreeMap<u64, Vec<&binary::Binary>>,
     color: bool,
 ) -> Option<String> {
+
+    let mut add_sep = false;
+    let mut match_str = String::new();
+
     // Find largest subset of binaries with match for a given address (best partial match)
-    match partial_matches
+    while let Some((bpm_addr, bpm_bins)) = partial_matches
         .iter()
         .max_by(|a, b| a.1.len().cmp(&b.1.len()))
     {
-        Some((bpm_addr, bpm_bins)) => {
-            let mut match_str = String::new();
+        // This pair of clones ends borrow of partial_matches and lets us remove from it later
+        let bpm_addr = *bpm_addr;
+        let mut bpm_bins = bpm_bins.clone();
+        bpm_bins.sort_by(|b1, b2| b1.name.to_lowercase().cmp(&b2.name.to_lowercase()));
 
-            // This pair of clones ends a borrow fo partial_matches and lets us remove from it later
-            // This eliminates the need to clone the whole map each level of recursion
-            let bpm_addr = *bpm_addr;
-            let mut bpm_bins = bpm_bins.clone();
-            bpm_bins.sort_by(|b1, b2| b1.name.to_lowercase().cmp(&b2.name.to_lowercase()));
-
-            // Commit best partial match
-            match bpm_bins.split_last() {
-                Some((last_bin, prior_bpm_bins)) => {
-                    for pb in prior_bpm_bins {
-                        match_str.push_str(&format!("'{}', ", pb.name));
-                    }
-                    match_str.push_str(&format!("'{}': ", last_bin.name));
-                    if color {
-                        match_str.push_str(&format!("{}", format!("0x{:016x}", bpm_addr).green()));
-                    } else {
-                        match_str.push_str(&format!("0x{:016x}", bpm_addr));
-                    }
-                }
-                None => return None,
-            }
-
-            // Remove committed binaries from the remainder of partial matches
-            partial_matches.remove(&bpm_addr);
-            partial_matches
-                .iter_mut()
-                .for_each(|(_, bins)| bins.retain(|&b| !bpm_bins.contains(&b)));
-
-            // Recursion depth bound by number of binaries
-            match str_fmt_partial_matches_internal(&mut partial_matches, color) {
-                Some(remaining_match_str) => {
+        // Commit best partial match
+        match bpm_bins.split_last() {
+           Some((last_bin, prior_bpm_bins)) => {
+                if add_sep {
                     match_str.push_str(", ");
-                    match_str.push_str(&remaining_match_str);
-                    Some(match_str)
+                } else {
+                    add_sep = true;
                 }
-                None => Some(match_str),
+
+                for pb in prior_bpm_bins {
+                    match_str.push_str(&format!("'{}', ", pb.name));
+                }
+
+                match_str.push_str(&format!("'{}': ", last_bin.name));
+
+                if color {
+                    match_str.push_str(&format!("{}", format!("0x{:016x}", bpm_addr).green()));
+                } else {
+                    match_str.push_str(&format!("0x{:016x}", bpm_addr));
+                }
             }
+            None => break,
         }
-        None => None,
+
+        // Remove committed binaries from the remainder of partial matches
+        partial_matches.remove(&bpm_addr);
+        partial_matches
+            .iter_mut()
+            .for_each(|(_, bins)| bins.retain(|&b| !bpm_bins.contains(&b)));
+    }
+
+    if match_str.is_empty() {
+        None
+    } else {
+        Some(match_str)
     }
 }
 

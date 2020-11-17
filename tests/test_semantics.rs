@@ -181,9 +181,26 @@ fn test_gadget_hasher() {
         vec![pop_r15_instr.clone(), jmp_rax_instr.clone()],
         addr_1.clone(),
     );
-    let g2 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_instr.clone()], addr_2);
+    let g2 = xgadget::Gadget::new(
+        vec![pop_r15_instr.clone(), jmp_rax_instr.clone()],
+        addr_2.clone(),
+    );
     assert!(common::hash(&g1) == common::hash(&g2));
 
+    // Same instructions, different decode addresses - custom hash match
+    // https://github.com/0xd4d/iced/blob/3ed6e0eadffb61daa50e041eb28633f17a9957e9/src/rust/iced-x86/src/instruction.rs#L7574
+    let decode_addr_5 = 5;
+    let decode_addr_10 = 10;
+    let jmp_rax_instr_5 = common::decode_single_x64_instr(decode_addr_5, &jmp_rax);
+    let jmp_rax_instr_10 = common::decode_single_x64_instr(decode_addr_10, &jmp_rax);
+
+    let g1 = xgadget::Gadget::new(vec![jmp_rax_instr_5.clone()], addr_1.clone());
+    let g2 = xgadget::Gadget::new(vec![jmp_rax_instr_10.clone()], addr_1.clone());
+    let g3 = xgadget::Gadget::new(vec![jmp_rax_instr_10.clone()], addr_2);
+    assert!(common::hash(&g1) == common::hash(&g2));
+    assert!(common::hash(&g2) == common::hash(&g3));
+
+    // Hash set intersection
     let g1 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_instr], addr_1.clone());
     let g2 = xgadget::Gadget::new(vec![pop_r15_instr, jmp_rax_deref_instr], addr_1);
 
