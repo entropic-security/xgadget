@@ -129,6 +129,25 @@ pub const FILTERS_X64: &[u8] = &[
     0xff, 0xe0,                                             // jmp rax
 ];
 
+// http://bodden.de/pubs/fbt+16pshape.pdf
+#[allow(dead_code)]
+#[rustfmt::skip]
+pub const PSHAPE_PG_5_X64: &[u8] = &[
+    0x48, 0x89, 0xe0,                                       // mov rax, rsp
+    0x4c, 0x89, 0x48, 0x20,                                 // mov [rax+0x20], r9
+    0x4c, 0x89, 0x40, 0x18,                                 // mov [rax+0x18], r8
+    0x48, 0x89, 0x50, 0x10,                                 // mov [rax+0x10], rdx
+    0x48, 0x89, 0x48, 0x08,                                 // mov [rax+0x8], rcx
+    0x4c, 0x89, 0xc9,                                       // mov rcx, r9
+    0x48, 0x8b, 0x01,                                       // mov rax, [rcx]
+    0x48, 0xff, 0xc0,                                       // inc rax
+    0x48, 0x89, 0x41, 0x08,                                 // mov [rcx+0x8] , rax
+    0x48, 0x8b, 0x41, 0x04,                                 // mov rax, [rcx+0x4]
+    0x48, 0xff, 0xc0,                                       // inc rax
+    0x48, 0x89, 0x41, 0x0c,                                 // mov [rcx+0x0C] , rax
+    0xc3,                                                   // ret
+];
+
 // Test Utils ----------------------------------------------------------------------------------------------------------
 
 #[allow(dead_code)]

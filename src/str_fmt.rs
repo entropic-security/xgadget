@@ -75,6 +75,13 @@ pub fn str_fmt_partial_matches(gadget: &gadget::Gadget, color: bool) -> Option<S
     str_fmt_partial_matches_internal(&mut gadget.partial_matches.clone(), color)
 }
 
+/// Summarize memory dereference pre-conditions
+pub fn str_fmt_preconditions(gadget: &gadget::Gadget) -> Vec<String> {
+    // TODO: stuff here
+    //let gadget_analysis = gadget::GadgetAnalysis::new(gadget);
+    unimplemented!();
+}
+
 // Private API ---------------------------------------------------------------------------------------------------------
 
 // Get instruction formatter
@@ -114,7 +121,6 @@ fn str_fmt_partial_matches_internal(
     partial_matches: &mut BTreeMap<u64, Vec<&binary::Binary>>,
     color: bool,
 ) -> Option<String> {
-
     let mut add_sep = false;
     let mut match_str = String::new();
 
@@ -130,7 +136,7 @@ fn str_fmt_partial_matches_internal(
 
         // Commit best partial match
         match bpm_bins.split_last() {
-           Some((last_bin, prior_bpm_bins)) => {
+            Some((last_bin, prior_bpm_bins)) => {
                 if add_sep {
                     match_str.push_str(", ");
                 } else {

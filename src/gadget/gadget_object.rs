@@ -4,6 +4,8 @@ use std::hash::{Hash, Hasher};
 
 use crate::binary;
 
+// Gadget --------------------------------------------------------------------------------------------------------------
+
 // TODO: implement Ord for binary, use BTReeSet instead of Vector to maintain sorted order on insertion - will have nicer output at partial match at cost of speed (how much?)
 
 /// Gadget instructions (data) coupled with occurrence addresses for full and partial matches (metadata).
@@ -11,15 +13,15 @@ use crate::binary;
 /// Hash and equality consider only gadget instructions, not occurrence addresses (fast de-duplication via sets).
 #[derive(Clone, Debug)]
 pub struct Gadget<'a> {
-    pub instrs: Vec<iced_x86::Instruction>,
-    pub full_matches: BTreeSet<u64>,
-    pub partial_matches: BTreeMap<u64, Vec<&'a binary::Binary>>,
+    pub(crate) instrs: Vec<iced_x86::Instruction>,
+    pub(crate) full_matches: BTreeSet<u64>,
+    pub(crate) partial_matches: BTreeMap<u64, Vec<&'a binary::Binary>>,
 }
 
 // TODO: other/getter/setter APIs and private fields?
 impl<'a> Gadget<'a> {
     /// Assumes instructions are correctly sorted, address guaranteed to be sorted
-    pub fn new(instrs: Vec<iced_x86::Instruction>, full_matches: BTreeSet<u64>) -> Gadget<'a> {
+    pub fn new(instrs: Vec<iced_x86::Instruction>, full_matches: BTreeSet<u64>) -> Self {
         Gadget {
             instrs,
             full_matches,
@@ -27,9 +29,24 @@ impl<'a> Gadget<'a> {
         }
     }
 
+    /// Get a instructions
+    pub fn instrs(&self) -> &[iced_x86::Instruction] {
+        &self.instrs
+    }
+
     /// Get tail
     pub fn last_instr(&self) -> Option<&iced_x86::Instruction> {
         self.instrs.iter().next_back()
+    }
+
+    /// Get a full matches
+    pub fn full_matches(&self) -> &BTreeSet<u64> {
+        &self.full_matches
+    }
+
+    /// Get partial matches
+    pub fn partial_matches(&self) -> &BTreeMap<u64, Vec<&'a binary::Binary>> {
+        &self.partial_matches
     }
 
     /// Get first full match

@@ -100,6 +100,10 @@ struct CLIOpts {
     #[structopt(short = "w", long, conflicts_with = "dispatcher")]
     reg_write: bool,
 
+    /// Filter to gadgets that don't dereference registers
+    #[structopt(long)]
+    no_deref: bool,
+
     /// Filter to gadgets whose addrs don't contain given bytes [default: all gadgets]
     #[structopt(short, long, min_values = 1, value_name = "BYTE(S)")]
     bad_bytes: Vec<String>,
@@ -357,6 +361,10 @@ fn main() {
 
     if cli.reg_write {
         gadgets = xgadget::filter_stack_set_regs(&gadgets);
+    }
+
+    if cli.no_deref {
+        gadgets = xgadget::filter_no_deref(&gadgets);
     }
 
     if !cli.bad_bytes.is_empty() {

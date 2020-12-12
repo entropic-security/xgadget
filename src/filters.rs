@@ -33,6 +33,31 @@ pub fn filter_stack_pivot<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::Gad
         .collect()
 }
 
+// TODO: benchmark against original
+// If significantly slower move into benchmarks as a case study
+pub fn filter_stack_pivot_alt<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::Gadget<'a>> {
+    gadgets
+        .par_iter()
+        .filter(|g| {
+            let gadget_analysis = gadget::GadgetAnalysis::new(&g);
+            if gadget_analysis
+                .regs_overwritten()
+                .contains(&iced_x86::Register::RSP)
+                || gadget_analysis
+                    .regs_overwritten()
+                    .contains(&iced_x86::Register::ESP)
+                || gadget_analysis
+                    .regs_overwritten()
+                    .contains(&iced_x86::Register::SP)
+            {
+                return true;
+            }
+            false
+        })
+        .cloned()
+        .collect()
+}
+
 /// Parallel filter to gadgets that may be suitable JOP dispatchers
 pub fn filter_dispatcher<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::Gadget<'a>> {
     gadgets
@@ -92,6 +117,18 @@ pub fn filter_stack_set_regs<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::
                 }
             }
             false
+        })
+        .cloned()
+        .collect()
+}
+
+/// Parallel filter to gadgets that don't dereference registers
+pub fn filter_no_deref<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::Gadget<'a>> {
+    gadgets
+        .par_iter()
+        .filter(|g| {
+            let gadget_analysis = gadget::GadgetAnalysis::new(&g);
+            gadget_analysis.regs_dereferenced().is_empty()
         })
         .cloned()
         .collect()

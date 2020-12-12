@@ -50,9 +50,9 @@ pub fn is_ret_imm16(instr: &iced_x86::Instruction) -> bool {
     is_ret(instr) && (instr.op_count() != 0)
 }
 
-/// Check if call instruction
+/// Check if direct call instruction
 #[inline(always)]
-pub fn is_fixed_call(instr: &iced_x86::Instruction) -> bool {
+pub fn is_direct_call(instr: &iced_x86::Instruction) -> bool {
     (instr.mnemonic() == iced_x86::Mnemonic::Call) && (!is_reg_indirect_call(instr))
 }
 

@@ -11,7 +11,7 @@ pub fn filter_stack_pivot_sequential<'a>(
     gadgets
         .iter()
         .filter(|g| {
-            for instr in &g.instrs {
+            for instr in g.instrs() {
                 let mut info_factory = iced_x86::InstructionInfoFactory::new();
 
                 let info = info_factory

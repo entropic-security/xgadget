@@ -208,7 +208,7 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<iced_x86::Instruction>,
             let pc = i.ip();
             if (pc > tail_addr)
                 || ((pc != tail_addr) && semantics::is_gadget_tail(&i))
-                || (semantics::is_fixed_call(&i)
+                || (semantics::is_direct_call(&i)
                     && !d_config.s_config.intersects(SearchConfig::CALL))
                 || (semantics::is_uncond_fixed_jmp(&i))
                 || (semantics::is_int(&i))
