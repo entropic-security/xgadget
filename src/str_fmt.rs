@@ -75,12 +75,14 @@ pub fn str_fmt_partial_matches(gadget: &gadget::Gadget, color: bool) -> Option<S
     str_fmt_partial_matches_internal(&mut gadget.partial_matches.clone(), color)
 }
 
+/*
+// TODO: implement later
 /// Summarize memory dereference pre-conditions
 pub fn str_fmt_preconditions(gadget: &gadget::Gadget) -> Vec<String> {
-    // TODO: stuff here
     //let gadget_analysis = gadget::GadgetAnalysis::new(gadget);
     unimplemented!();
 }
+*/
 
 // Private API ---------------------------------------------------------------------------------------------------------
 

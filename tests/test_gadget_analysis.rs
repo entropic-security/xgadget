@@ -1,5 +1,6 @@
 mod common;
 
+/*
 #[test]
 fn test_regs_deref() {
     let bin_pshape = common::get_raw_bin("pshape_example", &common::PSHAPE_PG_5_X64);
@@ -17,3 +18,4 @@ fn test_regs_deref() {
     }
     assert!(gadget_analysis.regs_dereferenced().len() == 2);
 }
+*/

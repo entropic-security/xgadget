@@ -30,11 +30,11 @@ bitflags! {
 // Public API ----------------------------------------------------------------------------------------------------------
 
 /// Search 1+ binaries for ROP gadgets (common gadgets if > 1)
-pub fn find_gadgets<'a>(
-    bins: &'a [binary::Binary],
+pub fn find_gadgets(
+    bins: &[binary::Binary],
     max_len: usize,
     s_config: SearchConfig,
-) -> Result<Vec<gadget::Gadget<'a>>, Box<dyn Error>> {
+) -> Result<Vec<gadget::Gadget>, Box<dyn Error>> {
     // Process binaries in parallel
     let parallel_results: Vec<(&binary::Binary, HashSet<gadget::Gadget>)> = bins
         .par_iter()
@@ -227,7 +227,8 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<iced_x86::Instruction>,
         // Find gadgets. Awww yisss.
         if let Some(i) = instrs.last() {
             // ROP
-            if (semantics::is_ret(&i) && (instrs.len() > 1))
+            // Note: 1 instr gadget (e.g. "ret;") for 16 byte re-alignment of stack pointer (avoid movaps segfault)
+            if (semantics::is_ret(&i))
 
                 // JOP
                 || (semantics::is_jop_gadget_tail(&i))
@@ -246,11 +247,11 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<iced_x86::Instruction>,
 }
 
 /// Search a binary for gadgets
-fn find_gadgets_single_bin<'a>(
-    bin: &'a binary::Binary,
+fn find_gadgets_single_bin(
+    bin: &binary::Binary,
     max_len: usize,
     s_config: SearchConfig,
-) -> HashSet<gadget::Gadget<'a>> {
+) -> HashSet<gadget::Gadget> {
     let mut gadget_collector: HashMap<Vec<iced_x86::Instruction>, BTreeSet<u64>> =
         HashMap::default();
 
