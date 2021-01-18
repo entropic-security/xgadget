@@ -127,6 +127,12 @@ pub const FILTERS_X64: &[u8] = &[
     0xc3,                                                   // ret
     0x58,                                                   // pop rax
     0xff, 0xe0,                                             // jmp rax
+    0x41, 0x58,                                             // pop r8
+    0xc3,                                                   // ret
+    0x48, 0x89, 0xc1,                                       // mov rcx, rax
+    0xc3,                                                   // ret
+    0x50,                                                   // push rax
+    0xc3,                                                   // ret
 ];
 
 // http://bodden.de/pubs/fbt+16pshape.pdf

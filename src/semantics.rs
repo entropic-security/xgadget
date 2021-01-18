@@ -97,3 +97,21 @@ pub fn is_reg_rw(instr: &iced_x86::Instruction, reg: &iced_x86::Register) -> boo
 
     info.used_registers().contains(&reg_rw)
 }
+
+/// Check if sets register from another register or stack (e.g. exclude constant write)
+#[inline(always)]
+pub fn is_reg_set(instr: &iced_x86::Instruction, reg: &iced_x86::Register) -> bool {
+    let mut info_factory = iced_x86::InstructionInfoFactory::new();
+    let info = info_factory.info_options(&instr, iced_x86::InstructionInfoOptions::NO_MEMORY_USAGE);
+    let reg_w = iced_x86::UsedRegister::new(*reg, iced_x86::OpAccess::Write);
+
+    if info.used_registers().iter().any(|ur| {
+        ur.access() == iced_x86::OpAccess::Read || ur.access() == iced_x86::OpAccess::ReadWrite
+    }) {
+        if info.used_registers().contains(&reg_w) {
+            return true;
+        }
+    }
+
+    false
+}

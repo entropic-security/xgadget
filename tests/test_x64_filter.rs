@@ -105,6 +105,10 @@ fn test_x64_filter_stack_set_regs() {
         &loader_gadget_strs,
         "pop rax; jmp rax;"
     ));
+    assert!(common::gadget_strs_contains_sub_str(
+        &loader_gadget_strs,
+        "pop r8; ret;"
+    ));
 
     // Negative
     assert!(!common::gadget_strs_contains_sub_str(
@@ -139,5 +143,53 @@ fn test_x64_filter_bad_bytes() {
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs,
         "jmp rax;"
+    ));
+}
+
+#[test]
+fn test_x64_filter_set_params() {
+    let bin_filters = common::get_raw_bin("bin_filters", &common::FILTERS_X64);
+    let bins = vec![bin_filters];
+    let gadgets =
+        xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
+    let param_ctrl_gadgets =
+        xgadget::filter_set_params(&gadgets, xgadget::binary::X64_ELF_PARAM_REGS);
+    let param_ctrl_gadget_strs = common::get_gadget_strs(&param_ctrl_gadgets, false);
+    common::print_gadget_strs(&param_ctrl_gadget_strs);
+
+    // Positive
+    assert!(common::gadget_strs_contains_sub_str(
+        &param_ctrl_gadget_strs,
+        "pop r8; ret;"
+    ));
+    assert!(common::gadget_strs_contains_sub_str(
+        &param_ctrl_gadget_strs,
+        "mov rcx, rax; ret;"
+    ));
+    assert!(common::gadget_strs_contains_sub_str(
+        &param_ctrl_gadget_strs,
+        "push rax; ret;"
+    ));
+
+    // Negative
+    assert!(!common::gadget_strs_contains_sub_str(
+        &param_ctrl_gadget_strs,
+        "jmp rax;"
+    ));
+    assert!(!common::gadget_strs_contains_sub_str(
+        &param_ctrl_gadget_strs,
+        "pop rsp; ret;"
+    ));
+    assert!(!common::gadget_strs_contains_sub_str(
+        &param_ctrl_gadget_strs,
+        "pop rax; pop rbx; ret;"
+    ));
+    assert!(!common::gadget_strs_contains_sub_str(
+        &param_ctrl_gadget_strs,
+        "pop rbx; ret;"
+    ));
+    assert!(!common::gadget_strs_contains_sub_str(
+        &param_ctrl_gadget_strs,
+        "pop rax; jmp rax;"
     ));
 }

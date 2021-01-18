@@ -122,6 +122,44 @@ pub fn filter_stack_set_regs<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::
         .collect()
 }
 
+/// Parallel filter to gadgets that write parameter registers or stack push any register
+pub fn filter_set_params<'a>(
+    gadgets: &[gadget::Gadget<'a>],
+    param_regs: &[iced_x86::Register],
+) -> Vec<gadget::Gadget<'a>> {
+    gadgets
+        .par_iter()
+        .filter(|g| {
+            for instr in &g.instrs {
+                // Stack push all regs
+                if instr.mnemonic() == iced_x86::Mnemonic::Pusha
+                    || instr.mnemonic() == iced_x86::Mnemonic::Pushad
+                {
+                    return true;
+                }
+
+                // Stack push any reg
+                if instr.mnemonic() == iced_x86::Mnemonic::Push {
+                    if let Ok(op_kind) = instr.try_op_kind(0) {
+                        if op_kind == iced_x86::OpKind::Register {
+                            return true;
+                        }
+                    }
+                }
+
+                // Sets param reg
+                for reg in param_regs {
+                    if semantics::is_reg_set(&instr, &reg) {
+                        return true;
+                    }
+                }
+            }
+            false
+        })
+        .cloned()
+        .collect()
+}
+
 /// Parallel filter to gadgets that don't dereference registers
 pub fn filter_no_deref<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::Gadget<'a>> {
     gadgets

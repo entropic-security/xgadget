@@ -100,9 +100,13 @@ struct CLIOpts {
     #[structopt(short = "w", long, conflicts_with = "dispatcher")]
     reg_write: bool,
 
-    /// Filter to gadgets that don't dereference registers
+    /// Filter to gadgets that don't dereference registers [default: all gadgets]
     #[structopt(long)]
     no_deref: bool,
+
+    /// Filter to gadgets that control function parameters [default: all gadgets]
+    #[structopt(long)]
+    param_ctrl: bool,
 
     /// Filter to gadgets whose addrs don't contain given bytes [default: all gadgets]
     #[structopt(short, long, min_values = 1, value_name = "BYTE(S)")]
@@ -365,6 +369,11 @@ fn main() {
 
     if cli.no_deref {
         gadgets = xgadget::filter_no_deref(&gadgets);
+    }
+
+    if cli.param_ctrl {
+        let param_regs = xgadget::get_all_param_regs(&bins);
+        gadgets = xgadget::filter_set_params(&gadgets, &param_regs);
     }
 
     if !cli.bad_bytes.is_empty() {

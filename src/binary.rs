@@ -93,6 +93,26 @@ impl FromStr for Arch {
     }
 }
 
+/// x64 ELF argument registers
+#[rustfmt::skip]
+pub static X64_ELF_PARAM_REGS: &[iced_x86::Register] = &[
+    iced_x86::Register::RDI,
+    iced_x86::Register::RSI,
+    iced_x86::Register::RDX,
+    iced_x86::Register::RCX,
+    iced_x86::Register::R8,
+    iced_x86::Register::R9,
+];
+
+/// x64 PE argument registers
+#[rustfmt::skip]
+pub static X64_PE_PARAM_REGS: &[iced_x86::Register] = &[
+    iced_x86::Register::RCX,
+    iced_x86::Register::RDX,
+    iced_x86::Register::R8,
+    iced_x86::Register::R9,
+];
+
 /// File format agnostic binary
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Binary {
@@ -100,6 +120,7 @@ pub struct Binary {
     pub format: Format,
     pub arch: Arch,
     pub entry: u64,
+    pub param_regs: Option<&'static [iced_x86::Register]>,
     pub segments: HashSet<Segment>,
 }
 
@@ -134,6 +155,7 @@ impl Binary {
             format: Format::Unknown,
             arch: Arch::Unknown,
             entry: 0,
+            param_regs: None,
             segments: HashSet::default(),
         }
     }
@@ -168,6 +190,11 @@ impl Binary {
                 return Err("Unsupported architecture!".into());
             }
         };
+
+        // Argument registers
+        if bin.arch == Arch::X64 {
+            bin.param_regs = Some(X64_ELF_PARAM_REGS);
+        }
 
         // Executable segments
         for prog_hdr in elf
@@ -204,6 +231,11 @@ impl Binary {
                 return Err("Unsupported architecture!".into());
             }
         };
+
+        // Argument registers
+        if bin.arch == Arch::X64 {
+            bin.param_regs = Some(X64_PE_PARAM_REGS);
+        }
 
         // Executable segments
         for sec_tab in pe.sections.iter().filter(|&p| {
@@ -273,4 +305,21 @@ impl fmt::Display for Binary {
             self.segments.len(),
         )
     }
+}
+
+// Misc Helpers --------------------------------------------------------------------------------------------------------
+
+/// Get set union of all parameter registers for a list of binaries
+pub fn get_all_param_regs(bins: &[Binary]) -> Vec<iced_x86::Register> {
+    let mut param_regs = HashSet::default();
+
+    for b in bins {
+        if let Some(regs) = b.param_regs {
+            for reg in regs {
+                param_regs.insert(*reg);
+            }
+        }
+    }
+
+    param_regs.into_iter().collect()
 }
