@@ -45,6 +45,7 @@ tempfile = "3"
 
 [features]
 cli-bin = ["structopt", "num_cpus", "regex", "strip-ansi-escapes", "lazy_static", "term_size", "checksec", "memmap"]
+bench-deps = ["regex"]
 
 [lib]
 name = "xgadget"
@@ -58,14 +59,17 @@ required-features = ["cli-bin"]
 [[bench]]
 name = "bench_1_misc"
 harness = false
+required-features = ["bench-deps"]
 
 [[bench]]
 name = "bench_2_elf_userspace"
 harness = false
+required-features = ["bench-deps"]
 
 [[bench]]
 name = "bench_3_elf_kernels"
 harness = false
+required-features = ["bench-deps"]
 
 [profile.release]
 panic = "unwind"

@@ -1,7 +1,13 @@
 use criterion::{criterion_group, criterion_main, Criterion};
+use regex::Regex;
+
 // Stack Pivot Filter (sequential baseline) ----------------------------------------------------------------------------
 
-pub fn filter_stack_pivot_sequential<'a>(
+// This implementation has faster per-gadget processing because it doesn't do a full gadget analysis.
+// We're comparing it against the actual filter implementation which:
+//  - Is slower per-gadget but more readable (uses the general purpose gadget analysis)
+//  - Is faster overall on multi-core systems due to parallel processing
+pub fn filter_stack_pivot_seq_fast<'a>(
     gadgets: &Vec<xgadget::gadget::Gadget<'a>>,
 ) -> Vec<xgadget::gadget::Gadget<'a>> {
     let rsp_write = iced_x86::UsedRegister::new(iced_x86::Register::RSP, iced_x86::OpAccess::Write);
@@ -30,6 +36,25 @@ pub fn filter_stack_pivot_sequential<'a>(
         .collect()
 }
 
+// This function string formats gadgets and then uses a regex to find those which pop registers from the stack
+// We're comparing it against the actual filter implementation which:
+// - Is stricter, only consecutive pop sequences before the tail instruction, no other instrs allowed
+// - Is faster, no need to string format and run a regex state machine
+pub fn filter_reg_pop_only_regex<'a>(
+    gadgets: &[xgadget::gadget::Gadget<'a>],
+) -> Vec<(String, String)> {
+    let re = Regex::new(r"^(?:pop)(?:.*(?:pop))*.*(?:ret|call|jmp)").unwrap();
+    let mut matches = Vec::new();
+
+    for (instrs, addrs) in xgadget::str_fmt_gadgets(&gadgets, false, false) {
+        if re.is_match(&instrs) {
+            matches.push((instrs, addrs));
+        }
+    }
+
+    matches
+}
+
 fn pivot_bench(c: &mut Criterion) {
     const MAX_GADGET_LEN: usize = 5;
 
@@ -43,21 +68,48 @@ fn pivot_bench(c: &mut Criterion) {
     let gdb_gadgets =
         xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
 
-    c.bench_function("readelf_pivot_filter_seq", |b| {
-        b.iter(|| filter_stack_pivot_sequential(&readelf_gadgets))
+    c.bench_function("readelf_pivot_filter_seq_fast", |b| {
+        b.iter(|| filter_stack_pivot_seq_fast(&readelf_gadgets))
     });
     c.bench_function("readelf_pivot_filter_par", |b| {
         b.iter(|| xgadget::filter_stack_pivot(&readelf_gadgets))
     });
-    c.bench_function("gdb_pivot_filter_seq", |b| {
-        b.iter(|| filter_stack_pivot_sequential(&gdb_gadgets))
+    c.bench_function("gdb_pivot_filter_seq_fast", |b| {
+        b.iter(|| filter_stack_pivot_seq_fast(&gdb_gadgets))
     });
     c.bench_function("gdb_pivot_filter_par", |b| {
         b.iter(|| xgadget::filter_stack_pivot(&gdb_gadgets))
     });
 }
 
+fn reg_pop_only_bench(c: &mut Criterion) {
+    const MAX_GADGET_LEN: usize = 5;
+
+    let readelf_bin = xgadget::Binary::from_path_str("/usr/bin/readelf").unwrap();
+    let bins = vec![readelf_bin];
+    let readelf_gadgets =
+        xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
+
+    let gdb_bin = xgadget::Binary::from_path_str("/usr/bin/gdb").unwrap();
+    let bins = vec![gdb_bin];
+    let gdb_gadgets =
+        xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
+
+    c.bench_function("readelf_reg_pop_only_filter_par", |b| {
+        b.iter(|| xgadget::filter_reg_pop_only(&readelf_gadgets))
+    });
+    c.bench_function("readelf_reg_pop_only_regex", |b| {
+        b.iter(|| filter_reg_pop_only_regex(&readelf_gadgets))
+    });
+    c.bench_function("gdb_reg_pop_only_filter_par", |b| {
+        b.iter(|| xgadget::filter_reg_pop_only(&gdb_gadgets))
+    });
+    c.bench_function("gdb_reg_pop_only_regex", |b| {
+        b.iter(|| filter_reg_pop_only_regex(&gdb_gadgets))
+    });
+}
+
 // Runner --------------------------------------------------------------------------------------------------------------
 
-criterion_group!(benches, pivot_bench);
+criterion_group!(benches, reg_pop_only_bench, pivot_bench);
 criterion_main!(benches);

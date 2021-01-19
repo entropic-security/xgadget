@@ -364,7 +364,7 @@ fn main() {
     }
 
     if cli.reg_write {
-        gadgets = xgadget::filter_stack_set_regs(&gadgets);
+        gadgets = xgadget::filter_reg_pop_only(&gadgets);
     }
 
     if cli.no_deref {

@@ -363,7 +363,7 @@ fn test_extended_line_count() {
 #[cfg(target_os = "linux")]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_regex() {
-    let pop_pop_ret_regex = String::from_utf8(
+    let reg_pop_regex = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
@@ -385,5 +385,5 @@ fn test_regex() {
     )
     .unwrap();
 
-    assert!(pop_pop_ret_regex.len() >= reg_ctrl_filter.len());
+    assert!(reg_pop_regex.len() >= reg_ctrl_filter.len());
 }

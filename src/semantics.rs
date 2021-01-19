@@ -105,12 +105,14 @@ pub fn is_reg_set(instr: &iced_x86::Instruction, reg: &iced_x86::Register) -> bo
     let info = info_factory.info_options(&instr, iced_x86::InstructionInfoOptions::NO_MEMORY_USAGE);
     let reg_w = iced_x86::UsedRegister::new(*reg, iced_x86::OpAccess::Write);
 
-    if info.used_registers().iter().any(|ur| {
+    let reg_read = |ur: iced_x86::UsedRegister| {
         ur.access() == iced_x86::OpAccess::Read || ur.access() == iced_x86::OpAccess::ReadWrite
-    }) {
-        if info.used_registers().contains(&reg_w) {
-            return true;
-        }
+    };
+
+    if info.used_registers().iter().any(|ur| reg_read(*ur))
+        && info.used_registers().contains(&reg_w)
+    {
+        return true;
     }
 
     false

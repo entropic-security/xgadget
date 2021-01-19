@@ -7,48 +7,13 @@ use crate::semantics;
 
 /// Parallel filter to gadgets that write the stack pointer
 pub fn filter_stack_pivot<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::Gadget<'a>> {
-    let rsp_write = iced_x86::UsedRegister::new(iced_x86::Register::RSP, iced_x86::OpAccess::Write);
-    let esp_write = iced_x86::UsedRegister::new(iced_x86::Register::ESP, iced_x86::OpAccess::Write);
-    let sp_write = iced_x86::UsedRegister::new(iced_x86::Register::SP, iced_x86::OpAccess::Write);
-
     gadgets
         .par_iter()
         .filter(|g| {
-            for instr in &g.instrs {
-                let mut info_factory = iced_x86::InstructionInfoFactory::new();
-
-                let info = info_factory
-                    .info_options(&instr, iced_x86::InstructionInfoOptions::NO_MEMORY_USAGE);
-
-                if info.used_registers().contains(&rsp_write)
-                    || info.used_registers().contains(&esp_write)
-                    || info.used_registers().contains(&sp_write)
-                {
-                    return true;
-                }
-            }
-            false
-        })
-        .cloned()
-        .collect()
-}
-
-// TODO: benchmark against original
-// If significantly slower move into benchmarks as a case study
-pub fn filter_stack_pivot_alt<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::Gadget<'a>> {
-    gadgets
-        .par_iter()
-        .filter(|g| {
-            let gadget_analysis = gadget::GadgetAnalysis::new(&g);
-            if gadget_analysis
-                .regs_overwritten()
-                .contains(&iced_x86::Register::RSP)
-                || gadget_analysis
-                    .regs_overwritten()
-                    .contains(&iced_x86::Register::ESP)
-                || gadget_analysis
-                    .regs_overwritten()
-                    .contains(&iced_x86::Register::SP)
+            let regs_written = gadget::GadgetAnalysis::new(&g).regs_overwritten();
+            if regs_written.contains(&iced_x86::Register::RSP)
+                || regs_written.contains(&iced_x86::Register::ESP)
+                || regs_written.contains(&iced_x86::Register::SP)
             {
                 return true;
             }
@@ -88,9 +53,8 @@ pub fn filter_dispatcher<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::Gadg
         .collect()
 }
 
-// TODO: benchmark vs less precise regex: r"^(?:pop)(?:.*(?:pop))*.*ret"
 /// Parallel filter to gadgets of the form "pop {reg} * 1+, {ret or ctrl-ed jmp/call}"
-pub fn filter_stack_set_regs<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::Gadget<'a>> {
+pub fn filter_reg_pop_only<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::Gadget<'a>> {
     gadgets
         .par_iter()
         .filter(|g| {

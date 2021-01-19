@@ -79,12 +79,12 @@ fn test_x64_filter_dispatcher() {
 }
 
 #[test]
-fn test_x64_filter_stack_set_regs() {
+fn test_x64_filter_reg_pop_only() {
     let bin_filters = common::get_raw_bin("bin_filters", &common::FILTERS_X64);
     let bins = vec![bin_filters];
     let gadgets =
         xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
-    let loader_gadgets = xgadget::filter_stack_set_regs(&gadgets);
+    let loader_gadgets = xgadget::filter_reg_pop_only(&gadgets);
     let loader_gadget_strs = common::get_gadget_strs(&loader_gadgets, false);
     common::print_gadget_strs(&loader_gadget_strs);
 

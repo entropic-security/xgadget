@@ -48,7 +48,7 @@
 //!let bin_2 = xgadget::Binary::from_path_str("/path/to/bin_v2").unwrap();
 //!let bins = vec![bin_1, bin_2];
 //!let cross_gadgets = xgadget::find_gadgets(&bins, max_gadget_len, search_config).unwrap();
-//!let cross_reg_write_gadgets = xgadget::filter_stack_set_regs(&cross_gadgets);
+//!let cross_reg_write_gadgets = xgadget::filter_reg_pop_only(&cross_gadgets);
 //!```
 //!
 //!### CLI Usage
@@ -112,7 +112,7 @@
 //!
 //!```bash
 //!bash ./benches/bench_setup_ubuntu.sh    # Ubuntu-specific, download/build 10 kernel versions
-//!cargo bench                             # Grab a coffee, this'll take a while...
+//!cargo bench --features bench-deps       # Grab a coffee, this'll take a while...
 //!```
 //!
 //!* `bench_setup_ubuntu.sh` downloads and builds 10 consecutive Linux kernels (versions `5.0.1` to `5.0.10` - with `x86_64_defconfig`).
