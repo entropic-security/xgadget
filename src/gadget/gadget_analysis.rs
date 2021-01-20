@@ -11,7 +11,7 @@ use super::gadget_object;
 /// * Registers dereferenced for write
 ///
 /// # Limitations
-/// * Current logic does not account for conditional behavior
+/// * Current logic does not account for all cases of conditional behavior
 #[derive(Clone, Debug)]
 pub struct GadgetAnalysis {
     used_regs: HashSet<iced_x86::UsedRegister>,
@@ -19,6 +19,8 @@ pub struct GadgetAnalysis {
 }
 
 impl GadgetAnalysis {
+    // GadgetAnalysis Public API ---------------------------------------------------------------------------------------
+
     /// Analyze gadget
     pub fn new(gadget: &gadget_object::Gadget) -> Self {
         let mut info_factory = iced_x86::InstructionInfoFactory::new();
@@ -93,10 +95,12 @@ impl GadgetAnalysis {
         let mem_reads = self
             .used_mem
             .iter()
-            //.filter(|um| um.access() == iced_x86::OpAccess::Read)
             .filter(|um| {
                 let access = um.access();
-                (access == iced_x86::OpAccess::Read) || (access == iced_x86::OpAccess::CondRead)
+                (access == iced_x86::OpAccess::Read)
+                    || (access == iced_x86::OpAccess::CondRead)
+                    || (access == iced_x86::OpAccess::ReadWrite)
+                    || (access == iced_x86::OpAccess::ReadCondWrite)
             })
             .collect();
 
@@ -108,15 +112,19 @@ impl GadgetAnalysis {
         let mem_writes = self
             .used_mem
             .iter()
-            //.filter(|um| um.access() == iced_x86::OpAccess::Write)
             .filter(|um| {
                 let access = um.access();
-                (access == iced_x86::OpAccess::Write) || (access == iced_x86::OpAccess::CondWrite)
+                (access == iced_x86::OpAccess::Write)
+                    || (access == iced_x86::OpAccess::CondWrite)
+                    || (access == iced_x86::OpAccess::ReadWrite)
+                    || (access == iced_x86::OpAccess::ReadCondWrite)
             })
             .collect();
 
         Self::unique_regs_dereferenced(mem_writes)
     }
+
+    // GadgetAnalysis Private API --------------------------------------------------------------------------------------
 
     // Private helper for deref reg collection
     fn unique_regs_dereferenced(used_mem: Vec<&iced_x86::UsedMemory>) -> Vec<iced_x86::Register> {

@@ -162,11 +162,14 @@ impl Binary {
 
     // Bytes -> Binary
     fn priv_from_buf(name: &str, bytes: &[u8]) -> Result<Binary, Box<dyn Error>> {
-        match goblin::Object::parse(&bytes)? {
-            goblin::Object::Elf(elf) => Binary::from_elf(name, &bytes, &elf),
-            goblin::Object::PE(pe) => Binary::from_pe(name, &bytes, &pe),
-            goblin::Object::Unknown(_) => Ok(Binary::from_raw(name, bytes)),
-            _ => Err("Unsupported file format!".into()),
+        match goblin::Object::parse(&bytes) {
+            Ok(obj) => match obj {
+                goblin::Object::Unknown(_) => Ok(Binary::from_raw(name, bytes)),
+                goblin::Object::Elf(elf) => Binary::from_elf(name, &bytes, &elf),
+                goblin::Object::PE(pe) => Binary::from_pe(name, &bytes, &pe),
+                _ => Err("Unsupported file format!".into()),
+            },
+            _ => Ok(Binary::from_raw(name, bytes)),
         }
     }
 

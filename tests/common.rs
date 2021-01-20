@@ -147,11 +147,26 @@ pub const PSHAPE_PG_5_X64: &[u8] = &[
     0x4c, 0x89, 0xc9,                                       // mov rcx, r9
     0x48, 0x8b, 0x01,                                       // mov rax, [rcx]
     0x48, 0xff, 0xc0,                                       // inc rax
-    0x48, 0x89, 0x41, 0x08,                                 // mov [rcx+0x8] , rax
+    0x48, 0x89, 0x41, 0x08,                                 // mov [rcx+0x8], rax
     0x48, 0x8b, 0x41, 0x04,                                 // mov rax, [rcx+0x4]
     0x48, 0xff, 0xc0,                                       // inc rax
-    0x48, 0x89, 0x41, 0x0c,                                 // mov [rcx+0x0C] , rax
+    0x48, 0x89, 0x41, 0x0c,                                 // mov [rcx+0x0C], rax
     0xc3,                                                   // ret
+];
+
+#[allow(dead_code)]
+#[rustfmt::skip]
+pub const MISC_1: &[u8] = &[
+    0x87, 0x48, 0x1,                                        // xchg [rax+0x1], ecx
+    0xf8,                                                   // clc
+    0xff, 0xe0,                                             // jump rax
+];
+
+#[allow(dead_code)]
+#[rustfmt::skip]
+pub const MISC_2: &[u8] = &[
+    0x48, 0xff, 0xc0,                                       // inc rax // TODO: remove this line
+    0xff, 0x25, 0xbd, 0x66, 0x09, 0x00,                     // jmp qword ptr [rip+0x966bd]
 ];
 
 // Test Utils ----------------------------------------------------------------------------------------------------------
@@ -207,4 +222,135 @@ pub fn hash<T: Hash>(t: &T) -> u64 {
     let mut s = DefaultHasher::new();
     t.hash(&mut s);
     s.finish()
+}
+
+// Adapted from https://docs.rs/iced-x86/1.10.0/iced_x86/?search=#get-instruction-info-eg-readwritten-regsmem-control-flow-info-etc
+#[allow(dead_code)]
+pub fn dump_instr(instr: &iced_x86::Instruction) {
+    let mut info_factory = iced_x86::InstructionInfoFactory::new();
+    let op_code = instr.op_code();
+    let info = info_factory.info(&instr);
+    let fpu_info = instr.fpu_stack_increment_info();
+    println!("\n\tOpCode: {}", op_code.op_code_string());
+    println!("\tInstruction: {}", op_code.instruction_string());
+    println!("\tEncoding: {:?}", instr.encoding());
+    println!("\tMnemonic: {:?}", instr.mnemonic());
+    println!("\tCode: {:?}", instr.code());
+    println!(
+        "\tCpuidFeature: {}",
+        instr
+            .cpuid_features()
+            .iter()
+            .map(|&a| format!("{:?}", a))
+            .collect::<Vec<String>>()
+            .join(" and ")
+    );
+    println!("\tFlowControl: {:?}", instr.flow_control());
+
+    if fpu_info.writes_top() {
+        if fpu_info.increment() == 0 {
+            println!("\tFPU TOP: the instruction overwrites TOP");
+        } else {
+            println!("\tFPU TOP inc: {}", fpu_info.increment());
+        }
+        println!(
+            "\tFPU TOP cond write: {}",
+            if fpu_info.conditional() {
+                "true"
+            } else {
+                "false"
+            }
+        );
+    }
+    if instr.is_stack_instruction() {
+        println!("\tSP Increment: {}", instr.stack_pointer_increment());
+    }
+    if instr.condition_code() != iced_x86::ConditionCode::None {
+        println!("\tCondition code: {:?}", instr.condition_code());
+    }
+    if instr.rflags_read() != iced_x86::RflagsBits::NONE {
+        println!("\tRFLAGS Read: {}", flags(instr.rflags_read()));
+    }
+    if instr.rflags_written() != iced_x86::RflagsBits::NONE {
+        println!("\tRFLAGS Written: {}", flags(instr.rflags_written()));
+    }
+    if instr.rflags_cleared() != iced_x86::RflagsBits::NONE {
+        println!("\tRFLAGS Cleared: {}", flags(instr.rflags_cleared()));
+    }
+    if instr.rflags_set() != iced_x86::RflagsBits::NONE {
+        println!("\tRFLAGS Set: {}", flags(instr.rflags_set()));
+    }
+    if instr.rflags_undefined() != iced_x86::RflagsBits::NONE {
+        println!("\tRFLAGS Undefined: {}", flags(instr.rflags_undefined()));
+    }
+    if instr.rflags_modified() != iced_x86::RflagsBits::NONE {
+        println!("\tRFLAGS Modified: {}", flags(instr.rflags_modified()));
+    }
+    for i in 0..instr.op_count() {
+        let op_kind = instr.try_op_kind(i).unwrap();
+        if op_kind == iced_x86::OpKind::Memory || op_kind == iced_x86::OpKind::Memory64 {
+            let size = instr.memory_size().size();
+            if size != 0 {
+                println!("\tMemory size: {}", size);
+            }
+            break;
+        }
+    }
+    for i in 0..instr.op_count() {
+        println!("\tOp{}Access: {:?}", i, info.op_access(i));
+    }
+    for i in 0..op_code.op_count() {
+        println!("\tOp{}: {:?}", i, op_code.op_kind(i));
+    }
+    for reg_info in info.used_registers() {
+        println!("\tUsed reg: {:?}", reg_info);
+    }
+    for mem_info in info.used_memory() {
+        println!("\tUsed mem: {:?}", mem_info);
+    }
+}
+
+fn flags(rf: u32) -> String {
+    fn append(sb: &mut String, s: &str) {
+        if !sb.is_empty() {
+            sb.push_str(", ");
+        }
+        sb.push_str(s);
+    }
+
+    let mut sb = String::new();
+    if (rf & iced_x86::RflagsBits::OF) != 0 {
+        append(&mut sb, "OF");
+    }
+    if (rf & iced_x86::RflagsBits::SF) != 0 {
+        append(&mut sb, "SF");
+    }
+    if (rf & iced_x86::RflagsBits::ZF) != 0 {
+        append(&mut sb, "ZF");
+    }
+    if (rf & iced_x86::RflagsBits::AF) != 0 {
+        append(&mut sb, "AF");
+    }
+    if (rf & iced_x86::RflagsBits::CF) != 0 {
+        append(&mut sb, "CF");
+    }
+    if (rf & iced_x86::RflagsBits::PF) != 0 {
+        append(&mut sb, "PF");
+    }
+    if (rf & iced_x86::RflagsBits::DF) != 0 {
+        append(&mut sb, "DF");
+    }
+    if (rf & iced_x86::RflagsBits::IF) != 0 {
+        append(&mut sb, "IF");
+    }
+    if (rf & iced_x86::RflagsBits::AC) != 0 {
+        append(&mut sb, "AC");
+    }
+    if (rf & iced_x86::RflagsBits::UIF) != 0 {
+        append(&mut sb, "UIF");
+    }
+    if sb.is_empty() {
+        sb.push_str("<empty>");
+    }
+    sb
 }
