@@ -124,13 +124,22 @@ pub fn filter_set_params<'a>(
         .collect()
 }
 
-/// Parallel filter to gadgets that don't dereference registers
-pub fn filter_no_deref<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::Gadget<'a>> {
+/// Parallel filter to gadgets that don't dereference any registers (if `opt_reg.is_none()`),
+/// or don't dereference specific registers (if `opt_reg.is_some()`).
+pub fn filter_no_deref<'a>(
+    gadgets: &[gadget::Gadget<'a>],
+    opt_reg: Option<&[iced_x86::Register]>,
+) -> Vec<gadget::Gadget<'a>> {
     gadgets
         .par_iter()
         .filter(|g| {
             let gadget_analysis = gadget::GadgetAnalysis::new(&g);
-            gadget_analysis.regs_dereferenced().is_empty()
+            match opt_reg {
+                Some(regs) => regs
+                    .iter()
+                    .all(|r| !gadget_analysis.regs_dereferenced().contains(r)),
+                None => gadget_analysis.regs_dereferenced().is_empty(),
+            }
         })
         .cloned()
         .collect()

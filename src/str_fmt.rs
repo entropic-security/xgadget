@@ -2,11 +2,43 @@ use std::collections::BTreeMap;
 
 use colored::Colorize;
 use rayon::prelude::*;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::binary;
 use crate::gadget;
 
+// Dynamic Init --------------------------------------------------------------------------------------------------------
+
+lazy_static! {
+    static ref STR_REG_MAP: HashMap<String, iced_x86::Register> = {
+        let mut srm = HashMap::default();
+
+        for reg in iced_x86::Register::values() {
+            if reg != iced_x86::Register::None {
+                let reg_str = format!("{:?}", reg).to_uppercase();
+
+                // Secondary key: R8L-R15L -> R8B-R15B
+                if (iced_x86::Register::R8L <= reg) && (reg <= iced_x86::Register::R15L) {
+                    srm.insert(reg_str.replace("L", "B"), reg);
+                }
+
+                srm.insert(reg_str, reg);
+            }
+        }
+
+        srm
+    };
+}
+
 // Public API ----------------------------------------------------------------------------------------------------------
+
+/// Case-insensitive string to register enum conversion
+pub fn str_to_reg(rs: &str) -> Option<iced_x86::Register> {
+    match STR_REG_MAP.get(&rs.to_uppercase()) {
+        Some(reg) => Some(*reg),
+        None => None,
+    }
+}
 
 /// Format list of gadgets in parallel, return alphabetically sorted
 pub fn str_fmt_gadgets(
@@ -28,16 +60,11 @@ pub fn str_fmt_gadgets(
                 // Instruction contents
                 output.tokens.clear();
                 formatter.format(&instr, &mut output);
-                for (text, kind) in output.tokens.iter() {
+                for text in output.tokens.iter() {
                     if color {
-                        if (*kind == iced_x86::FormatterTextKind::Register) && (text.contains("sp"))
-                        {
-                            instr_str.push_str(&format!("{}", text.as_str().red()));
-                        } else {
-                            instr_str.push_str(&format!("{}", set_color(text.as_str(), *kind)));
-                        }
+                        instr_str.push_str(&text.to_string());
                     } else {
-                        instr_str.push_str(text.as_str());
+                        instr_str.push_str(&text.clone().normal());
                     }
                 }
 
@@ -178,7 +205,7 @@ fn str_fmt_partial_matches_internal(
 
 // Custom instruction formatter output, enables coloring
 struct GadgetFormatterOutput {
-    tokens: Vec<(String, iced_x86::FormatterTextKind)>,
+    tokens: Vec<colored::ColoredString>,
 }
 
 impl GadgetFormatterOutput {
@@ -189,17 +216,23 @@ impl GadgetFormatterOutput {
 
 impl iced_x86::FormatterOutput for GadgetFormatterOutput {
     fn write(&mut self, text: &str, kind: iced_x86::FormatterTextKind) {
-        self.tokens.push((String::from(text), kind));
+        self.tokens.push(set_color(text, kind));
     }
 }
 
-// Coloring ruleset, but doesn't account for special casing the stack pointer
+// Coloring ruleset
 fn set_color(s: &str, kind: iced_x86::FormatterTextKind) -> colored::ColoredString {
     match kind {
         iced_x86::FormatterTextKind::Directive | iced_x86::FormatterTextKind::Keyword => s.blue(),
         iced_x86::FormatterTextKind::Prefix | iced_x86::FormatterTextKind::Mnemonic => s.cyan(),
-        iced_x86::FormatterTextKind::Register => s.yellow(),
         iced_x86::FormatterTextKind::Punctuation => s.bright_magenta(),
+        iced_x86::FormatterTextKind::Register => {
+            // Special case the stack pointer - typically don't want to overwrite
+            match s {
+                "rsp" | "esp" | "sp" => s.red(),
+                _ => s.yellow(),
+            }
+        }
         _ => s.white(),
     }
 }

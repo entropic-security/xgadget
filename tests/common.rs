@@ -225,6 +225,7 @@ pub fn hash<T: Hash>(t: &T) -> u64 {
 }
 
 // Adapted from https://docs.rs/iced-x86/1.10.0/iced_x86/?search=#get-instruction-info-eg-readwritten-regsmem-control-flow-info-etc
+// TODO: check against updated docs
 #[allow(dead_code)]
 pub fn dump_instr(instr: &iced_x86::Instruction) {
     let mut info_factory = iced_x86::InstructionInfoFactory::new();
@@ -288,7 +289,7 @@ pub fn dump_instr(instr: &iced_x86::Instruction) {
     }
     for i in 0..instr.op_count() {
         let op_kind = instr.try_op_kind(i).unwrap();
-        if op_kind == iced_x86::OpKind::Memory || op_kind == iced_x86::OpKind::Memory64 {
+        if op_kind == iced_x86::OpKind::Memory {
             let size = instr.memory_size().size();
             if size != 0 {
                 println!("\tMemory size: {}", size);
@@ -297,10 +298,10 @@ pub fn dump_instr(instr: &iced_x86::Instruction) {
         }
     }
     for i in 0..instr.op_count() {
-        println!("\tOp{}Access: {:?}", i, info.op_access(i));
+        println!("\tOp{}Access: {:?}", i, info.try_op_access(i).unwrap());
     }
     for i in 0..op_code.op_count() {
-        println!("\tOp{}: {:?}", i, op_code.op_kind(i));
+        println!("\tOp{}: {:?}", i, op_code.try_op_kind(i).unwrap());
     }
     for reg_info in info.used_registers() {
         println!("\tUsed reg: {:?}", reg_info);

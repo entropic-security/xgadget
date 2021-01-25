@@ -97,12 +97,12 @@ struct CLIOpts {
     dispatcher: bool,
 
     /// Filter to 'pop {reg} * 1+, {ret or ctrl-ed jmp/call}' gadgets [default: all gadgets]
-    #[structopt(short = "w", long, conflicts_with = "dispatcher")]
-    reg_write: bool,
+    #[structopt(long, conflicts_with = "dispatcher")]
+    reg_pop: bool,
 
-    /// Filter to gadgets that don't dereference registers [default: all gadgets]
-    #[structopt(long)]
-    no_deref: bool,
+    /// Filter to gadgets that don't deref any regs or a specific reg [default: all gadgets]
+    #[structopt(long, value_name = "OPT_REG")]
+    no_deref: Option<Option<String>>,
 
     /// Filter to gadgets that control function parameters [default: all gadgets]
     #[structopt(long)]
@@ -120,7 +120,7 @@ struct CLIOpts {
     #[structopt(short, long, conflicts_with_all = &[
         "arch", "att", "extended_fmt", "max_len",
         "rop", "jop", "sys", "imm16", "partial_match",
-        "stack_pivot", "dispatcher", "reg_write", "usr_regex"
+        "stack_pivot", "dispatcher", "reg_pop", "usr_regex"
     ])] // TODO: Custom short name (e.g. "-m" for "--partial-match" not tagged as conflict)
     check_sec: bool,
 }
@@ -188,7 +188,11 @@ impl CLIOpts {
             output.push_str(&format!(" {}", addrs));
         } else {
             let addr_no_bracket = &addrs[1..(addrs.len() - 1)].trim();
-            output = format!("{}{} {}", addr_no_bracket, ":".bright_magenta(), output);
+            if self.no_color {
+                output = format!("{}{} {}", addr_no_bracket, ":", output);
+            } else {
+                output = format!("{}{} {}", addr_no_bracket, ":".bright_magenta(), output);
+            }
         }
 
         output
@@ -251,29 +255,35 @@ impl fmt::Display for CLIOpts {
             "{} [ search: {}, x_match: {}, max_len: {}, syntax: {}, regex_filter: {} ]",
             { self.fmt_summary_item("CONFIG".to_string(), true) },
             {
-                let mut search_mode = String::from("");
+                let mut search_mode = String::from("ROP-JOP-SYS (default)");
                 if self.rop {
-                    search_mode = format!("{} {}", search_mode, "ROP-only")
+                    search_mode = String::from("ROP-only");
                 };
                 if self.jop {
-                    search_mode = format!("{} {}", search_mode, "JOP-only")
+                    search_mode = String::from("JOP-only");
                 };
                 if self.sys {
-                    search_mode = format!("{} {}", search_mode, "SYS-only")
+                    search_mode = String::from("SYS-only");
                 };
                 if self.stack_pivot {
-                    search_mode = format!("{} {}", search_mode, "Stack-pivot-only")
+                    search_mode = String::from("Stack-pivot-only");
                 };
                 if self.dispatcher {
-                    search_mode = format!("{} {}", search_mode, "Dispatcher-only")
+                    search_mode = String::from("Dispatcher-only");
                 };
-                if self.reg_write {
-                    search_mode = format!("{} {}", search_mode, "Register-pop-only")
+                if self.reg_pop {
+                    search_mode = String::from("Register-pop-only");
                 };
-                if search_mode.is_empty() {
-                    search_mode = String::from("ROP-JOP-SYS (default)")
+                if let Some(opt_reg) = &self.no_deref {
+                    match opt_reg {
+                        Some(reg) => {
+                            search_mode = format!("No-deref-{}-only", reg.to_lowercase());
+                        }
+                        None => {
+                            search_mode = String::from("No-deref-only");
+                        }
+                    }
                 };
-
                 self.fmt_summary_item(search_mode, false)
             },
             {
@@ -363,12 +373,19 @@ fn main() {
         gadgets = xgadget::filter_dispatcher(&gadgets);
     }
 
-    if cli.reg_write {
+    if cli.reg_pop {
         gadgets = xgadget::filter_reg_pop_only(&gadgets);
     }
 
-    if cli.no_deref {
-        gadgets = xgadget::filter_no_deref(&gadgets);
+    if let Some(opt_reg) = &cli.no_deref {
+        match opt_reg {
+            Some(reg_str) => {
+                let reg = xgadget::str_to_reg(reg_str)
+                    .expect(&format!("Invalid register: {:?}", reg_str));
+                gadgets = xgadget::filter_no_deref(&gadgets, Some(&vec![reg]))
+            }
+            None => gadgets = xgadget::filter_no_deref(&gadgets, None),
+        }
     }
 
     if cli.param_ctrl {
