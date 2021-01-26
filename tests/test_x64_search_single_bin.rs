@@ -211,3 +211,13 @@ fn test_x64_adjacent_jmp() {
         "or eax, 0x5dde1; jmp rcx;"
     ));
 }
+
+#[test]
+fn test_jmp_rip() {
+    let bin_misc_2 = common::get_raw_bin("misc_2", &common::MISC_2);
+    let bins = vec![bin_misc_2];
+    let gadgets =
+        xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
+
+    assert!(gadgets.len() == 0);
+}

@@ -30,13 +30,6 @@ pub fn filter_dispatcher<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::Gadg
         .filter(|g| {
             if let Some((tail_instr, preceding_instrs)) = g.instrs.split_last() {
                 if semantics::is_jop_gadget_tail(tail_instr) {
-                    // JOP tail should always have a single reg or reg-based deref operand
-                    debug_assert!(
-                        (tail_instr.op_count() == 1)
-                            && ((tail_instr.try_op_kind(0).unwrap() == iced_x86::OpKind::Register)
-                                || ((tail_instr.op0_kind() == iced_x86::OpKind::Memory)
-                                    && (tail_instr.memory_base() != iced_x86::Register::None)))
-                    );
 
                     // Predictable update of dispatch register
                     let dispatch_reg = tail_instr.op0_register();
@@ -124,21 +117,41 @@ pub fn filter_set_params<'a>(
         .collect()
 }
 
-/// Parallel filter to gadgets that don't dereference any registers (if `opt_reg.is_none()`),
-/// or don't dereference specific registers (if `opt_reg.is_some()`).
+// TODO: add logic for stack pointer part
+/// Parallel filter to gadgets that don't dereference any registers (if `opt_regs.is_none()`),
+/// or don't dereference specific registers (if `opt_regs.is_some()`).
+/// Doesn't count the stack pointer unless explicitly provided in `opt_regs`.
 pub fn filter_no_deref<'a>(
     gadgets: &[gadget::Gadget<'a>],
-    opt_reg: Option<&[iced_x86::Register]>,
+    opt_regs: Option<&[iced_x86::Register]>,
 ) -> Vec<gadget::Gadget<'a>> {
     gadgets
         .par_iter()
         .filter(|g| {
-            let gadget_analysis = gadget::GadgetAnalysis::new(&g);
-            match opt_reg {
-                Some(regs) => regs
-                    .iter()
-                    .all(|r| !gadget_analysis.regs_dereferenced().contains(r)),
-                None => gadget_analysis.regs_dereferenced().is_empty(),
+            let regs_derefed = gadget::GadgetAnalysis::new(&g).regs_dereferenced();
+            match opt_regs {
+                Some(regs) => regs.iter().all(|r| !regs_derefed.contains(r)),
+                None => regs_derefed.is_empty(),
+            }
+        })
+        .cloned()
+        .collect()
+}
+
+// TODO: Add test, verify that all filters are tested
+/// Parallel filter to gadgets that write any register (if `opt_regs.is_none()`),
+/// or write specific registers (if `opt_regs.is_some()`).
+pub fn filter_regs_overwritten<'a>(
+    gadgets: &[gadget::Gadget<'a>],
+    opt_regs: Option<&[iced_x86::Register]>,
+) -> Vec<gadget::Gadget<'a>> {
+    gadgets
+        .par_iter()
+        .filter(|g| {
+            let regs_overwritten = gadget::GadgetAnalysis::new(&g).regs_overwritten();
+            match opt_regs {
+                Some(regs) => regs.iter().all(|r| regs_overwritten.contains(r)),
+                None => !regs_overwritten.is_empty(),
             }
         })
         .cloned()

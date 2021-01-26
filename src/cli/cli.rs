@@ -104,6 +104,10 @@ struct CLIOpts {
     #[structopt(long, value_name = "OPT_REG")]
     no_deref: Option<Option<String>>,
 
+    /// Filter to gadgets that control a specific register [default: all gadgets]
+    #[structopt(long, value_name = "OPT_REG")]
+    reg_ctrl: Option<Option<String>>,
+
     /// Filter to gadgets that control function parameters [default: all gadgets]
     #[structopt(long)]
     param_ctrl: bool,
@@ -284,6 +288,7 @@ impl fmt::Display for CLIOpts {
                         }
                     }
                 };
+                // TODO: add param-ctrl, check for others, add CLI tests
                 self.fmt_summary_item(search_mode, false)
             },
             {
@@ -375,6 +380,17 @@ fn main() {
 
     if cli.reg_pop {
         gadgets = xgadget::filter_reg_pop_only(&gadgets);
+    }
+
+    if let Some(opt_reg) = &cli.reg_ctrl {
+        match opt_reg {
+            Some(reg_str) => {
+                let reg = xgadget::str_to_reg(reg_str)
+                    .expect(&format!("Invalid register: {:?}", reg_str));
+                gadgets = xgadget::filter_regs_overwritten(&gadgets, Some(&vec![reg]))
+            }
+            None => gadgets = xgadget::filter_regs_overwritten(&gadgets, None),
+        }
     }
 
     if let Some(opt_reg) = &cli.no_deref {

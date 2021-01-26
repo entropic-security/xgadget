@@ -23,19 +23,13 @@ pub fn is_sys_gadget_tail(instr: &iced_x86::Instruction) -> bool {
 /// Check if call instruction with register-controlled target
 #[inline(always)]
 pub fn is_reg_indirect_call(instr: &iced_x86::Instruction) -> bool {
-    (instr.flow_control() == iced_x86::FlowControl::IndirectCall)
-        && ((instr.op0_kind() == iced_x86::OpKind::Register)
-            || ((instr.op0_kind() == iced_x86::OpKind::Memory)
-                && instr.memory_base() != iced_x86::Register::None))
+    (instr.flow_control() == iced_x86::FlowControl::IndirectCall) && (has_ctrled_ops(instr))
 }
 
 /// Check if jump instruction with register-controlled target
 #[inline(always)]
 pub fn is_reg_indirect_jmp(instr: &iced_x86::Instruction) -> bool {
-    (instr.flow_control() == iced_x86::FlowControl::IndirectBranch)
-        && ((instr.op0_kind() == iced_x86::OpKind::Register)
-            || ((instr.op0_kind() == iced_x86::OpKind::Memory)
-                && instr.memory_base() != iced_x86::Register::None))
+    (instr.flow_control() == iced_x86::FlowControl::IndirectBranch) && (has_ctrled_ops(instr))
 }
 
 /// Check if return instruction
@@ -67,12 +61,6 @@ pub fn is_int(instr: &iced_x86::Instruction) -> bool {
     instr.flow_control() == iced_x86::FlowControl::Interrupt
 }
 
-/// Check if interrupt instruction that specifies vector
-#[inline(always)]
-pub fn is_int_imm8(instr: &iced_x86::Instruction) -> bool {
-    instr.mnemonic() == iced_x86::Mnemonic::Int
-}
-
 /// Check if syscall/sysenter instruction
 #[inline(always)]
 pub fn is_syscall(instr: &iced_x86::Instruction) -> bool {
@@ -83,7 +71,7 @@ pub fn is_syscall(instr: &iced_x86::Instruction) -> bool {
 /// Check if legacy Linux syscall
 #[inline(always)]
 pub fn is_legacy_linux_syscall(instr: &iced_x86::Instruction) -> bool {
-    is_int_imm8(instr) && (instr.immediate(0) == 0x80)
+    instr.mnemonic() == iced_x86::Mnemonic::Int && (instr.immediate(0) == 0x80)
 }
 
 // Properties ----------------------------------------------------------------------------------------------------------
@@ -116,4 +104,29 @@ pub fn is_reg_set(instr: &iced_x86::Instruction, reg: &iced_x86::Register) -> bo
     }
 
     false
+}
+
+// TODO: add test
+/// Check if instruction has a controllable operands
+#[inline(always)]
+pub fn has_ctrled_ops(instr: &iced_x86::Instruction) -> bool {
+    let op_cnt = instr.op_count();
+    for op_idx in 0..op_cnt {
+        match instr.try_op_kind(op_idx) {
+            Ok(kind) => match kind {
+                iced_x86::OpKind::Register => continue,
+                iced_x86::OpKind::Memory => match instr.memory_base() {
+                    iced_x86::Register::None => return false,
+                    iced_x86::Register::RIP => return false,
+                    iced_x86::Register::EIP => return false,
+                    //iced_x86::Register::IP => false, // TODO: why missing?
+                    _ => continue,
+                },
+                _ => return false,
+            },
+            _ => return false,
+        }
+    }
+
+    op_cnt > 0
 }

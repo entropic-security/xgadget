@@ -297,7 +297,7 @@ impl fmt::Display for Binary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "\'{}\': {:?}-{:?}, entry 0x{:016x}, {}/{} executable bytes/segments",
+            "\'{}\': {:?}-{:?}, entry {:#010x}, {}/{} executable bytes/segments",
             self.name,
             self.format,
             self.arch,

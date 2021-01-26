@@ -83,7 +83,7 @@ fn test_regs_overwritten() {
 }
 
 #[test]
-fn test_no_deref() {
+fn test_no_deref_1() {
     let bin_misc_1 = common::get_raw_bin("misc_1", &common::MISC_1);
     let bins = vec![bin_misc_1];
     let mut gadgets =
@@ -100,24 +100,4 @@ fn test_no_deref() {
     }
 
     assert!(xgadget::filter_no_deref(&gadgets, None).is_empty());
-}
-
-#[test]
-fn test_no_deref_rip_jmp() {
-    let bin_misc_1 = common::get_raw_bin("misc_2", &common::MISC_2);
-    let bins = vec![bin_misc_1];
-    let mut gadgets =
-        xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
-
-    gadgets.retain(|g| g.full_matches().contains(&0x0));
-    assert!(gadgets.len() == 1);
-
-    let gadget_analysis = xgadget::gadget::GadgetAnalysis::new(&gadgets[0]);
-    assert!(gadget_analysis.regs_dereferenced().is_empty());
-
-    for instr in gadgets[0].instrs() {
-        common::dump_instr(&instr);
-    }
-
-    assert!(!xgadget::filter_no_deref(&gadgets, None).is_empty());
 }

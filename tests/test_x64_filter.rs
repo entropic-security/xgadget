@@ -193,3 +193,97 @@ fn test_x64_filter_set_params() {
         "pop rax; jmp rax;"
     ));
 }
+
+// TODO: add no-deref test here
+
+#[test]
+fn test_x64_filter_regs_overwritten_1() {
+    let bin_filters = common::get_raw_bin("bin_filters", &common::FILTERS_X64);
+    let bins = vec![bin_filters];
+    let gadgets =
+        xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
+    let param_ctrl_gadgets =
+        xgadget::filter_regs_overwritten(&gadgets, None);
+    let reg_ctrl_gadget_strs = common::get_gadget_strs(&param_ctrl_gadgets, false);
+    common::print_gadget_strs(&reg_ctrl_gadget_strs);
+
+    // Positive
+    assert!(common::gadget_strs_contains_sub_str(
+        &reg_ctrl_gadget_strs,
+        "pop r8; ret;"
+    ));
+    assert!(common::gadget_strs_contains_sub_str(
+        &reg_ctrl_gadget_strs,
+        "mov rcx, rax; ret;"
+    ));
+   assert!(common::gadget_strs_contains_sub_str(
+        &reg_ctrl_gadget_strs,
+        "pop rsp; ret;"
+    ));
+    assert!(common::gadget_strs_contains_sub_str(
+        &reg_ctrl_gadget_strs,
+        "pop rax; pop rbx; ret;"
+    ));
+    assert!(common::gadget_strs_contains_sub_str(
+        &reg_ctrl_gadget_strs,
+        "pop rbx; ret;"
+    ));
+    assert!(common::gadget_strs_contains_sub_str(
+        &reg_ctrl_gadget_strs,
+        "pop rax; jmp rax;"
+    ));
+
+    // Negative
+    assert!(!common::gadget_strs_contains_sub_str(
+        &reg_ctrl_gadget_strs,
+        "push rax; ret;"
+    ));
+}
+
+#[test]
+fn test_x64_filter_regs_overwritten_2() {
+    let bin_filters = common::get_raw_bin("bin_filters", &common::FILTERS_X64);
+    let bins = vec![bin_filters];
+    let gadgets =
+        xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
+    let param_ctrl_gadgets =
+        xgadget::filter_regs_overwritten(&gadgets, Some(&vec![iced_x86::Register::RCX]));
+    let reg_ctrl_gadget_strs = common::get_gadget_strs(&param_ctrl_gadgets, false);
+    common::print_gadget_strs(&reg_ctrl_gadget_strs);
+
+    // Positive
+    assert!(common::gadget_strs_contains_sub_str(
+        &reg_ctrl_gadget_strs,
+        "mov rcx, rax; ret;"
+    ));
+    assert!(common::gadget_strs_contains_sub_str(
+        &reg_ctrl_gadget_strs,
+        "mov ecx, eax; ret;"
+    ));
+
+    // Negative
+    assert!(!common::gadget_strs_contains_sub_str(
+        &reg_ctrl_gadget_strs,
+        "push rax; ret;"
+    ));
+    assert!(!common::gadget_strs_contains_sub_str(
+        &reg_ctrl_gadget_strs,
+        "pop r8; ret;"
+    ));
+    assert!(!common::gadget_strs_contains_sub_str(
+        &reg_ctrl_gadget_strs,
+        "pop rsp; ret;"
+    ));
+    assert!(!common::gadget_strs_contains_sub_str(
+        &reg_ctrl_gadget_strs,
+        "pop rax; pop rbx; ret;"
+    ));
+    assert!(!common::gadget_strs_contains_sub_str(
+        &reg_ctrl_gadget_strs,
+        "pop rbx; ret;"
+    ));
+    assert!(!common::gadget_strs_contains_sub_str(
+        &reg_ctrl_gadget_strs,
+        "pop rax; jmp rax;"
+    ));
+}
