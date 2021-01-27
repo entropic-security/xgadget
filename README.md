@@ -115,7 +115,7 @@ Building a dynamically-linked binary from source with the above `cargo install` 
 
 ```bash
 bash ./benches/bench_setup_ubuntu.sh    # Ubuntu-specific, download/build 10 kernel versions
-cargo bench --features bench-deps       # Grab a coffee, this'll take a while...
+cargo bench                             # Grab a coffee, this'll take a while...
 ```
 
 * `bench_setup_ubuntu.sh` downloads and builds 10 consecutive Linux kernels (versions `5.0.1` to `5.0.10` - with `x86_64_defconfig`).

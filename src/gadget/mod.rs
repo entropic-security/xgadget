@@ -1,5 +1,8 @@
-pub mod gadget_analysis;
-pub use gadget_analysis::*;
+pub mod analysis;
+pub use analysis::*;
 
-pub mod gadget_object;
-pub use gadget_object::*;
+pub mod gadget;
+pub use gadget::*;
+
+pub mod fmt;
+pub use fmt::*;

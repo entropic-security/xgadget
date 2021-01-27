@@ -5,6 +5,9 @@ use tempfile::NamedTempFile;
 
 mod common;
 
+// TODO: make sure every flag has a test
+// TODO: pipe to tempfile test, check that color and no-color are equivalent
+
 // TARGET-SPECIFIC PARAMS ----------------------------------------------------------------------------------------------
 
 #[cfg(target_arch = "x86")]
@@ -124,6 +127,7 @@ fn test_single_bin() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
     xgadget_bin.arg("/bin/cat");
+
     xgadget_bin.assert().success();
 }
 
@@ -235,6 +239,7 @@ fn test_search_args() {
     )
     .unwrap();
 
+    // TODO: below are filters, separate category, move
     let output_dispatch = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()

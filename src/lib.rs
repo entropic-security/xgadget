@@ -111,8 +111,8 @@
 //!### ~~Yeah, but can it do 10 OS kernels under 10 seconds?!~~ Repeatable Benchmark Harness
 //!
 //!```bash
-//!bash ./benches/bench_setup_ubuntu.sh    # Ubuntu-specific, download/build 10 kernel versions
-//!cargo bench --features bench-deps       # Grab a coffee, this'll take a while...
+//!bash ./benches/bench_setup_ubuntu.sh     # Ubuntu-specific, download/build 10 kernel versions
+//!cargo bench                              # Grab a coffee, this'll take a while...
 //!```
 //!
 //!* `bench_setup_ubuntu.sh` downloads and builds 10 consecutive Linux kernels (versions `5.0.1` to `5.0.10` - with `x86_64_defconfig`).
@@ -138,9 +138,6 @@
 #[macro_use]
 extern crate bitflags;
 
-#[macro_use]
-extern crate lazy_static;
-
 // Exports -------------------------------------------------------------------------------------------------------------
 
 pub mod binary;
@@ -157,6 +154,3 @@ pub use crate::filters::*;
 
 pub mod semantics;
 pub use crate::semantics::*;
-
-pub mod str_fmt;
-pub use crate::str_fmt::*;

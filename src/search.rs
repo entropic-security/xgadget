@@ -235,7 +235,7 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<iced_x86::Instruction>,
 
                 // SYS
                 || (semantics::is_syscall(&i)
-                    || (semantics::is_legacy_linux_syscall(&i) && (d_config.bin.format == binary::Format::ELF)))
+                    || (semantics::is_legacy_linux_syscall(&i) && (d_config.bin.format() == binary::Format::ELF)))
             {
                 debug_assert!(instrs[0].ip() == buf_start_addr);
                 instr_sequences.push((instrs, buf_start_addr));
@@ -255,7 +255,7 @@ fn find_gadgets_single_bin(
     let mut gadget_collector: HashMap<Vec<iced_x86::Instruction>, BTreeSet<u64>> =
         HashMap::default();
 
-    for seg in &bin.segments {
+    for seg in bin.segments() {
         // Search backward for all potential tails (possible duplicates)
         let parallel_results: Vec<(Vec<iced_x86::Instruction>, u64)> =
             get_gadget_tail_offsets(bin, seg, s_config)

@@ -202,8 +202,7 @@ fn test_x64_filter_regs_overwritten_1() {
     let bins = vec![bin_filters];
     let gadgets =
         xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
-    let param_ctrl_gadgets =
-        xgadget::filter_regs_overwritten(&gadgets, None);
+    let param_ctrl_gadgets = xgadget::filter_regs_overwritten(&gadgets, None);
     let reg_ctrl_gadget_strs = common::get_gadget_strs(&param_ctrl_gadgets, false);
     common::print_gadget_strs(&reg_ctrl_gadget_strs);
 
@@ -216,7 +215,7 @@ fn test_x64_filter_regs_overwritten_1() {
         &reg_ctrl_gadget_strs,
         "mov rcx, rax; ret;"
     ));
-   assert!(common::gadget_strs_contains_sub_str(
+    assert!(common::gadget_strs_contains_sub_str(
         &reg_ctrl_gadget_strs,
         "pop rsp; ret;"
     ));

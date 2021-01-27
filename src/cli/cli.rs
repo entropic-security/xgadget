@@ -10,11 +10,14 @@ use rayon::prelude::*;
 use regex::Regex;
 use structopt::StructOpt;
 
+#[macro_use]
+extern crate lazy_static;
+
 mod checksec_fmt;
 use checksec_fmt::{CustomElfCheckSecResults, CustomPeCheckSecResults};
 
-#[macro_use]
-extern crate lazy_static;
+mod reg_str;
+use reg_str::str_to_reg;
 
 // CLI State -----------------------------------------------------------------------------------------------------------
 
@@ -104,7 +107,7 @@ struct CLIOpts {
     #[structopt(long, value_name = "OPT_REG")]
     no_deref: Option<Option<String>>,
 
-    /// Filter to gadgets that control a specific register [default: all gadgets]
+    /// Filter to gadgets that control any reg or a specific reg [default: all gadgets]
     #[structopt(long, value_name = "OPT_REG")]
     reg_ctrl: Option<Option<String>>,
 
@@ -166,40 +169,6 @@ impl CLIOpts {
         }
 
         search_config
-    }
-
-    // If partial match or extended format flag, addr(s) right of instr(s), else addr left of instr(s)
-    fn fmt_gadget_output(&self, addrs: String, instrs: String, term_width: usize) -> String {
-        let plaintext_instrs_len = strip_ansi_escapes::strip(&instrs).unwrap().len();
-        let plaintext_addrs_len = strip_ansi_escapes::strip(&addrs).unwrap().len();
-        let content_len = plaintext_instrs_len + plaintext_addrs_len;
-        let mut output = instrs;
-
-        if self.extended_fmt || self.partial_match {
-            if term_width > content_len {
-                let padding = (0..(term_width - 1 - content_len))
-                    .map(|_| "-")
-                    .collect::<String>();
-
-                if self.no_color {
-                    output.push_str(&padding);
-                } else {
-                    output.push_str(&format!("{}", padding.bright_magenta()));
-                    //output.push_str(&padding.bright_magenta()); // TODO: why doesn't this color, bug?
-                }
-            }
-
-            output.push_str(&format!(" {}", addrs));
-        } else {
-            let addr_no_bracket = &addrs[1..(addrs.len() - 1)].trim();
-            if self.no_color {
-                output = format!("{}{} {}", addr_no_bracket, ":", output);
-            } else {
-                output = format!("{}{} {}", addr_no_bracket, ":".bright_magenta(), output);
-            }
-        }
-
-        output
     }
 
     // Helper for summary print
@@ -327,13 +296,7 @@ fn main() {
     let cli = CLIOpts::from_args();
 
     let mut filter_matches = 0;
-    let filter_regex = Regex::new(
-        &cli.usr_regex
-            .clone()
-            .unwrap_or_else(|| "unused_but_initialized".to_string())
-            .trim(),
-    )
-    .unwrap();
+    let filter_regex = cli.usr_regex.clone().map(|r| Regex::new(&r).unwrap());
 
     // Checksec requested ----------------------------------------------------------------------------------------------
 
@@ -350,19 +313,29 @@ fn main() {
         .par_iter()
         .map(|path| xgadget::Binary::from_path_str(&path).unwrap())
         .map(|mut binary| {
-            if binary.arch == xgadget::Arch::Unknown {
-                binary.arch = cli.arch;
+            if binary.arch() == xgadget::Arch::Unknown {
+                binary.set_arch(cli.arch);
                 assert!(
-                    binary.arch != xgadget::Arch::Unknown,
+                    binary.arch() != xgadget::Arch::Unknown,
                     "Please set \'--arch\' to \'x8086\' (16-bit), \'x86\' (32-bit), or \'x64\' (64-bit)"
                 );
             }
+            binary.set_color_display(!cli.no_color);
             binary
         })
         .collect();
 
     for (i, bin) in bins.iter().enumerate() {
-        println!("TARGET {} - {} ", i, bin);
+        println!(
+            "TARGET {} - {} ",
+            {
+                match cli.no_color {
+                    true => format!("{}", i).normal(),
+                    false => format!("{}", i).red(),
+                }
+            },
+            bin
+        );
     }
 
     // Search ----------------------------------------------------------------------------------------------------------
@@ -385,8 +358,7 @@ fn main() {
     if let Some(opt_reg) = &cli.reg_ctrl {
         match opt_reg {
             Some(reg_str) => {
-                let reg = xgadget::str_to_reg(reg_str)
-                    .expect(&format!("Invalid register: {:?}", reg_str));
+                let reg = str_to_reg(reg_str).expect(&format!("Invalid register: {:?}", reg_str));
                 gadgets = xgadget::filter_regs_overwritten(&gadgets, Some(&vec![reg]))
             }
             None => gadgets = xgadget::filter_regs_overwritten(&gadgets, None),
@@ -396,8 +368,7 @@ fn main() {
     if let Some(opt_reg) = &cli.no_deref {
         match opt_reg {
             Some(reg_str) => {
-                let reg = xgadget::str_to_reg(reg_str)
-                    .expect(&format!("Invalid register: {:?}", reg_str));
+                let reg = str_to_reg(reg_str).expect(&format!("Invalid register: {:?}", reg_str));
                 gadgets = xgadget::filter_no_deref(&gadgets, Some(&vec![reg]))
             }
             None => gadgets = xgadget::filter_no_deref(&gadgets, None),
@@ -424,22 +395,83 @@ fn main() {
 
     // Print Gadgets ---------------------------------------------------------------------------------------------------
 
-    let term_width: usize = match term_size::dimensions() {
+    let gadgets_and_strs: Vec<(xgadget::Gadget, String)> = gadgets
+        .into_par_iter()
+        .map(|g| (g.fmt_for_filter(cli.att), g))
+        .map(|(s, g)| (g, s))
+        .collect();
+
+    let mut filtered_gadgets: Vec<(xgadget::Gadget, String)> = gadgets_and_strs
+        .into_iter()
+        .filter(|(_, s)| {
+            match &filter_regex {
+                Some(r) => {
+                    match r.is_match(&s) {
+                        true => {
+                            filter_matches += 1;
+                            true
+                        },
+                        false => false
+                    }
+                },
+                None => true
+            }
+        })
+        .collect();
+
+    filtered_gadgets.sort_unstable_by(|(_, s1), (_, s2)| s1.cmp(s2));
+
+    let printable_gadgets: Vec<xgadget::Gadget> =
+        filtered_gadgets.into_iter().map(|(g, _)| g).collect();
+
+    let mut term_width: usize = match term_size::dimensions() {
         Some((w, _)) => w,
         None => 0,
     };
 
-    println!();
-    for (instrs, addrs) in xgadget::str_fmt_gadgets(&gadgets, cli.att, !cli.no_color) {
-        let plaintext_instrs_bytes = strip_ansi_escapes::strip(&instrs).unwrap();
-        let plaintext_instrs_str = std::str::from_utf8(&plaintext_instrs_bytes).unwrap();
+    // Account for extra chars in our fmt string
+    if term_width >= 5 {
+        term_width -= 5;
+    }
 
-        if (cli.usr_regex.is_none()) || filter_regex.is_match(plaintext_instrs_str) {
-            println!("{}", cli.fmt_gadget_output(addrs, instrs, term_width));
-            if cli.usr_regex.is_some() {
-                filter_matches += 1;
+    let gadget_strs: Vec<String> = printable_gadgets
+        .par_iter()
+        .map(|g| {
+            let (instrs, addrs) = g.fmt(cli.att, !cli.no_color);
+
+            // If partial match or extended format flag, addr(s) right of instr(s), else addr left of instr(s)
+            match cli.extended_fmt || cli.partial_match {
+                true => {
+                    let content_len = instrs.len() + addrs.len();
+                    match term_width > content_len {
+                        true => {
+                            let padding = (0..(term_width - content_len))
+                                .map(|_| "-")
+                                .collect::<String>();
+
+                            let padding = match cli.no_color {
+                                true => padding,
+                                false => format!("{}", padding.bright_magenta()),
+                            };
+
+                            format!("{}{} [ {} ]", instrs, padding, addrs)
+                        }
+                        false => {
+                            format!("{} [ {} ]", instrs, addrs)
+                        }
+                    }
+                }
+                false => match cli.no_color {
+                    true => format!("{}: {}", addrs, instrs),
+                    false => format!("{}{} {}", addrs, ":".bright_magenta(), instrs),
+                },
             }
-        }
+        })
+        .collect();
+
+    println!();
+    for s in gadget_strs {
+        println!("{}", s);
     }
 
     // Print Summary ---------------------------------------------------------------------------------------------------
@@ -456,10 +488,9 @@ fn main() {
             }
         },
         {
-            let found_cnt = if cli.usr_regex.is_some() {
-                filter_matches.to_string()
-            } else {
-                gadgets.len().to_string()
+            let found_cnt = match filter_regex {
+                Some(_) => filter_matches.to_string(),
+                None => printable_gadgets.len().to_string()
             };
 
             cli.fmt_summary_item(found_cnt, false)

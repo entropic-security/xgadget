@@ -46,7 +46,7 @@ pub fn filter_reg_pop_only_regex<'a>(
     let re = Regex::new(r"^(?:pop)(?:.*(?:pop))*.*(?:ret|call|jmp)").unwrap();
     let mut matches = Vec::new();
 
-    for (instrs, addrs) in xgadget::str_fmt_gadgets(&gadgets, false, false) {
+    for (instrs, addrs) in xgadget::fmt_gadget_str_list(&gadgets, false, false) {
         if re.is_match(&instrs) {
             matches.push((instrs, addrs));
         }

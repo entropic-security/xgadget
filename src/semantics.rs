@@ -71,7 +71,10 @@ pub fn is_syscall(instr: &iced_x86::Instruction) -> bool {
 /// Check if legacy Linux syscall
 #[inline(always)]
 pub fn is_legacy_linux_syscall(instr: &iced_x86::Instruction) -> bool {
-    instr.mnemonic() == iced_x86::Mnemonic::Int && (instr.immediate(0) == 0x80)
+    match instr.try_immediate(0) {
+        Ok(imm) => (imm == 0x80) && (instr.mnemonic() == iced_x86::Mnemonic::Int),
+        _ => false,
+    }
 }
 
 // Properties ----------------------------------------------------------------------------------------------------------

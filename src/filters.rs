@@ -30,7 +30,6 @@ pub fn filter_dispatcher<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::Gadg
         .filter(|g| {
             if let Some((tail_instr, preceding_instrs)) = g.instrs.split_last() {
                 if semantics::is_jop_gadget_tail(tail_instr) {
-
                     // Predictable update of dispatch register
                     let dispatch_reg = tail_instr.op0_register();
                     for i in preceding_instrs {

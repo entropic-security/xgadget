@@ -1,6 +1,6 @@
 use rustc_hash::FxHashSet as HashSet;
 
-use super::gadget_object;
+use super::gadget::Gadget;
 
 // Gadget Analysis -----------------------------------------------------------------------------------------------------
 
@@ -22,7 +22,7 @@ impl GadgetAnalysis {
     // GadgetAnalysis Public API ---------------------------------------------------------------------------------------
 
     /// Analyze gadget
-    pub fn new(gadget: &gadget_object::Gadget) -> Self {
+    pub fn new(gadget: &Gadget) -> Self {
         let mut info_factory = iced_x86::InstructionInfoFactory::new();
         let mut unique_used_regs = HashSet::default();
         let mut unique_used_mem = HashSet::default();
