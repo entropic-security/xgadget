@@ -55,7 +55,7 @@ path = "src/lib.rs"
 
 [[bin]]
 name = "xgadget"
-path = "src/cli/cli.rs"
+path = "src/cli/main.rs"
 required-features = ["cli-bin"]
 
 [[bench]]
