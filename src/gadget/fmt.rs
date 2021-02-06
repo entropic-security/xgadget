@@ -82,7 +82,7 @@ pub(crate) struct GadgetFormatterOutput {
 }
 
 impl GadgetFormatterOutput {
-    /// TODO: desc
+    /// Constructor
     pub fn new() -> Self {
         Self {
             tokens: BTreeMap::new(),
@@ -91,7 +91,7 @@ impl GadgetFormatterOutput {
         }
     }
 
-    /// TODO: desc
+    /// Whether or not the formatter is empty, e.g. no tokens yet written
     pub fn is_empty(&self) -> bool {
         self.tokens.is_empty()
     }

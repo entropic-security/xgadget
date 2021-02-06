@@ -23,13 +23,13 @@ pub fn is_sys_gadget_tail(instr: &iced_x86::Instruction) -> bool {
 /// Check if call instruction with register-controlled target
 #[inline(always)]
 pub fn is_reg_indirect_call(instr: &iced_x86::Instruction) -> bool {
-    (instr.flow_control() == iced_x86::FlowControl::IndirectCall) && (has_ctrled_ops(instr))
+    (instr.flow_control() == iced_x86::FlowControl::IndirectCall) && (has_ctrled_ops_only(instr))
 }
 
 /// Check if jump instruction with register-controlled target
 #[inline(always)]
 pub fn is_reg_indirect_jmp(instr: &iced_x86::Instruction) -> bool {
-    (instr.flow_control() == iced_x86::FlowControl::IndirectBranch) && (has_ctrled_ops(instr))
+    (instr.flow_control() == iced_x86::FlowControl::IndirectBranch) && (has_ctrled_ops_only(instr))
 }
 
 /// Check if return instruction
@@ -109,10 +109,9 @@ pub fn is_reg_set(instr: &iced_x86::Instruction, reg: &iced_x86::Register) -> bo
     false
 }
 
-// TODO: add test
-/// Check if instruction has a controllable operands
+/// Check if instruction has controllable operands only
 #[inline(always)]
-pub fn has_ctrled_ops(instr: &iced_x86::Instruction) -> bool {
+pub fn has_ctrled_ops_only(instr: &iced_x86::Instruction) -> bool {
     let op_cnt = instr.op_count();
     for op_idx in 0..op_cnt {
         match instr.try_op_kind(op_idx) {

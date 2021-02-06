@@ -119,12 +119,65 @@ fn test_sys_semantics() {
 
 #[test]
 fn test_rw_semantics() {
+    // Positive test
     let add_rax_0x08: [u8; 4] = [0x48, 0x83, 0xc0, 0x08];
     let instr = common::decode_single_x64_instr(0, &add_rax_0x08);
     assert!(xgadget::semantics::is_reg_rw(
         &instr,
         &iced_x86::Register::RAX
     ));
+
+    // Negative test
+    let pop_r15: [u8; 2] = [0x41, 0x5f];
+    let instr = common::decode_single_x64_instr(0, &pop_r15);
+    assert!(!xgadget::semantics::is_reg_rw(
+        &instr,
+        &iced_x86::Register::R15
+    ));
+}
+
+#[test]
+fn test_reg_set_semantics() {
+    // Positive test
+    let pop_r15: [u8; 2] = [0x41, 0x5f];
+    let instr = common::decode_single_x64_instr(0, &pop_r15);
+    assert!(xgadget::semantics::is_reg_set(
+        &instr,
+        &iced_x86::Register::R15
+    ));
+
+    // Negative test
+    let add_rax_0x08: [u8; 4] = [0x48, 0x83, 0xc0, 0x08];
+    let instr = common::decode_single_x64_instr(0, &add_rax_0x08);
+    assert!(!xgadget::semantics::is_reg_set(
+        &instr,
+        &iced_x86::Register::RAX
+    ));
+}
+
+#[test]
+fn test_has_ctrled_ops() {
+    // Positive test
+    let jmp_rax: [u8; 2] = [0xff, 0xe0];
+    let instr = common::decode_single_x64_instr(0, &jmp_rax);
+    assert!(xgadget::semantics::has_ctrled_ops_only(&instr));
+
+    let jmp_rax_deref: [u8; 2] = [0xff, 0x20];
+    let instr = common::decode_single_x64_instr(0, &jmp_rax_deref);
+    assert!(xgadget::semantics::has_ctrled_ops_only(&instr));
+
+    let jmp_rax_deref_offset: [u8; 3] = [0xff, 0x60, 0x10];
+    let instr = common::decode_single_x64_instr(0, &jmp_rax_deref_offset);
+    assert!(xgadget::semantics::has_ctrled_ops_only(&instr));
+
+    let mov_rax_rbx: [u8; 3] = [0x48, 0x89, 0xd8];
+    let instr = common::decode_single_x64_instr(0, &mov_rax_rbx);
+    assert!(xgadget::semantics::has_ctrled_ops_only(&instr));
+
+    // Negative test
+    let add_rax_0x08: [u8; 4] = [0x48, 0x83, 0xc0, 0x08];
+    let instr = common::decode_single_x64_instr(0, &add_rax_0x08);
+    assert!(!xgadget::semantics::has_ctrled_ops_only(&instr));
 }
 
 #[test]

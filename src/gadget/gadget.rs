@@ -9,9 +9,10 @@ use super::fmt;
 use super::fmt::DisplayLen;
 use crate::binary;
 
-// Gadget --------------------------------------------------------------------------------------------------------------
+// TODO: implement Ord for binary, use BTReeSet instead of Vector to maintain sorted order on insertion
+// will have nicer output at partial match at cost of speed (how much?)
 
-// TODO: implement Ord for binary, use BTReeSet instead of Vector to maintain sorted order on insertion - will have nicer output at partial match at cost of speed (how much?)
+// Gadget --------------------------------------------------------------------------------------------------------------
 
 /// Gadget instructions (data) coupled with occurrence addresses for full and partial matches (metadata).
 /// Gadgets sortable by lowest occurrence address.
@@ -63,18 +64,7 @@ impl<'a> Gadget<'a> {
         }
     }
 
-    // TODO: use this API
-    /// Add a new partial match address/binary tuple
-    pub fn add_partial_match(&mut self, addr: u64, bin: &'a binary::Binary) {
-        match self.partial_matches.get_mut(&addr) {
-            Some(bins) => bins.push(bin),
-            None => {
-                self.partial_matches.insert(addr, vec![bin]);
-            }
-        };
-    }
-
-    /// TODO: description
+    /// String format gadget instructions
     pub fn fmt_instrs(&self, att_syntax: bool, color: bool) -> Box<dyn DisplayLen + Send> {
         match color {
             true => {
@@ -90,7 +80,7 @@ impl<'a> Gadget<'a> {
         }
     }
 
-    /// TODO: description
+    /// String format first full match address, if any
     pub fn fmt_first_full_match_addr(&self, color: bool) -> Option<Box<dyn DisplayLen + Send>> {
         match &self.first_full_match() {
             Some(addr) => match color {
@@ -115,7 +105,7 @@ impl<'a> Gadget<'a> {
         }
     }
 
-    /// TODO: description
+    /// String format partial match addresses, if any
     pub fn fmt_partial_match_addrs(&self, color: bool) -> Option<Box<dyn DisplayLen + Send>> {
         match color {
             true => {
@@ -137,7 +127,7 @@ impl<'a> Gadget<'a> {
         }
     }
 
-    /// TODO: description
+    /// String format match addresses, prioritizing full matches over partial, if any
     pub fn fmt_best_match_addrs(&self, color: bool) -> Option<Box<dyn DisplayLen + Send>> {
         match self.first_full_match() {
             Some(_) => self.fmt_first_full_match_addr(color),
@@ -153,7 +143,7 @@ impl<'a> Gadget<'a> {
         self.write_instrs_internal(att_syntax)
     }
 
-    /// Format a single gadget, return dynamic type (depending on `color`)
+    /// Format a single gadget, return an `(instrs, addr(s))` tuple
     pub fn fmt(
         &self,
         att_syntax: bool,
@@ -192,7 +182,6 @@ impl<'a> Gadget<'a> {
         output
     }
 
-    // TODO: try an alternate version that takes in a DisplayString, closer to original? See if faster?
     // Partial match format helper, shrinks a working set
     #[inline]
     fn fmt_partial_matches_internal(

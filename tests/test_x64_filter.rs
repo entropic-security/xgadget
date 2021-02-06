@@ -194,7 +194,67 @@ fn test_x64_filter_set_params() {
     ));
 }
 
-// TODO: add no-deref test here
+#[test]
+fn test_x64_filter_no_deref_1() {
+    let bin_filters = common::get_raw_bin("bin_filters", &common::FILTERS_X64);
+    let bins = vec![bin_filters];
+    let gadgets =
+        xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
+    let no_deref_gadgets =
+        xgadget::filter_no_deref(&gadgets, None);
+    let no_deref_gadget_strs = common::get_gadget_strs(&no_deref_gadgets, false);
+    common::print_gadget_strs(&no_deref_gadget_strs);
+
+    // Positive
+    assert!(common::gadget_strs_contains_sub_str(
+        &no_deref_gadget_strs,
+        "pop r8; ret;"
+    ));
+    assert!(common::gadget_strs_contains_sub_str(
+        &no_deref_gadget_strs,
+        "mov rcx, rax; ret;"
+    ));
+    assert!(common::gadget_strs_contains_sub_str(
+        &no_deref_gadget_strs,
+        "push rax; ret;"
+    ));
+
+    // Negative
+    assert!(!common::gadget_strs_contains_sub_str(
+        &no_deref_gadget_strs,
+        "mov rax, 0x1337; jmp qword ptr [rax];"
+    ));
+}
+
+#[test]
+fn test_x64_filter_no_deref_2() {
+    let bin_filters = common::get_raw_bin("bin_filters", &common::FILTERS_X64);
+    let bins = vec![bin_filters];
+    let gadgets =
+        xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
+    let no_deref_gadgets =
+        xgadget::filter_no_deref(&gadgets, Some(&vec![iced_x86::Register::RCX]));
+    let no_deref_gadget_strs = common::get_gadget_strs(&no_deref_gadgets, false);
+    common::print_gadget_strs(&no_deref_gadget_strs);
+
+    // Positive
+    assert!(common::gadget_strs_contains_sub_str(
+        &no_deref_gadget_strs,
+        "pop r8; ret;"
+    ));
+    assert!(common::gadget_strs_contains_sub_str(
+        &no_deref_gadget_strs,
+        "mov rcx, rax; ret;"
+    ));
+    assert!(common::gadget_strs_contains_sub_str(
+        &no_deref_gadget_strs,
+        "push rax; ret;"
+    ));
+    assert!(common::gadget_strs_contains_sub_str(
+        &no_deref_gadget_strs,
+        "mov rax, 0x1337; jmp qword ptr [rax];"
+    ));
+}
 
 #[test]
 fn test_x64_filter_regs_overwritten_1() {

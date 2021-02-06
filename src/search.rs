@@ -51,7 +51,7 @@ pub fn find_gadgets(
                 // Filter common gadgets (set intersection)
                 common_gadgets.retain(|g| next_set.contains(&g));
 
-                // TODO (tnballo): there has to be a cleaner way to implement this! Once drain_filter() on stable?
+                // TODO: there has to be a cleaner way to implement this! Once drain_filter() on stable?
                 // Update full and partial matches
                 let mut temp_gadgets = HashSet::default();
                 for common_g in common_gadgets {

@@ -116,7 +116,7 @@ pub(crate) struct CLIOpts {
         "arch", "att", "extended_fmt", "max_len",
         "rop", "jop", "sys", "imm16", "partial_match",
         "stack_pivot", "dispatcher", "reg_pop", "usr_regex"
-    ])] // TODO: Custom short name (e.g. "-m" for "--partial-match" not tagged as conflict)
+    ])] // TODO: Custom short name (e.g. "-m" for "--partial-match" not tagged as conflict) - why?
     pub(crate) check_sec: bool,
 }
 
@@ -235,6 +235,19 @@ impl fmt::Display for CLIOpts {
                 if self.reg_pop {
                     search_mode = String::from("Register-pop-only");
                 };
+                if self.param_ctrl {
+                    search_mode = String::from("Param-ctrl-only");
+                };
+                if let Some(opt_reg) = &self.reg_ctrl {
+                    match opt_reg {
+                        Some(reg) => {
+                            search_mode = format!("Reg-ctrl-{}-only", reg.to_lowercase());
+                        }
+                        None => {
+                            search_mode = String::from("Reg-ctrl-only");
+                        }
+                    }
+                };
                 if let Some(opt_reg) = &self.no_deref {
                     match opt_reg {
                         Some(reg) => {
@@ -245,7 +258,6 @@ impl fmt::Display for CLIOpts {
                         }
                     }
                 };
-                // TODO: add param-ctrl, check for others, add CLI tests
                 self.fmt_summary_item(search_mode, false)
             },
             {

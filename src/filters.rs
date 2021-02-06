@@ -116,7 +116,6 @@ pub fn filter_set_params<'a>(
         .collect()
 }
 
-// TODO: add logic for stack pointer part
 /// Parallel filter to gadgets that don't dereference any registers (if `opt_regs.is_none()`),
 /// or don't dereference specific registers (if `opt_regs.is_some()`).
 /// Doesn't count the stack pointer unless explicitly provided in `opt_regs`.
@@ -127,17 +126,23 @@ pub fn filter_no_deref<'a>(
     gadgets
         .par_iter()
         .filter(|g| {
-            let regs_derefed = gadget::GadgetAnalysis::new(&g).regs_dereferenced();
+            let mut regs_derefed = gadget::GadgetAnalysis::new(&g).regs_dereferenced();
             match opt_regs {
                 Some(regs) => regs.iter().all(|r| !regs_derefed.contains(r)),
-                None => regs_derefed.is_empty(),
+                None => {
+                    // Don't count stack pointer
+                    regs_derefed.retain(|r| r != &iced_x86::Register::RSP);
+                    regs_derefed.retain(|r| r != &iced_x86::Register::ESP);
+                    regs_derefed.retain(|r| r != &iced_x86::Register::SP);
+
+                    regs_derefed.is_empty()
+                },
             }
         })
         .cloned()
         .collect()
 }
 
-// TODO: Add test, verify that all filters are tested
 /// Parallel filter to gadgets that write any register (if `opt_regs.is_none()`),
 /// or write specific registers (if `opt_regs.is_some()`).
 pub fn filter_regs_overwritten<'a>(
