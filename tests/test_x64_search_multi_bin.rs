@@ -331,8 +331,14 @@ fn test_x64_cross_variant_full_and_partial_matches_3() {
     println!("\n{:#^1$}\n", " Mix vs. ret_call vs. ret_jmp (FULL) ", 175);
     common::print_gadget_strs(&gadget_strs_full_match);
 
+    // Positive
+    assert!(common::gadget_strs_contains_sub_str(
+        &gadget_strs_full_match,
+        "ret far;"
+    ));
+
     // Negative
-    assert!(gadgets.is_empty());
+    assert!(gadgets.len() == 1);
 
     // Partial match against common::X_RET_AFTER_JNE_AND_ADJACENT_CALL_X64 and common::X_RET_AFTER_JNE_AND_ADJACENT_CALL_X64
     let gadgets = xgadget::find_gadgets(&bins, common::MAX_LEN, full_part_match_config).unwrap();

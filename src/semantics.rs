@@ -23,19 +23,13 @@ pub fn is_sys_gadget_tail(instr: &iced_x86::Instruction) -> bool {
 /// Check if call instruction with register-controlled target
 #[inline(always)]
 pub fn is_reg_indirect_call(instr: &iced_x86::Instruction) -> bool {
-    (instr.flow_control() == iced_x86::FlowControl::IndirectCall)
-        && ((instr.op0_kind() == iced_x86::OpKind::Register)
-            || ((instr.op0_kind() == iced_x86::OpKind::Memory)
-                && instr.memory_base() != iced_x86::Register::None))
+    (instr.flow_control() == iced_x86::FlowControl::IndirectCall) && (has_ctrled_ops_only(instr))
 }
 
 /// Check if jump instruction with register-controlled target
 #[inline(always)]
 pub fn is_reg_indirect_jmp(instr: &iced_x86::Instruction) -> bool {
-    (instr.flow_control() == iced_x86::FlowControl::IndirectBranch)
-        && ((instr.op0_kind() == iced_x86::OpKind::Register)
-            || ((instr.op0_kind() == iced_x86::OpKind::Memory)
-                && instr.memory_base() != iced_x86::Register::None))
+    (instr.flow_control() == iced_x86::FlowControl::IndirectBranch) && (has_ctrled_ops_only(instr))
 }
 
 /// Check if return instruction
@@ -50,9 +44,9 @@ pub fn is_ret_imm16(instr: &iced_x86::Instruction) -> bool {
     is_ret(instr) && (instr.op_count() != 0)
 }
 
-/// Check if call instruction
+/// Check if direct call instruction
 #[inline(always)]
-pub fn is_fixed_call(instr: &iced_x86::Instruction) -> bool {
+pub fn is_direct_call(instr: &iced_x86::Instruction) -> bool {
     (instr.mnemonic() == iced_x86::Mnemonic::Call) && (!is_reg_indirect_call(instr))
 }
 
@@ -67,12 +61,6 @@ pub fn is_int(instr: &iced_x86::Instruction) -> bool {
     instr.flow_control() == iced_x86::FlowControl::Interrupt
 }
 
-/// Check if interrupt instruction that specifies vector
-#[inline(always)]
-pub fn is_int_imm8(instr: &iced_x86::Instruction) -> bool {
-    instr.mnemonic() == iced_x86::Mnemonic::Int
-}
-
 /// Check if syscall/sysenter instruction
 #[inline(always)]
 pub fn is_syscall(instr: &iced_x86::Instruction) -> bool {
@@ -83,7 +71,10 @@ pub fn is_syscall(instr: &iced_x86::Instruction) -> bool {
 /// Check if legacy Linux syscall
 #[inline(always)]
 pub fn is_legacy_linux_syscall(instr: &iced_x86::Instruction) -> bool {
-    is_int_imm8(instr) && (instr.immediate(0) == 0x80)
+    match instr.try_immediate(0) {
+        Ok(imm) => (imm == 0x80) && (instr.mnemonic() == iced_x86::Mnemonic::Int),
+        _ => false,
+    }
 }
 
 // Properties ----------------------------------------------------------------------------------------------------------
@@ -96,4 +87,48 @@ pub fn is_reg_rw(instr: &iced_x86::Instruction, reg: &iced_x86::Register) -> boo
     let reg_rw = iced_x86::UsedRegister::new(*reg, iced_x86::OpAccess::ReadWrite);
 
     info.used_registers().contains(&reg_rw)
+}
+
+/// Check if sets register from another register or stack (e.g. exclude constant write)
+#[inline(always)]
+pub fn is_reg_set(instr: &iced_x86::Instruction, reg: &iced_x86::Register) -> bool {
+    let mut info_factory = iced_x86::InstructionInfoFactory::new();
+    let info = info_factory.info_options(&instr, iced_x86::InstructionInfoOptions::NO_MEMORY_USAGE);
+    let reg_w = iced_x86::UsedRegister::new(*reg, iced_x86::OpAccess::Write);
+
+    let reg_read = |ur: iced_x86::UsedRegister| {
+        ur.access() == iced_x86::OpAccess::Read || ur.access() == iced_x86::OpAccess::ReadWrite
+    };
+
+    if info.used_registers().iter().any(|ur| reg_read(*ur))
+        && info.used_registers().contains(&reg_w)
+    {
+        return true;
+    }
+
+    false
+}
+
+/// Check if instruction has controllable operands only
+#[inline(always)]
+pub fn has_ctrled_ops_only(instr: &iced_x86::Instruction) -> bool {
+    let op_cnt = instr.op_count();
+    for op_idx in 0..op_cnt {
+        match instr.try_op_kind(op_idx) {
+            Ok(kind) => match kind {
+                iced_x86::OpKind::Register => continue,
+                iced_x86::OpKind::Memory => match instr.memory_base() {
+                    iced_x86::Register::None => return false,
+                    iced_x86::Register::RIP => return false,
+                    iced_x86::Register::EIP => return false,
+                    //iced_x86::Register::IP => false, // TODO: why missing?
+                    _ => continue,
+                },
+                _ => return false,
+            },
+            _ => return false,
+        }
+    }
+
+    op_cnt > 0
 }

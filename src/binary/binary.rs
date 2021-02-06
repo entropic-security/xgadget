@@ -2,114 +2,31 @@ use std::error::Error;
 use std::fmt;
 use std::fs;
 use std::path::Path;
-use std::str::FromStr;
 
-use rayon::prelude::*;
+use colored::Colorize;
 use rustc_hash::FxHashSet as HashSet;
 
-// Segment -------------------------------------------------------------------------------------------------------------
-
-/// A single executable segment
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct Segment {
-    pub addr: u64,
-    pub bytes: Vec<u8>,
-}
-
-impl Segment {
-    /// Constructor
-    pub fn new(addr: u64, bytes: Vec<u8>) -> Segment {
-        Segment { addr, bytes }
-    }
-
-    /// Check if contains address
-    pub fn contains(&self, addr: u64) -> bool {
-        (self.addr <= addr) && (addr < (self.addr + self.bytes.len() as u64))
-    }
-
-    /// Get offsets of byte occurrences
-    pub fn get_matching_offsets(&self, vals: &[u8]) -> Vec<usize> {
-        self.bytes
-            .par_iter()
-            .enumerate()
-            .filter(|&(_, b)| vals.contains(b))
-            .map(|(i, _)| i)
-            .collect()
-    }
-}
+use super::arch::Arch;
+use super::consts::*;
+use super::file_format::Format;
+use super::segment::Segment;
 
 // Binary --------------------------------------------------------------------------------------------------------------
-
-/// File format
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum Format {
-    Unknown,
-    ELF,
-    PE,
-    Raw,
-}
-
-impl FromStr for Format {
-    type Err = &'static str;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "unknown" => Ok(Format::Unknown),
-            "elf" => Ok(Format::ELF),
-            "pe" => Ok(Format::PE),
-            "raw" => Ok(Format::Raw),
-            _ => Err("Could not parse format string to enum"),
-        }
-    }
-}
-
-/// Architecture
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum Arch {
-    Unknown = 0,
-    X8086 = 16,
-    X86 = 32,
-    X64 = 64,
-}
-
-impl Arch {
-    /// Arch -> bitness
-    pub fn bits(&self) -> u32 {
-        *self as u32
-    }
-}
-
-impl FromStr for Arch {
-    type Err = &'static str;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "unknown" => Ok(Arch::Unknown),
-            "x8086" => Ok(Arch::X8086),
-            "x86" => Ok(Arch::X86),
-            "x64" => Ok(Arch::X64),
-            _ => Err("Could not parse architecture string to enum"),
-        }
-    }
-}
 
 /// File format agnostic binary
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Binary {
-    pub name: String,
-    pub format: Format,
-    pub arch: Arch,
-    pub entry: u64,
-    pub segments: HashSet<Segment>,
+    name: String,
+    format: Format,
+    arch: Arch,
+    entry: u64,
+    param_regs: Option<&'static [iced_x86::Register]>,
+    segments: HashSet<Segment>,
+    color_display: bool,
 }
 
 impl Binary {
     // Binary Public API -----------------------------------------------------------------------------------------------
-
-    /// Binary -> bitness
-    pub fn bits(&self) -> u32 {
-        self.arch.bits()
-    }
 
     /// Byte slice -> Binary
     pub fn from_bytes(name: &str, bytes: &[u8]) -> Result<Binary, Box<dyn Error>> {
@@ -125,6 +42,51 @@ impl Binary {
         Binary::priv_from_buf(name_str, &bytes)
     }
 
+    /// Get name
+    pub fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    /// Get format
+    pub fn format(&self) -> Format {
+        self.format
+    }
+
+    /// Get arch
+    pub fn arch(&self) -> Arch {
+        self.arch
+    }
+
+    /// Set arch
+    pub fn set_arch(&mut self, arch: Arch) {
+        self.arch = arch
+    }
+
+    /// Get entry point
+    pub fn entry(&self) -> u64 {
+        self.entry
+    }
+
+    /// Get param registers
+    pub fn param_regs(&self) -> &Option<&'static [iced_x86::Register]> {
+        &self.param_regs
+    }
+
+    /// Get segments
+    pub fn segments(&self) -> &HashSet<Segment> {
+        &self.segments
+    }
+
+    /// Binary -> bitness
+    pub fn bits(&self) -> u32 {
+        self.arch.bits()
+    }
+
+    /// Enable/disable colored `Display`
+    pub fn set_color_display(&mut self, enable: bool) {
+        self.color_display = enable;
+    }
+
     // Binary Private API ----------------------------------------------------------------------------------------------
 
     // Construction helper
@@ -134,17 +96,22 @@ impl Binary {
             format: Format::Unknown,
             arch: Arch::Unknown,
             entry: 0,
+            param_regs: None,
             segments: HashSet::default(),
+            color_display: true,
         }
     }
 
     // Bytes -> Binary
     fn priv_from_buf(name: &str, bytes: &[u8]) -> Result<Binary, Box<dyn Error>> {
-        match goblin::Object::parse(&bytes)? {
-            goblin::Object::Elf(elf) => Binary::from_elf(name, &bytes, &elf),
-            goblin::Object::PE(pe) => Binary::from_pe(name, &bytes, &pe),
-            goblin::Object::Unknown(_) => Ok(Binary::from_raw(name, bytes)),
-            _ => Err("Unsupported file format!".into()),
+        match goblin::Object::parse(&bytes) {
+            Ok(obj) => match obj {
+                goblin::Object::Unknown(_) => Ok(Binary::from_raw(name, bytes)),
+                goblin::Object::Elf(elf) => Binary::from_elf(name, &bytes, &elf),
+                goblin::Object::PE(pe) => Binary::from_pe(name, &bytes, &pe),
+                _ => Err("Unsupported file format!".into()),
+            },
+            _ => Ok(Binary::from_raw(name, bytes)),
         }
     }
 
@@ -168,6 +135,11 @@ impl Binary {
                 return Err("Unsupported architecture!".into());
             }
         };
+
+        // Argument registers
+        if bin.arch == Arch::X64 {
+            bin.param_regs = Some(X64_ELF_PARAM_REGS);
+        }
 
         // Executable segments
         for prog_hdr in elf
@@ -204,6 +176,11 @@ impl Binary {
                 return Err("Unsupported architecture!".into());
             }
         };
+
+        // Argument registers
+        if bin.arch == Arch::X64 {
+            bin.param_regs = Some(X64_PE_PARAM_REGS);
+        }
 
         // Executable segments
         for sec_tab in pe.sections.iter().filter(|&p| {
@@ -260,17 +237,91 @@ impl Binary {
 // Summary print
 impl fmt::Display for Binary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let color_punctuation = |s: &str| {
+            if self.color_display {
+                s.bright_magenta()
+            } else {
+                s.normal()
+            }
+        };
+
+        let seg_cnt = self.segments.len();
+
+        let bytes = self
+            .segments
+            .iter()
+            .fold(0, |bytes, seg| bytes + seg.bytes.len());
+
+        let single_quote = color_punctuation("'");
+        let forward_slash = color_punctuation("/");
+        let dash = color_punctuation("-");
+        let colon = color_punctuation(":");
+        let comma = color_punctuation(",");
+
         write!(
             f,
-            "\'{}\': {:?}-{:?}, entry 0x{:016x}, {}/{} executable bytes/segments",
-            self.name,
-            self.format,
-            self.arch,
-            self.entry,
-            self.segments
-                .iter()
-                .fold(0, |bytes, seg| bytes + seg.bytes.len()),
-            self.segments.len(),
+            "{}{}{}{} {}{}{}{} {} entry{} {}{}{} executable bytes{}segments",
+            single_quote,
+            {
+                match self.color_display {
+                    true => self.name.cyan(),
+                    false => self.name.normal(),
+                }
+            },
+            single_quote,
+            colon,
+            {
+                match self.color_display {
+                    true => format!("{:?}", self.format).yellow(),
+                    false => format!("{:?}", self.format).normal(),
+                }
+            },
+            dash,
+            {
+                match self.color_display {
+                    true => format!("{:?}", self.arch).yellow(),
+                    false => format!("{:?}", self.arch).normal(),
+                }
+            },
+            comma,
+            {
+                match self.color_display {
+                    true => format!("{:#016x}", self.entry).green(),
+                    false => format!("{:#016x}", self.entry).normal(),
+                }
+            },
+            comma,
+            {
+                match self.color_display {
+                    true => format!("{}", bytes).bright_blue(),
+                    false => format!("{}", bytes).normal(),
+                }
+            },
+            forward_slash,
+            {
+                match self.color_display {
+                    true => format!("{}", seg_cnt).bright_blue(),
+                    false => format!("{}", seg_cnt).normal(),
+                }
+            },
+            forward_slash,
         )
     }
+}
+
+// Misc Helpers --------------------------------------------------------------------------------------------------------
+
+/// Get set union of all parameter registers for a list of binaries
+pub fn get_all_param_regs(bins: &[Binary]) -> Vec<iced_x86::Register> {
+    let mut param_regs = HashSet::default();
+
+    for b in bins {
+        if let Some(regs) = b.param_regs {
+            for reg in regs {
+                param_regs.insert(*reg);
+            }
+        }
+    }
+
+    param_regs.into_iter().collect()
 }

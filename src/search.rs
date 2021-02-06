@@ -30,15 +30,22 @@ bitflags! {
 // Public API ----------------------------------------------------------------------------------------------------------
 
 /// Search 1+ binaries for ROP gadgets (common gadgets if > 1)
-pub fn find_gadgets<'a>(
-    bins: &'a [binary::Binary],
+pub fn find_gadgets(
+    bins: &[binary::Binary],
     max_len: usize,
     s_config: SearchConfig,
-) -> Result<Vec<gadget::Gadget<'a>>, Box<dyn Error>> {
+) -> Result<Vec<gadget::Gadget>, Box<dyn Error>> {
+    let bin_cnt = bins.len();
+
     // Process binaries in parallel
     let parallel_results: Vec<(&binary::Binary, HashSet<gadget::Gadget>)> = bins
         .par_iter()
-        .map(|bin| (bin, find_gadgets_single_bin(bin, max_len, s_config)))
+        .map(|bin| {
+            (
+                bin,
+                find_gadgets_single_bin(bin, max_len, bin_cnt, s_config),
+            )
+        })
         .collect();
 
     // Filter to cross-variant gadgets
@@ -51,7 +58,7 @@ pub fn find_gadgets<'a>(
                 // Filter common gadgets (set intersection)
                 common_gadgets.retain(|g| next_set.contains(&g));
 
-                // TODO (tnballo): there has to be a cleaner way to implement this! Once drain_filter() on stable?
+                // TODO: there has to be a cleaner way to implement this! Once drain_filter() on stable?
                 // Update full and partial matches
                 let mut temp_gadgets = HashSet::default();
                 for common_g in common_gadgets {
@@ -71,7 +78,11 @@ pub fn find_gadgets<'a>(
                             }
 
                             // Cross-variant gadget!
-                            let mut updated_g = gadget::Gadget::new(common_g.instrs, full_matches);
+                            let mut updated_g = gadget::Gadget::new_multi_bin(
+                                common_g.instrs,
+                                full_matches,
+                                bin_cnt,
+                            );
 
                             // Partial matches (optional)
                             if s_config.intersects(SearchConfig::PART) {
@@ -208,7 +219,7 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<iced_x86::Instruction>,
             let pc = i.ip();
             if (pc > tail_addr)
                 || ((pc != tail_addr) && semantics::is_gadget_tail(&i))
-                || (semantics::is_fixed_call(&i)
+                || (semantics::is_direct_call(&i)
                     && !d_config.s_config.intersects(SearchConfig::CALL))
                 || (semantics::is_uncond_fixed_jmp(&i))
                 || (semantics::is_int(&i))
@@ -227,14 +238,15 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<iced_x86::Instruction>,
         // Find gadgets. Awww yisss.
         if let Some(i) = instrs.last() {
             // ROP
-            if (semantics::is_ret(&i) && (instrs.len() > 1))
+            // Note: 1 instr gadget (e.g. "ret;") for 16 byte re-alignment of stack pointer (avoid movaps segfault)
+            if (semantics::is_ret(&i))
 
                 // JOP
                 || (semantics::is_jop_gadget_tail(&i))
 
                 // SYS
                 || (semantics::is_syscall(&i)
-                    || (semantics::is_legacy_linux_syscall(&i) && (d_config.bin.format == binary::Format::ELF)))
+                    || (semantics::is_legacy_linux_syscall(&i) && (d_config.bin.format() == binary::Format::ELF)))
             {
                 debug_assert!(instrs[0].ip() == buf_start_addr);
                 instr_sequences.push((instrs, buf_start_addr));
@@ -246,15 +258,16 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<iced_x86::Instruction>,
 }
 
 /// Search a binary for gadgets
-fn find_gadgets_single_bin<'a>(
-    bin: &'a binary::Binary,
+fn find_gadgets_single_bin(
+    bin: &binary::Binary,
     max_len: usize,
+    bin_cnt: usize,
     s_config: SearchConfig,
-) -> HashSet<gadget::Gadget<'a>> {
+) -> HashSet<gadget::Gadget> {
     let mut gadget_collector: HashMap<Vec<iced_x86::Instruction>, BTreeSet<u64>> =
         HashMap::default();
 
-    for seg in &bin.segments {
+    for seg in bin.segments() {
         // Search backward for all potential tails (possible duplicates)
         let parallel_results: Vec<(Vec<iced_x86::Instruction>, u64)> =
             get_gadget_tail_offsets(bin, seg, s_config)
@@ -281,6 +294,6 @@ fn find_gadgets_single_bin<'a>(
     // Finalize parallel results
     gadget_collector
         .into_iter()
-        .map(|(instrs, addrs)| gadget::Gadget::new(instrs, addrs))
+        .map(|(instrs, addrs)| gadget::Gadget::new_multi_bin(instrs, addrs, bin_cnt))
         .collect()
 }

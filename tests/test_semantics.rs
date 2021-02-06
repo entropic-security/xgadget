@@ -119,12 +119,65 @@ fn test_sys_semantics() {
 
 #[test]
 fn test_rw_semantics() {
+    // Positive test
     let add_rax_0x08: [u8; 4] = [0x48, 0x83, 0xc0, 0x08];
     let instr = common::decode_single_x64_instr(0, &add_rax_0x08);
     assert!(xgadget::semantics::is_reg_rw(
         &instr,
         &iced_x86::Register::RAX
     ));
+
+    // Negative test
+    let pop_r15: [u8; 2] = [0x41, 0x5f];
+    let instr = common::decode_single_x64_instr(0, &pop_r15);
+    assert!(!xgadget::semantics::is_reg_rw(
+        &instr,
+        &iced_x86::Register::R15
+    ));
+}
+
+#[test]
+fn test_reg_set_semantics() {
+    // Positive test
+    let pop_r15: [u8; 2] = [0x41, 0x5f];
+    let instr = common::decode_single_x64_instr(0, &pop_r15);
+    assert!(xgadget::semantics::is_reg_set(
+        &instr,
+        &iced_x86::Register::R15
+    ));
+
+    // Negative test
+    let add_rax_0x08: [u8; 4] = [0x48, 0x83, 0xc0, 0x08];
+    let instr = common::decode_single_x64_instr(0, &add_rax_0x08);
+    assert!(!xgadget::semantics::is_reg_set(
+        &instr,
+        &iced_x86::Register::RAX
+    ));
+}
+
+#[test]
+fn test_has_ctrled_ops() {
+    // Positive test
+    let jmp_rax: [u8; 2] = [0xff, 0xe0];
+    let instr = common::decode_single_x64_instr(0, &jmp_rax);
+    assert!(xgadget::semantics::has_ctrled_ops_only(&instr));
+
+    let jmp_rax_deref: [u8; 2] = [0xff, 0x20];
+    let instr = common::decode_single_x64_instr(0, &jmp_rax_deref);
+    assert!(xgadget::semantics::has_ctrled_ops_only(&instr));
+
+    let jmp_rax_deref_offset: [u8; 3] = [0xff, 0x60, 0x10];
+    let instr = common::decode_single_x64_instr(0, &jmp_rax_deref_offset);
+    assert!(xgadget::semantics::has_ctrled_ops_only(&instr));
+
+    let mov_rax_rbx: [u8; 3] = [0x48, 0x89, 0xd8];
+    let instr = common::decode_single_x64_instr(0, &mov_rax_rbx);
+    assert!(xgadget::semantics::has_ctrled_ops_only(&instr));
+
+    // Negative test
+    let add_rax_0x08: [u8; 4] = [0x48, 0x83, 0xc0, 0x08];
+    let instr = common::decode_single_x64_instr(0, &add_rax_0x08);
+    assert!(!xgadget::semantics::has_ctrled_ops_only(&instr));
 }
 
 #[test]
@@ -181,9 +234,26 @@ fn test_gadget_hasher() {
         vec![pop_r15_instr.clone(), jmp_rax_instr.clone()],
         addr_1.clone(),
     );
-    let g2 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_instr.clone()], addr_2);
+    let g2 = xgadget::Gadget::new(
+        vec![pop_r15_instr.clone(), jmp_rax_instr.clone()],
+        addr_2.clone(),
+    );
     assert!(common::hash(&g1) == common::hash(&g2));
 
+    // Same instructions, different decode addresses - custom hash match
+    // https://github.com/0xd4d/iced/blob/3ed6e0eadffb61daa50e041eb28633f17a9957e9/src/rust/iced-x86/src/instruction.rs#L7574
+    let decode_addr_5 = 5;
+    let decode_addr_10 = 10;
+    let jmp_rax_instr_5 = common::decode_single_x64_instr(decode_addr_5, &jmp_rax);
+    let jmp_rax_instr_10 = common::decode_single_x64_instr(decode_addr_10, &jmp_rax);
+
+    let g1 = xgadget::Gadget::new(vec![jmp_rax_instr_5.clone()], addr_1.clone());
+    let g2 = xgadget::Gadget::new(vec![jmp_rax_instr_10.clone()], addr_1.clone());
+    let g3 = xgadget::Gadget::new(vec![jmp_rax_instr_10.clone()], addr_2);
+    assert!(common::hash(&g1) == common::hash(&g2));
+    assert!(common::hash(&g2) == common::hash(&g3));
+
+    // Hash set intersection
     let g1 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_instr], addr_1.clone());
     let g2 = xgadget::Gadget::new(vec![pop_r15_instr, jmp_rax_deref_instr], addr_1);
 
