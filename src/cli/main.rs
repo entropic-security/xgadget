@@ -82,8 +82,9 @@ fn main() {
     if let Some(opt_reg) = &cli.reg_ctrl {
         match opt_reg {
             Some(reg_str) => {
-                let reg = str_to_reg(reg_str).expect(&format!("Invalid register: {:?}", reg_str));
-                gadgets = xgadget::filter_regs_overwritten(&gadgets, Some(&vec![reg]))
+                let reg = str_to_reg(reg_str)
+                    .unwrap_or_else(|| panic!("Invalid register: {:?}", reg_str));
+                gadgets = xgadget::filter_regs_overwritten(&gadgets, Some(&[reg]))
             }
             None => gadgets = xgadget::filter_regs_overwritten(&gadgets, None),
         }
@@ -92,8 +93,9 @@ fn main() {
     if let Some(opt_reg) = &cli.no_deref {
         match opt_reg {
             Some(reg_str) => {
-                let reg = str_to_reg(reg_str).expect(&format!("Invalid register: {:?}", reg_str));
-                gadgets = xgadget::filter_no_deref(&gadgets, Some(&vec![reg]))
+                let reg = str_to_reg(reg_str)
+                    .unwrap_or_else(|| panic!("Invalid register: {:?}", reg_str));
+                gadgets = xgadget::filter_no_deref(&gadgets, Some(&[reg]))
             }
             None => gadgets = xgadget::filter_no_deref(&gadgets, None),
         }

@@ -37,7 +37,7 @@ pub(crate) struct CLIOpts {
     #[structopt(short = "t", long)]
     pub(crate) att: bool,
 
-    /// Don't color output, useful for UNIX piping [default: color output]
+    /// Don't color output [default: color output]
     #[structopt(short, long)]
     pub(crate) no_color: bool,
 
@@ -79,31 +79,31 @@ pub(crate) struct CLIOpts {
     #[structopt(short = "m", long)]
     pub(crate) partial_match: bool,
 
-    /// Filter to gadgets that write the stack ptr [default: all gadgets]
+    /// Filter to gadgets that write the stack ptr [default: all]
     #[structopt(short = "p", long)]
     pub(crate) stack_pivot: bool,
 
-    /// Filter to potential JOP 'dispatcher' gadgets [default: all gadgets]
+    /// Filter to potential JOP 'dispatcher' gadgets [default: all]
     #[structopt(short, long, conflicts_with_all = &["rop", "stack_pivot"])]
     pub(crate) dispatcher: bool,
 
-    /// Filter to 'pop {reg} * 1+, {ret or ctrl-ed jmp/call}' gadgets [default: all gadgets]
+    /// Filter to 'pop {reg} * 1+, {ret or ctrl-ed jmp/call}' gadgets [default: all]
     #[structopt(long, conflicts_with = "dispatcher")]
     pub(crate) reg_pop: bool,
 
-    /// Filter to gadgets that don't deref any regs or a specific reg [default: all gadgets]
+    /// Filter to gadgets that don't deref any regs or a specific reg [default: all]
     #[structopt(long, value_name = "OPT_REG")]
     pub(crate) no_deref: Option<Option<String>>,
 
-    /// Filter to gadgets that control any reg or a specific reg [default: all gadgets]
+    /// Filter to gadgets that control any reg or a specific reg [default: all]
     #[structopt(long, value_name = "OPT_REG")]
     pub(crate) reg_ctrl: Option<Option<String>>,
 
-    /// Filter to gadgets that control function parameters [default: all gadgets]
+    /// Filter to gadgets that control function parameters [default: all]
     #[structopt(long)]
     pub(crate) param_ctrl: bool,
 
-    /// Filter to gadgets whose addrs don't contain given bytes [default: all gadgets]
+    /// Filter to gadgets whose addrs don't contain given bytes [default: all]
     #[structopt(short, long, min_values = 1, value_name = "BYTE(S)")]
     pub(crate) bad_bytes: Vec<String>,
 

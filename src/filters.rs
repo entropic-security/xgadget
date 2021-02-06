@@ -10,10 +10,10 @@ pub fn filter_stack_pivot<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::Gad
     gadgets
         .par_iter()
         .filter(|g| {
-            let regs_written = gadget::GadgetAnalysis::new(&g).regs_overwritten();
-            if regs_written.contains(&iced_x86::Register::RSP)
-                || regs_written.contains(&iced_x86::Register::ESP)
-                || regs_written.contains(&iced_x86::Register::SP)
+            let regs_overwritten = gadget::GadgetAnalysis::new(&g).regs_overwritten();
+            if regs_overwritten.contains(&iced_x86::Register::RSP)
+                || regs_overwritten.contains(&iced_x86::Register::ESP)
+                || regs_overwritten.contains(&iced_x86::Register::SP)
             {
                 return true;
             }

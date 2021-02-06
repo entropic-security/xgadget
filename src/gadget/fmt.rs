@@ -14,6 +14,9 @@ use crate::gadget;
 pub trait DisplayLen: Display {
     /// Get the count of visible terminal characters for `Display`'s `fmt` function
     fn len(&self) -> usize;
+
+    /// Check if display length is zero
+    fn is_empty(&self) -> bool;
 }
 
 /// String wrapper that tracks count of visible terminal characters for `Display`'s `fmt` function.
@@ -23,6 +26,11 @@ impl DisplayLen for DisplayString {
     /// Get the count of visible terminal characters for `Display`'s `fmt` function
     fn len(&self) -> usize {
         self.0.len()
+    }
+
+    /// Check if display length is zero
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 
@@ -46,7 +54,7 @@ pub fn fmt_gadget_str_list(
             let output_instrs = g.fmt_instrs(att_syntax, color);
             let output_addrs = g
                 .fmt_best_match_addrs(color)
-                .unwrap_or(Box::new(DisplayString(String::new())));
+                .unwrap_or_else(|| Box::new(DisplayString(String::new())));
 
             (format!("{}", output_instrs), format!("{}", output_addrs))
         })
@@ -132,6 +140,10 @@ impl DisplayLen for GadgetFormatterOutput {
     fn len(&self) -> usize {
         self.display_len
     }
+
+    fn is_empty(&self) -> bool {
+        self.display_len == 0
+    }
 }
 
 // Private API ---------------------------------------------------------------------------------------------------------
@@ -151,7 +163,7 @@ fn config_formatter<F: iced_x86::Formatter>(formatter: &mut F) {
 
 // Coloring ruleset
 #[inline]
-fn color_token<'a>(s: &str, kind: iced_x86::FormatterTextKind) -> colored::ColoredString {
+fn color_token(s: &str, kind: iced_x86::FormatterTextKind) -> colored::ColoredString {
     match kind {
         iced_x86::FormatterTextKind::Directive | iced_x86::FormatterTextKind::Keyword => s.blue(),
         iced_x86::FormatterTextKind::Prefix | iced_x86::FormatterTextKind::Mnemonic => s.cyan(),
@@ -171,28 +183,3 @@ fn color_token<'a>(s: &str, kind: iced_x86::FormatterTextKind) -> colored::Color
         _ => s.white(),
     }
 }
-
-/*
-// Coloring ruleset
-#[inline]
-fn write_color<'a>(s: &'a String, kind: iced_x86::FormatterTextKind, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    match kind {
-        iced_x86::FormatterTextKind::Directive | iced_x86::FormatterTextKind::Keyword => write!(f, "{}", s.blue()),
-        iced_x86::FormatterTextKind::Prefix | iced_x86::FormatterTextKind::Mnemonic => write!(f, "{}", s.cyan()),
-        iced_x86::FormatterTextKind::Label | iced_x86::FormatterTextKind::Function => {
-            write!(f, "{}", s.bright_green())
-        }
-        iced_x86::FormatterTextKind::LabelAddress
-        | iced_x86::FormatterTextKind::FunctionAddress => write!(f, "{}", s.green()),
-        iced_x86::FormatterTextKind::Punctuation => write!(f, "{}", s.bright_magenta()),
-        iced_x86::FormatterTextKind::Register => {
-            // Special case the stack pointer - typically don't want to overwrite
-            match s.as_str() {
-                "rsp" | "esp" | "sp" => write!(f, "{}", s.red()),
-                _ => write!(f, "{}", s.yellow()),
-            }
-        }
-        _ => write!(f, "{}", s.white()),
-    }
-}
-*/

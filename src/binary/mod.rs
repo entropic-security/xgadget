@@ -1,6 +1,7 @@
 mod arch;
 pub use arch::*;
 
+#[allow(clippy::module_inception)]
 mod binary;
 pub use binary::*;
 

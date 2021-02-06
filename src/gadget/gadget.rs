@@ -250,7 +250,7 @@ impl<'a> Gadget<'a> {
             // This pair of clones ends borrow of partial_matches and lets us remove from it later
             let bpm_addr = *bpm_addr;
             let mut bpm_bins = bpm_bins.clone();
-            bpm_bins.sort_by(|b1, b2| b1.name().to_lowercase().cmp(&b2.name().to_lowercase()));
+            bpm_bins.sort_by_key(|b1| b1.name().to_lowercase());
 
             // Commit best partial match
             match bpm_bins.split_last() {
