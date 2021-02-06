@@ -60,32 +60,30 @@ fn collect_strs_seq(gadgets: &[xgadget::Gadget], extended: bool) -> Vec<String> 
     let term_width = 150;
     gadgets
         .iter()
-        .map(|g| {
-            let (instrs, addrs) = g.fmt(att, color);
-            match extended {
-                true => {
-                    let content_len = instrs.len() + addrs.len();
-                    match term_width > content_len {
-                        true => {
-                            let padding = (0..(term_width - content_len))
-                                .map(|_| "-")
-                                .collect::<String>();
+        .filter_map(|g| g.fmt(att, color))
+        .map(|(instrs, addrs)| match extended {
+            true => {
+                let content_len = instrs.len() + addrs.len();
+                match term_width > content_len {
+                    true => {
+                        let padding = (0..(term_width - content_len))
+                            .map(|_| "-")
+                            .collect::<String>();
 
-                            let padding = match color {
-                                true => padding,
-                                false => format!("{}", padding.bright_magenta()),
-                            };
+                        let padding = match color {
+                            true => padding,
+                            false => format!("{}", padding.bright_magenta()),
+                        };
 
-                            format!("{}{} [ {} ]", instrs, padding, addrs)
-                        }
-                        false => {
-                            format!("{} [ {} ]", instrs, addrs)
-                        }
+                        format!("{}{} [ {} ]", instrs, padding, addrs)
+                    }
+                    false => {
+                        format!("{} [ {} ]", instrs, addrs)
                     }
                 }
-                false => {
-                    format!("{}{} {}", addrs, ":".bright_magenta(), instrs)
-                }
+            }
+            false => {
+                format!("{}{} {}", addrs, ":".bright_magenta(), instrs)
             }
         })
         .collect()

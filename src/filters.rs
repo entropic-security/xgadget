@@ -136,7 +136,7 @@ pub fn filter_no_deref<'a>(
                     regs_derefed.retain(|r| r != &iced_x86::Register::SP);
 
                     regs_derefed.is_empty()
-                },
+                }
             }
         })
         .cloned()

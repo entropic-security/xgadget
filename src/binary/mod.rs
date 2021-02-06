@@ -1,14 +1,14 @@
-pub mod arch;
+mod arch;
 pub use arch::*;
 
-pub mod binary;
+mod binary;
 pub use binary::*;
 
-pub mod consts;
+mod consts;
 pub use consts::*;
 
-pub mod file_format;
+mod file_format;
 pub use file_format::*;
 
-pub mod segment;
+mod segment;
 pub use segment::*;

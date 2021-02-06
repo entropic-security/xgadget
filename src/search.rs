@@ -35,10 +35,17 @@ pub fn find_gadgets(
     max_len: usize,
     s_config: SearchConfig,
 ) -> Result<Vec<gadget::Gadget>, Box<dyn Error>> {
+    let bin_cnt = bins.len();
+
     // Process binaries in parallel
     let parallel_results: Vec<(&binary::Binary, HashSet<gadget::Gadget>)> = bins
         .par_iter()
-        .map(|bin| (bin, find_gadgets_single_bin(bin, max_len, s_config)))
+        .map(|bin| {
+            (
+                bin,
+                find_gadgets_single_bin(bin, max_len, bin_cnt, s_config),
+            )
+        })
         .collect();
 
     // Filter to cross-variant gadgets
@@ -71,7 +78,11 @@ pub fn find_gadgets(
                             }
 
                             // Cross-variant gadget!
-                            let mut updated_g = gadget::Gadget::new(common_g.instrs, full_matches);
+                            let mut updated_g = gadget::Gadget::new_multi_bin(
+                                common_g.instrs,
+                                full_matches,
+                                bin_cnt,
+                            );
 
                             // Partial matches (optional)
                             if s_config.intersects(SearchConfig::PART) {
@@ -250,6 +261,7 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<iced_x86::Instruction>,
 fn find_gadgets_single_bin(
     bin: &binary::Binary,
     max_len: usize,
+    bin_cnt: usize,
     s_config: SearchConfig,
 ) -> HashSet<gadget::Gadget> {
     let mut gadget_collector: HashMap<Vec<iced_x86::Instruction>, BTreeSet<u64>> =
@@ -282,6 +294,6 @@ fn find_gadgets_single_bin(
     // Finalize parallel results
     gadget_collector
         .into_iter()
-        .map(|(instrs, addrs)| gadget::Gadget::new(instrs, addrs))
+        .map(|(instrs, addrs)| gadget::Gadget::new_multi_bin(instrs, addrs, bin_cnt))
         .collect()
 }

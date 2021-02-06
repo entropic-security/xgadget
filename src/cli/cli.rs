@@ -1,11 +1,11 @@
-use std::fs;
 use std::fmt;
+use std::fs;
 
-use structopt::StructOpt;
-use goblin::Object;
 use checksec::elf::ElfCheckSecResults;
 use checksec::pe::PECheckSecResults;
 use colored::Colorize;
+use goblin::Object;
+use structopt::StructOpt;
 
 use super::checksec_fmt::{CustomElfCheckSecResults, CustomPeCheckSecResults};
 
@@ -116,7 +116,8 @@ pub(crate) struct CLIOpts {
         "arch", "att", "extended_fmt", "max_len",
         "rop", "jop", "sys", "imm16", "partial_match",
         "stack_pivot", "dispatcher", "reg_pop", "usr_regex"
-    ])] // TODO: Custom short name (e.g. "-m" for "--partial-match" not tagged as conflict) - why?
+    ])]
+    // TODO: Custom short name (e.g. "-m" for "--partial-match" not tagged as conflict) - why?
     pub(crate) check_sec: bool,
 }
 

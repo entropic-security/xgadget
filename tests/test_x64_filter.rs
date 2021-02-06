@@ -200,8 +200,7 @@ fn test_x64_filter_no_deref_1() {
     let bins = vec![bin_filters];
     let gadgets =
         xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
-    let no_deref_gadgets =
-        xgadget::filter_no_deref(&gadgets, None);
+    let no_deref_gadgets = xgadget::filter_no_deref(&gadgets, None);
     let no_deref_gadget_strs = common::get_gadget_strs(&no_deref_gadgets, false);
     common::print_gadget_strs(&no_deref_gadget_strs);
 
@@ -232,8 +231,7 @@ fn test_x64_filter_no_deref_2() {
     let bins = vec![bin_filters];
     let gadgets =
         xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
-    let no_deref_gadgets =
-        xgadget::filter_no_deref(&gadgets, Some(&vec![iced_x86::Register::RCX]));
+    let no_deref_gadgets = xgadget::filter_no_deref(&gadgets, Some(&vec![iced_x86::Register::RCX]));
     let no_deref_gadget_strs = common::get_gadget_strs(&no_deref_gadgets, false);
     common::print_gadget_strs(&no_deref_gadget_strs);
 

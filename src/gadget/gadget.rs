@@ -19,6 +19,7 @@ use crate::binary;
 /// Hash and equality consider only gadget instructions, not occurrence addresses (fast de-duplication via sets).
 #[derive(Clone, Debug)]
 pub struct Gadget<'a> {
+    pub(crate) bin_cnt: usize,
     pub(crate) instrs: Vec<iced_x86::Instruction>,
     pub(crate) full_matches: BTreeSet<u64>,
     pub(crate) partial_matches: BTreeMap<u64, Vec<&'a binary::Binary>>,
@@ -27,9 +28,35 @@ pub struct Gadget<'a> {
 impl<'a> Gadget<'a> {
     // Public API ------------------------------------------------------------------------------------------------------
 
-    /// Assumes instructions are correctly sorted, address guaranteed to be sorted
-    pub fn new(instrs: Vec<iced_x86::Instruction>, full_matches: BTreeSet<u64>) -> Self {
+    /// Convenience constructor for single-binary gadgets.
+    ///
+    /// # Arguments
+    ///
+    /// * `instrs` - instructions, should be sorted in execution order.
+    /// * `occurrence_addrs` - Addresses where gadget appears.
+    pub fn new(instrs: Vec<iced_x86::Instruction>, occurrence_addrs: BTreeSet<u64>) -> Self {
         Gadget {
+            bin_cnt: 1,
+            instrs,
+            full_matches: occurrence_addrs,
+            partial_matches: BTreeMap::new(),
+        }
+    }
+
+    /// Constructor for multi-binary gadgets.
+    ///
+    /// # Arguments
+    ///
+    /// * `instrs` - instructions, should be sorted in execution order.
+    /// * `full_matches` - full match addresses (same in all binaries).
+    /// * `bin_cnt` - count of binaries for which this gadget tracks full/partial matches.
+    pub fn new_multi_bin(
+        instrs: Vec<iced_x86::Instruction>,
+        full_matches: BTreeSet<u64>,
+        bin_cnt: usize,
+    ) -> Self {
+        Gadget {
+            bin_cnt,
             instrs,
             full_matches,
             partial_matches: BTreeMap::new(),
@@ -62,6 +89,22 @@ impl<'a> Gadget<'a> {
             Some(addr) => Some(*addr),
             None => None,
         }
+    }
+
+    /// Get count of binaries for which this gadget tracks partial matches
+    pub fn bin_cnt(&self) -> usize {
+        self.bin_cnt
+    }
+
+    // TODO: use this API in search instead of modifying fields directly?
+    /// Add a new partial match address/binary tuple
+    pub fn add_partial_match(&mut self, addr: u64, bin: &'a binary::Binary) {
+        match self.partial_matches.get_mut(&addr) {
+            Some(bins) => bins.push(bin),
+            None => {
+                self.partial_matches.insert(addr, vec![bin]);
+            }
+        };
     }
 
     /// String format gadget instructions
@@ -110,16 +153,22 @@ impl<'a> Gadget<'a> {
         match color {
             true => {
                 let mut output = fmt::GadgetFormatterOutput::new();
-                Self::fmt_partial_matches_internal(&mut output, &mut self.partial_matches.clone());
-                match output.is_empty() {
+                let fmted_bin_cnt = Self::fmt_partial_matches_internal(
+                    &mut output,
+                    &mut self.partial_matches.clone(),
+                );
+                match fmted_bin_cnt != self.bin_cnt() {
                     true => None,
                     false => Some(Box::new(output)),
                 }
             }
             false => {
                 let mut output = String::new();
-                Self::fmt_partial_matches_internal(&mut output, &mut self.partial_matches.clone());
-                match output.is_empty() {
+                let fmted_bin_cnt = Self::fmt_partial_matches_internal(
+                    &mut output,
+                    &mut self.partial_matches.clone(),
+                );
+                match fmted_bin_cnt != self.bin_cnt() {
                     true => None,
                     false => Some(Box::new(fmt::DisplayString(output))),
                 }
@@ -144,17 +193,19 @@ impl<'a> Gadget<'a> {
     }
 
     /// Format a single gadget, return an `(instrs, addr(s))` tuple
+    /// Returns `None` is the gadget has no full or partial matches across binaries.
     pub fn fmt(
         &self,
         att_syntax: bool,
         color: bool,
-    ) -> (Box<dyn DisplayLen + Send>, Box<dyn DisplayLen + Send>) {
-        let output_instrs = self.fmt_instrs(att_syntax, color);
-        let output_addrs = self
-            .fmt_best_match_addrs(color)
-            .unwrap_or(Box::new(fmt::DisplayString(String::new())));
-
-        (output_instrs, output_addrs)
+    ) -> Option<(Box<dyn DisplayLen + Send>, Box<dyn DisplayLen + Send>)> {
+        match self.fmt_best_match_addrs(color) {
+            Some(output_addrs) => {
+                let output_instrs = self.fmt_instrs(att_syntax, color);
+                Some((output_instrs, output_addrs))
+            }
+            None => None,
+        }
     }
 
     // Private API -----------------------------------------------------------------------------------------------------
@@ -187,8 +238,9 @@ impl<'a> Gadget<'a> {
     fn fmt_partial_matches_internal(
         match_str: &mut impl iced_x86::FormatterOutput,
         partial_matches: &mut BTreeMap<u64, Vec<&binary::Binary>>,
-    ) {
+    ) -> usize {
         let mut add_sep = false;
+        let mut fmted_bin_cnt = 0;
 
         // Find largest subset of binaries with match for a given address (best partial match)
         while let Some((bpm_addr, bpm_bins)) = partial_matches
@@ -211,9 +263,11 @@ impl<'a> Gadget<'a> {
 
                     for pb in prior_bpm_bins {
                         Self::write_bin_name(&pb.name(), match_str);
+                        fmted_bin_cnt += 1;
                     }
 
                     Self::write_bin_name(&last_bin.name(), match_str);
+                    fmted_bin_cnt += 1;
                     match_str.write(
                         &format!("{:#016x}", bpm_addr),
                         iced_x86::FormatterTextKind::LabelAddress,
@@ -228,6 +282,8 @@ impl<'a> Gadget<'a> {
                 .iter_mut()
                 .for_each(|(_, bins)| bins.retain(|&b| !bpm_bins.contains(&b)));
         }
+
+        fmted_bin_cnt
     }
 
     #[inline]

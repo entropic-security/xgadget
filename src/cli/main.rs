@@ -127,19 +127,15 @@ fn main() {
 
     let mut filtered_gadgets: Vec<(xgadget::Gadget, String)> = gadgets_and_strs
         .into_iter()
-        .filter(|(_, s)| {
-            match &filter_regex {
-                Some(r) => {
-                    match r.is_match(&s) {
-                        true => {
-                            filter_matches += 1;
-                            true
-                        },
-                        false => false
-                    }
-                },
-                None => true
-            }
+        .filter(|(_, s)| match &filter_regex {
+            Some(r) => match r.is_match(&s) {
+                true => {
+                    filter_matches += 1;
+                    true
+                }
+                false => false,
+            },
+            None => true,
         })
         .collect();
 
@@ -160,9 +156,8 @@ fn main() {
 
     let gadget_strs: Vec<String> = printable_gadgets
         .par_iter()
-        .map(|g| {
-            let (instrs, addrs) = g.fmt(cli.att, !cli.no_color);
-
+        .filter_map(|g| g.fmt(cli.att, !cli.no_color))
+        .map(|(instrs, addrs)| {
             // If partial match or extended format flag, addr(s) right of instr(s), else addr left of instr(s)
             match cli.extended_fmt || cli.partial_match {
                 true => {
@@ -214,7 +209,7 @@ fn main() {
         {
             let found_cnt = match filter_regex {
                 Some(_) => filter_matches.to_string(),
-                None => printable_gadgets.len().to_string()
+                None => printable_gadgets.len().to_string(),
             };
 
             cli.fmt_summary_item(found_cnt, false)

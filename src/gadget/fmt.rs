@@ -10,11 +10,13 @@ use crate::gadget;
 
 // Public Types and Traits ---------------------------------------------------------------------------------------------
 
+/// Implementors track count of visible terminal characters for `Display`'s `fmt` function (for colored strings).
 pub trait DisplayLen: Display {
     /// Get the count of visible terminal characters for `Display`'s `fmt` function
     fn len(&self) -> usize;
 }
 
+/// String wrapper that tracks count of visible terminal characters for `Display`'s `fmt` function.
 pub struct DisplayString(pub String);
 
 impl DisplayLen for DisplayString {
@@ -24,7 +26,6 @@ impl DisplayLen for DisplayString {
     }
 }
 
-// Does this get a to_string() for free?
 impl Display for DisplayString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -55,7 +56,7 @@ pub fn fmt_gadget_str_list(
     instr_addr_str_tuples
 }
 
-// Get instruction formatter
+/// Get instruction formatter (ATT or Intel syntax).
 pub fn get_formatter(att_syntax: bool) -> Box<dyn iced_x86::Formatter> {
     match att_syntax {
         true => {
@@ -89,11 +90,6 @@ impl GadgetFormatterOutput {
             order: Vec::new(),
             display_len: 0,
         }
-    }
-
-    /// Whether or not the formatter is empty, e.g. no tokens yet written
-    pub fn is_empty(&self) -> bool {
-        self.tokens.is_empty()
     }
 
     // Compute hash for a (text, kind) tuple

@@ -1,8 +1,8 @@
-pub mod analysis;
+mod analysis;
 pub use analysis::*;
 
-pub mod gadget;
+mod gadget;
 pub use gadget::*;
 
-pub mod fmt;
+mod fmt;
 pub use fmt::*;

@@ -110,9 +110,7 @@ fn test_invalid_bad_bytes() {
     xgadget_bin
         .assert()
         .failure()
-        .stderr(predicate::str::contains(
-            "InvalidDigit",
-        ));
+        .stderr(predicate::str::contains("InvalidDigit"));
 }
 
 #[test]
@@ -120,17 +118,12 @@ fn test_invalid_bad_bytes() {
 fn test_invalid_reg_name() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
-    xgadget_bin
-        .arg("/bin/cat")
-        .arg("--reg-ctrl")
-        .arg("r42");
+    xgadget_bin.arg("/bin/cat").arg("--reg-ctrl").arg("r42");
 
     xgadget_bin
         .assert()
         .failure()
-        .stderr(predicate::str::contains(
-            "'Invalid register: \"r42\"'",
-        ));
+        .stderr(predicate::str::contains("'Invalid register: \"r42\"'"));
 }
 
 // Non-exhaustive Success Cases ----------------------------------------------------------------------------------------
@@ -253,8 +246,6 @@ fn test_search_args() {
             .stdout,
     )
     .unwrap();
-
-
 
     let output_jop = String::from_utf8(
         Command::cargo_bin("xgadget")

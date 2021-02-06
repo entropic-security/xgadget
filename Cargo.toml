@@ -20,9 +20,7 @@ include = [
 ]
 
 [dependencies]
-# TODO: wait for next release
-# iced-x86 = "1"
-iced-x86 = { git = "https://github.com/icedland/iced" }
+iced-x86 = "1"
 goblin = "0.2"
 rayon = "1"
 bitflags = "1"

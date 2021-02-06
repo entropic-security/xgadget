@@ -4,7 +4,8 @@ use super::gadget::Gadget;
 
 // Gadget Analysis -----------------------------------------------------------------------------------------------------
 
-/// Determines gadget properties:
+/// Determines gadget register usage properties.
+///
 /// * Registers overwritten (written without reading previous value)
 /// * Registers updated (read and then written, within single instruction)
 /// * Registers dereferenced for read
