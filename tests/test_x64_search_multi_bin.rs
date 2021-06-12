@@ -3,10 +3,10 @@ mod common;
 #[test]
 fn test_x64_cross_variant_full_matches() {
     let bin_ret_jmp =
-        common::get_raw_bin("bin_ret_jmp", &common::X_RET_AFTER_JNE_AND_ADJACENT_JMP_X64);
+        common::get_raw_bin("bin_ret_jmp", common::X_RET_AFTER_JNE_AND_ADJACENT_JMP_X64);
     let bin_ret_call = common::get_raw_bin(
         "bin_ret_call",
-        &common::X_RET_AFTER_JNE_AND_ADJACENT_CALL_X64,
+        common::X_RET_AFTER_JNE_AND_ADJACENT_CALL_X64,
     );
     let bins = vec![bin_ret_jmp, bin_ret_call];
     let gadgets =
@@ -148,10 +148,10 @@ fn test_x64_cross_variant_full_matches() {
 #[test]
 fn test_x64_cross_variant_full_and_partial_matches_1() {
     let bin_ret_jmp =
-        common::get_raw_bin("bin_ret_jmp", &common::X_RET_AFTER_JNE_AND_ADJACENT_JMP_X64);
+        common::get_raw_bin("bin_ret_jmp", common::X_RET_AFTER_JNE_AND_ADJACENT_JMP_X64);
     let bin_mix = common::get_raw_bin(
         "bin_mix",
-        &common::X_RET_AFTER_JNE_AND_ADJACENT_CALL_MIX_MATCH_X64,
+        common::X_RET_AFTER_JNE_AND_ADJACENT_CALL_MIX_MATCH_X64,
     );
 
     let full_match_only_config = xgadget::SearchConfig::DEFAULT;
@@ -224,11 +224,11 @@ fn test_x64_cross_variant_full_and_partial_matches_1() {
 fn test_x64_cross_variant_full_and_partial_matches_2() {
     let bin_ret_call = common::get_raw_bin(
         "bin_ret_call",
-        &common::X_RET_AFTER_JNE_AND_ADJACENT_CALL_X64,
+        common::X_RET_AFTER_JNE_AND_ADJACENT_CALL_X64,
     );
     let bin_mix = common::get_raw_bin(
         "bin_mix",
-        &common::X_RET_AFTER_JNE_AND_ADJACENT_CALL_MIX_MATCH_X64,
+        common::X_RET_AFTER_JNE_AND_ADJACENT_CALL_MIX_MATCH_X64,
     );
 
     let full_match_only_config = xgadget::SearchConfig::DEFAULT;
@@ -308,14 +308,14 @@ fn test_x64_cross_variant_full_and_partial_matches_2() {
 #[test]
 fn test_x64_cross_variant_full_and_partial_matches_3() {
     let bin_ret_jmp =
-        common::get_raw_bin("bin_ret_jmp", &common::X_RET_AFTER_JNE_AND_ADJACENT_JMP_X64);
+        common::get_raw_bin("bin_ret_jmp", common::X_RET_AFTER_JNE_AND_ADJACENT_JMP_X64);
     let bin_ret_call = common::get_raw_bin(
         "bin_ret_call",
-        &common::X_RET_AFTER_JNE_AND_ADJACENT_CALL_X64,
+        common::X_RET_AFTER_JNE_AND_ADJACENT_CALL_X64,
     );
     let bin_mix = common::get_raw_bin(
         "bin_mix",
-        &common::X_RET_AFTER_JNE_AND_ADJACENT_CALL_MIX_MATCH_X64,
+        common::X_RET_AFTER_JNE_AND_ADJACENT_CALL_MIX_MATCH_X64,
     );
 
     let full_match_only_config = xgadget::SearchConfig::DEFAULT;

@@ -10,7 +10,7 @@ pub fn filter_stack_pivot<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::Gad
     gadgets
         .par_iter()
         .filter(|g| {
-            let regs_overwritten = gadget::GadgetAnalysis::new(&g).regs_overwritten();
+            let regs_overwritten = gadget::GadgetAnalysis::new(g).regs_overwritten();
             if regs_overwritten.contains(&iced_x86::Register::RSP)
                 || regs_overwritten.contains(&iced_x86::Register::ESP)
                 || regs_overwritten.contains(&iced_x86::Register::SP)
@@ -33,7 +33,7 @@ pub fn filter_dispatcher<'a>(gadgets: &[gadget::Gadget<'a>]) -> Vec<gadget::Gadg
                     // Predictable update of dispatch register
                     let dispatch_reg = tail_instr.op0_register();
                     for i in preceding_instrs {
-                        if semantics::is_reg_rw(&i, &dispatch_reg) {
+                        if semantics::is_reg_rw(i, &dispatch_reg) {
                             return true;
                         }
                     }
@@ -105,7 +105,7 @@ pub fn filter_set_params<'a>(
 
                 // Sets param reg
                 for reg in param_regs {
-                    if semantics::is_reg_set(&instr, &reg) {
+                    if semantics::is_reg_set(instr, reg) {
                         return true;
                     }
                 }
@@ -126,7 +126,7 @@ pub fn filter_no_deref<'a>(
     gadgets
         .par_iter()
         .filter(|g| {
-            let mut regs_derefed = gadget::GadgetAnalysis::new(&g).regs_dereferenced();
+            let mut regs_derefed = gadget::GadgetAnalysis::new(g).regs_dereferenced();
             match opt_regs {
                 Some(regs) => regs.iter().all(|r| !regs_derefed.contains(r)),
                 None => {
@@ -152,7 +152,7 @@ pub fn filter_regs_overwritten<'a>(
     gadgets
         .par_iter()
         .filter(|g| {
-            let regs_overwritten = gadget::GadgetAnalysis::new(&g).regs_overwritten();
+            let regs_overwritten = gadget::GadgetAnalysis::new(g).regs_overwritten();
             match opt_regs {
                 Some(regs) => regs.iter().all(|r| regs_overwritten.contains(r)),
                 None => !regs_overwritten.is_empty(),

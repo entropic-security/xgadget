@@ -35,7 +35,7 @@ fn main() {
     let bins: Vec<xgadget::Binary> = cli
         .bin_paths
         .par_iter()
-        .map(|path| xgadget::Binary::from_path_str(&path).unwrap())
+        .map(|path| xgadget::Binary::from_path_str(path).unwrap())
         .map(|mut binary| {
             if binary.arch() == xgadget::Arch::Unknown {
                 binary.set_arch(cli.arch);
@@ -130,7 +130,7 @@ fn main() {
     let mut filtered_gadgets: Vec<(xgadget::Gadget, String)> = gadgets_and_strs
         .into_iter()
         .filter(|(_, s)| match &filter_regex {
-            Some(r) => match r.is_match(&s) {
+            Some(r) => match r.is_match(s) {
                 true => {
                     filter_matches += 1;
                     true

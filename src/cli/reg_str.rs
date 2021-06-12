@@ -32,10 +32,7 @@ lazy_static! {
 
 /// Case-insensitive string to register enum conversion
 pub fn str_to_reg(rs: &str) -> Option<iced_x86::Register> {
-    match STR_REG_MAP.get(&rs.to_uppercase()) {
-        Some(reg) => Some(*reg),
-        None => None,
-    }
+    STR_REG_MAP.get(&rs.to_uppercase()).copied()
 }
 
 // Test ----------------------------------------------------------------------------------------------------------------

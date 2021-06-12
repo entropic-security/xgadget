@@ -173,7 +173,7 @@ pub const MISC_2: &[u8] = &[
 
 #[allow(dead_code)]
 pub fn decode_single_x64_instr(ip: u64, bytes: &[u8]) -> iced_x86::Instruction {
-    let mut decoder = iced_x86::Decoder::new(64, &bytes, iced_x86::DecoderOptions::NONE);
+    let mut decoder = iced_x86::Decoder::new(64, bytes, iced_x86::DecoderOptions::NONE);
     decoder.set_ip(ip);
 
     decoder.decode()
@@ -181,7 +181,7 @@ pub fn decode_single_x64_instr(ip: u64, bytes: &[u8]) -> iced_x86::Instruction {
 
 #[allow(dead_code)]
 pub fn get_raw_bin(name: &str, bytes: &[u8]) -> xgadget::Binary {
-    let mut bin = xgadget::Binary::from_bytes(&name, &bytes).unwrap();
+    let mut bin = xgadget::Binary::from_bytes(name, bytes).unwrap();
     assert_eq!(bin.format(), xgadget::Format::Raw);
     assert_eq!(bin.arch(), xgadget::Arch::Unknown);
     bin.set_arch(xgadget::Arch::X64);
@@ -192,7 +192,7 @@ pub fn get_raw_bin(name: &str, bytes: &[u8]) -> xgadget::Binary {
 #[allow(dead_code)]
 pub fn get_gadget_strs(gadgets: &Vec<xgadget::Gadget>, att_syntax: bool) -> Vec<String> {
     let mut strs = Vec::new();
-    for (mut instr, addrs) in xgadget::fmt_gadget_str_list(&gadgets, att_syntax, false) {
+    for (mut instr, addrs) in xgadget::fmt_gadget_str_list(gadgets, att_syntax, false) {
         instr.push(' ');
         strs.push(format!("{:-<150} {}", instr, addrs));
     }
@@ -230,7 +230,7 @@ pub fn hash<T: Hash>(t: &T) -> u64 {
 pub fn dump_instr(instr: &iced_x86::Instruction) {
     let mut info_factory = iced_x86::InstructionInfoFactory::new();
     let op_code = instr.op_code();
-    let info = info_factory.info(&instr);
+    let info = info_factory.info(instr);
     let fpu_info = instr.fpu_stack_increment_info();
     println!("\n\tOpCode: {}", op_code.op_code_string());
     println!("\tInstruction: {}", op_code.instruction_string());

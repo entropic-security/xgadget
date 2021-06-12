@@ -2,7 +2,7 @@ mod common;
 
 #[test]
 fn test_x64_ret_after_jne() {
-    let bin_ret_post_jmp = common::get_raw_bin("bin_ret_post_jmp", &common::RET_AFTER_JNE_X64);
+    let bin_ret_post_jmp = common::get_raw_bin("bin_ret_post_jmp", common::RET_AFTER_JNE_X64);
     let bins = vec![bin_ret_post_jmp];
     let gadgets =
         xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
@@ -49,7 +49,7 @@ fn test_x64_ret_after_jne() {
 
 #[test]
 fn test_x64_adjacent_ret() {
-    let bin_ret = common::get_raw_bin("bin_ret", &common::ADJACENT_RET_X64);
+    let bin_ret = common::get_raw_bin("bin_ret", common::ADJACENT_RET_X64);
     let bins = vec![bin_ret];
     let gadgets = xgadget::find_gadgets(
         &bins,
@@ -92,7 +92,7 @@ fn test_x64_adjacent_ret() {
 
 #[test]
 fn test_x64_adjacent_call() {
-    let bin_call = common::get_raw_bin("bin_call", &common::ADJACENT_CALL_X64);
+    let bin_call = common::get_raw_bin("bin_call", common::ADJACENT_CALL_X64);
     let bins = vec![bin_call];
     let gadgets = xgadget::find_gadgets(
         &bins,
@@ -159,7 +159,7 @@ fn test_x64_adjacent_call() {
 
 #[test]
 fn test_x64_adjacent_jmp() {
-    let bin_jmp = common::get_raw_bin("bin_jmp", &common::ADJACENT_JMP_X64);
+    let bin_jmp = common::get_raw_bin("bin_jmp", common::ADJACENT_JMP_X64);
     let bins = vec![bin_jmp];
     let gadgets =
         xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
@@ -214,10 +214,10 @@ fn test_x64_adjacent_jmp() {
 
 #[test]
 fn test_jmp_rip() {
-    let bin_misc_2 = common::get_raw_bin("misc_2", &common::MISC_2);
+    let bin_misc_2 = common::get_raw_bin("misc_2", common::MISC_2);
     let bins = vec![bin_misc_2];
     let gadgets =
         xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
 
-    assert!(gadgets.len() == 0);
+    assert!(gadgets.is_empty());
 }

@@ -46,7 +46,7 @@ pub const X_RET_AFTER_JNE_AND_ADJACENT_CALL_MIX_MATCH_X64: &[u8] = &[
 ];
 
 fn get_raw_bin(name: &str, bytes: &[u8]) -> xgadget::Binary {
-    let mut bin = xgadget::Binary::from_bytes(&name, &bytes).unwrap();
+    let mut bin = xgadget::Binary::from_bytes(name, bytes).unwrap();
     assert_eq!(bin.format(), xgadget::Format::Raw);
     assert_eq!(bin.arch(), xgadget::Arch::Unknown);
     bin.set_arch(xgadget::Arch::X64);
@@ -90,7 +90,7 @@ fn collect_strs_seq(gadgets: &[xgadget::Gadget], extended: bool) -> Vec<String> 
 }
 
 fn fmt_bench(c: &mut Criterion) {
-    let bin_ret_post_jmp = get_raw_bin("bin_ret_post_jmp", &X_RET_AFTER_JNE_AND_ADJACENT_JMP_X64);
+    let bin_ret_post_jmp = get_raw_bin("bin_ret_post_jmp", X_RET_AFTER_JNE_AND_ADJACENT_JMP_X64);
     let bins = vec![bin_ret_post_jmp];
     let gadgets = xgadget::find_gadgets(&bins, MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
 
@@ -104,8 +104,8 @@ fn fmt_bench(c: &mut Criterion) {
 }
 
 fn fmt_partial_bench(c: &mut Criterion) {
-    let bin_ret_jmp = get_raw_bin("bin_ret_jmp", &X_RET_AFTER_JNE_AND_ADJACENT_JMP_X64);
-    let bin_mix = get_raw_bin("bin_mix", &X_RET_AFTER_JNE_AND_ADJACENT_CALL_MIX_MATCH_X64);
+    let bin_ret_jmp = get_raw_bin("bin_ret_jmp", X_RET_AFTER_JNE_AND_ADJACENT_JMP_X64);
+    let bin_mix = get_raw_bin("bin_mix", X_RET_AFTER_JNE_AND_ADJACENT_CALL_MIX_MATCH_X64);
 
     let full_part_match_config = xgadget::SearchConfig::DEFAULT | xgadget::SearchConfig::PART;
     assert!(full_part_match_config.intersects(xgadget::SearchConfig::PART));

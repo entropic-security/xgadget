@@ -56,7 +56,7 @@ pub fn find_gadgets(
 
             for (next_bin, next_set) in remaining_results {
                 // Filter common gadgets (set intersection)
-                common_gadgets.retain(|g| next_set.contains(&g));
+                common_gadgets.retain(|g| next_set.contains(g));
 
                 // TODO: there has to be a cleaner way to implement this! Once drain_filter() on stable?
                 // Update full and partial matches
@@ -91,7 +91,7 @@ pub fn find_gadgets(
                                 }
 
                                 for addr in &next_set_g.full_matches {
-                                    match updated_g.partial_matches.get_mut(&addr) {
+                                    match updated_g.partial_matches.get_mut(addr) {
                                         Some(bin_ref_vec) => bin_ref_vec.push(*next_bin),
                                         // TODO: Replace with unwrap_none() once on stable
                                         _ => {
@@ -239,14 +239,14 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<iced_x86::Instruction>,
         if let Some(i) = instrs.last() {
             // ROP
             // Note: 1 instr gadget (e.g. "ret;") for 16 byte re-alignment of stack pointer (avoid movaps segfault)
-            if (semantics::is_ret(&i))
+            if (semantics::is_ret(i))
 
                 // JOP
-                || (semantics::is_jop_gadget_tail(&i))
+                || (semantics::is_jop_gadget_tail(i))
 
                 // SYS
-                || (semantics::is_syscall(&i)
-                    || (semantics::is_legacy_linux_syscall(&i) && (d_config.bin.format() == binary::Format::ELF)))
+                || (semantics::is_syscall(i)
+                    || (semantics::is_legacy_linux_syscall(i) && (d_config.bin.format() == binary::Format::ELF)))
             {
                 debug_assert!(instrs[0].ip() == buf_start_addr);
                 instr_sequences.push((instrs, buf_start_addr));

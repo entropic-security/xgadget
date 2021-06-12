@@ -29,7 +29,7 @@ impl GadgetAnalysis {
         let mut unique_used_mem = HashSet::default();
 
         for instr in &gadget.instrs {
-            let info = info_factory.info(&instr);
+            let info = info_factory.info(instr);
 
             for ur in info.used_registers() {
                 unique_used_regs.insert(*ur);
@@ -72,7 +72,7 @@ impl GadgetAnalysis {
             .filter(|ur| ur.access() == iced_x86::OpAccess::ReadWrite)
             .map(|ur| ur.register())
             // TODO: overwrite taking precedence doesn't take into account conditional behavior
-            .filter(|r| !self.regs_overwritten().contains(&r))
+            .filter(|r| !self.regs_overwritten().contains(r))
             .collect()
     }
 

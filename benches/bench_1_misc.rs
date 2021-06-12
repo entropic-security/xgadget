@@ -21,7 +21,7 @@ pub fn filter_stack_pivot_seq_fast<'a>(
                 let mut info_factory = iced_x86::InstructionInfoFactory::new();
 
                 let info = info_factory
-                    .info_options(&instr, iced_x86::InstructionInfoOptions::NO_MEMORY_USAGE);
+                    .info_options(instr, iced_x86::InstructionInfoOptions::NO_MEMORY_USAGE);
 
                 if info.used_registers().contains(&rsp_write)
                     || info.used_registers().contains(&esp_write)
@@ -46,7 +46,7 @@ pub fn filter_reg_pop_only_regex<'a>(
     let re = Regex::new(r"^(?:pop)(?:.*(?:pop))*.*(?:ret|call|jmp)").unwrap();
     let mut matches = Vec::new();
 
-    for (instrs, addrs) in xgadget::fmt_gadget_str_list(&gadgets, false, false) {
+    for (instrs, addrs) in xgadget::fmt_gadget_str_list(gadgets, false, false) {
         if re.is_match(&instrs) {
             matches.push((instrs, addrs));
         }

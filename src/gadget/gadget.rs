@@ -85,10 +85,7 @@ impl<'a> Gadget<'a> {
 
     /// Get first full match
     pub fn first_full_match(&self) -> Option<u64> {
-        match self.full_matches.iter().next() {
-            Some(addr) => Some(*addr),
-            None => None,
-        }
+        self.full_matches.iter().next().copied()
     }
 
     /// Get count of binaries for which this gadget tracks partial matches
@@ -114,7 +111,7 @@ impl<'a> Gadget<'a> {
                 let mut formatter = fmt::get_formatter(att_syntax);
                 let mut output = fmt::GadgetFormatterOutput::new();
                 for instr in &self.instrs {
-                    formatter.format(&instr, &mut output);
+                    formatter.format(instr, &mut output);
                     output.write("; ", iced_x86::FormatterTextKind::Punctuation);
                 }
                 Box::new(output)
@@ -227,7 +224,7 @@ impl<'a> Gadget<'a> {
         let mut formatter = fmt::get_formatter(att_syntax);
         let mut output = String::new();
         for instr in &self.instrs {
-            formatter.format(&instr, &mut output);
+            formatter.format(instr, &mut output);
             output.write("; ", iced_x86::FormatterTextKind::Punctuation);
         }
         output
@@ -262,11 +259,11 @@ impl<'a> Gadget<'a> {
                     }
 
                     for pb in prior_bpm_bins {
-                        Self::write_bin_name(&pb.name(), match_str);
+                        Self::write_bin_name(pb.name(), match_str);
                         fmted_bin_cnt += 1;
                     }
 
-                    Self::write_bin_name(&last_bin.name(), match_str);
+                    Self::write_bin_name(last_bin.name(), match_str);
                     fmted_bin_cnt += 1;
                     match_str.write(
                         &format!("{:#016x}", bpm_addr),

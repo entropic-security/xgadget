@@ -2,7 +2,7 @@ mod common;
 
 #[test]
 fn test_regs_deref() {
-    let bin_pshape = common::get_raw_bin("pshape_example", &common::PSHAPE_PG_5_X64);
+    let bin_pshape = common::get_raw_bin("pshape_example", common::PSHAPE_PG_5_X64);
     let bins = vec![bin_pshape];
     let mut gadgets =
         xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
@@ -43,7 +43,7 @@ fn test_regs_deref() {
 
 #[test]
 fn test_regs_updated() {
-    let bin_pshape = common::get_raw_bin("pshape_example", &common::PSHAPE_PG_5_X64);
+    let bin_pshape = common::get_raw_bin("pshape_example", common::PSHAPE_PG_5_X64);
     let bins = vec![bin_pshape];
     let mut gadgets =
         xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
@@ -61,7 +61,7 @@ fn test_regs_updated() {
 
 #[test]
 fn test_regs_overwritten() {
-    let bin_pshape = common::get_raw_bin("pshape_example", &common::PSHAPE_PG_5_X64);
+    let bin_pshape = common::get_raw_bin("pshape_example", common::PSHAPE_PG_5_X64);
     let bins = vec![bin_pshape];
     let mut gadgets =
         xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
@@ -80,7 +80,7 @@ fn test_regs_overwritten() {
 
 #[test]
 fn test_no_deref_1() {
-    let bin_misc_1 = common::get_raw_bin("misc_1", &common::MISC_1);
+    let bin_misc_1 = common::get_raw_bin("misc_1", common::MISC_1);
     let bins = vec![bin_misc_1];
     let mut gadgets =
         xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
@@ -92,7 +92,7 @@ fn test_no_deref_1() {
     assert!(!analysis.regs_dereferenced().is_empty());
 
     for instr in gadgets[0].instrs() {
-        common::dump_instr(&instr);
+        common::dump_instr(instr);
     }
 
     assert!(xgadget::filter_no_deref(&gadgets, None).is_empty());

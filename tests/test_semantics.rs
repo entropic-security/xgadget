@@ -197,47 +197,23 @@ fn test_gadget_hasher() {
     addr_2.insert(1);
 
     // Different instructions, different address - custom hash mismatch
-    let g1 = xgadget::Gadget::new(
-        vec![pop_r15_instr.clone(), jmp_rax_instr.clone()],
-        addr_1.clone(),
-    );
-    let g2 = xgadget::Gadget::new(
-        vec![pop_r15_instr.clone(), jmp_rax_deref_instr.clone()],
-        addr_2.clone(),
-    );
+    let g1 = xgadget::Gadget::new(vec![pop_r15_instr, jmp_rax_instr], addr_1.clone());
+    let g2 = xgadget::Gadget::new(vec![pop_r15_instr, jmp_rax_deref_instr], addr_2.clone());
     assert!(common::hash(&g1) != common::hash(&g2));
 
     // Different instructions, same address - custom hash mismatch
-    let g1 = xgadget::Gadget::new(
-        vec![pop_r15_instr.clone(), jmp_rax_instr.clone()],
-        addr_1.clone(),
-    );
-    let g2 = xgadget::Gadget::new(
-        vec![pop_r15_instr.clone(), jmp_rax_deref_instr.clone()],
-        addr_1.clone(),
-    );
+    let g1 = xgadget::Gadget::new(vec![pop_r15_instr, jmp_rax_instr], addr_1.clone());
+    let g2 = xgadget::Gadget::new(vec![pop_r15_instr, jmp_rax_deref_instr], addr_1.clone());
     assert!(common::hash(&g1) != common::hash(&g2));
 
     // Same instructions, same address - custom hash match
-    let g1 = xgadget::Gadget::new(
-        vec![pop_r15_instr.clone(), jmp_rax_instr.clone()],
-        addr_1.clone(),
-    );
-    let g2 = xgadget::Gadget::new(
-        vec![pop_r15_instr.clone(), jmp_rax_instr.clone()],
-        addr_1.clone(),
-    );
+    let g1 = xgadget::Gadget::new(vec![pop_r15_instr, jmp_rax_instr], addr_1.clone());
+    let g2 = xgadget::Gadget::new(vec![pop_r15_instr, jmp_rax_instr], addr_1.clone());
     assert!(common::hash(&g1) == common::hash(&g2));
 
     // Same instructions, different address - custom hash match
-    let g1 = xgadget::Gadget::new(
-        vec![pop_r15_instr.clone(), jmp_rax_instr.clone()],
-        addr_1.clone(),
-    );
-    let g2 = xgadget::Gadget::new(
-        vec![pop_r15_instr.clone(), jmp_rax_instr.clone()],
-        addr_2.clone(),
-    );
+    let g1 = xgadget::Gadget::new(vec![pop_r15_instr, jmp_rax_instr], addr_1.clone());
+    let g2 = xgadget::Gadget::new(vec![pop_r15_instr, jmp_rax_instr], addr_2.clone());
     assert!(common::hash(&g1) == common::hash(&g2));
 
     // Same instructions, different decode addresses - custom hash match
@@ -247,14 +223,14 @@ fn test_gadget_hasher() {
     let jmp_rax_instr_5 = common::decode_single_x64_instr(decode_addr_5, &jmp_rax);
     let jmp_rax_instr_10 = common::decode_single_x64_instr(decode_addr_10, &jmp_rax);
 
-    let g1 = xgadget::Gadget::new(vec![jmp_rax_instr_5.clone()], addr_1.clone());
-    let g2 = xgadget::Gadget::new(vec![jmp_rax_instr_10.clone()], addr_1.clone());
-    let g3 = xgadget::Gadget::new(vec![jmp_rax_instr_10.clone()], addr_2);
+    let g1 = xgadget::Gadget::new(vec![jmp_rax_instr_5], addr_1.clone());
+    let g2 = xgadget::Gadget::new(vec![jmp_rax_instr_10], addr_1.clone());
+    let g3 = xgadget::Gadget::new(vec![jmp_rax_instr_10], addr_2);
     assert!(common::hash(&g1) == common::hash(&g2));
     assert!(common::hash(&g2) == common::hash(&g3));
 
     // Hash set intersection
-    let g1 = xgadget::Gadget::new(vec![pop_r15_instr.clone(), jmp_rax_instr], addr_1.clone());
+    let g1 = xgadget::Gadget::new(vec![pop_r15_instr, jmp_rax_instr], addr_1.clone());
     let g2 = xgadget::Gadget::new(vec![pop_r15_instr, jmp_rax_deref_instr], addr_1);
 
     let mut g_set_1: HashSet<_> = HashSet::default();

@@ -83,7 +83,7 @@ pub fn is_legacy_linux_syscall(instr: &iced_x86::Instruction) -> bool {
 #[inline(always)]
 pub fn is_reg_rw(instr: &iced_x86::Instruction, reg: &iced_x86::Register) -> bool {
     let mut info_factory = iced_x86::InstructionInfoFactory::new();
-    let info = info_factory.info_options(&instr, iced_x86::InstructionInfoOptions::NO_MEMORY_USAGE);
+    let info = info_factory.info_options(instr, iced_x86::InstructionInfoOptions::NO_MEMORY_USAGE);
     let reg_rw = iced_x86::UsedRegister::new(*reg, iced_x86::OpAccess::ReadWrite);
 
     info.used_registers().contains(&reg_rw)
@@ -93,7 +93,7 @@ pub fn is_reg_rw(instr: &iced_x86::Instruction, reg: &iced_x86::Register) -> boo
 #[inline(always)]
 pub fn is_reg_set(instr: &iced_x86::Instruction, reg: &iced_x86::Register) -> bool {
     let mut info_factory = iced_x86::InstructionInfoFactory::new();
-    let info = info_factory.info_options(&instr, iced_x86::InstructionInfoOptions::NO_MEMORY_USAGE);
+    let info = info_factory.info_options(instr, iced_x86::InstructionInfoOptions::NO_MEMORY_USAGE);
     let reg_w = iced_x86::UsedRegister::new(*reg, iced_x86::OpAccess::Write);
 
     let reg_read = |ur: iced_x86::UsedRegister| {
