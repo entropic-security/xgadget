@@ -298,12 +298,10 @@ pub fn dump_instr(instr: &iced_x86::Instruction) {
         }
     }
     for i in 0..instr.op_count() {
-        //println!("\tOp{}Access: {:?}", i, info.try_op_access(i).unwrap());
-        println!("\tOp{}Access: {:?}", i, info.op_access(i));
+        println!("\tOp{}Access: {:?}", i, info.try_op_access(i).unwrap());
     }
     for i in 0..op_code.op_count() {
-        //println!("\tOp{}: {:?}", i, op_code.try_op_kind(i).unwrap());
-        println!("\tOp{}: {:?}", i, op_code.op_kind(i));
+        println!("\tOp{}: {:?}", i, op_code.try_op_kind(i).unwrap());
     }
     for reg_info in info.used_registers() {
         println!("\tUsed reg: {:?}", reg_info);
