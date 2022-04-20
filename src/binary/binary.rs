@@ -109,6 +109,7 @@ impl Binary {
                 goblin::Object::Unknown(_) => Ok(Binary::from_raw(name, bytes)),
                 goblin::Object::Elf(elf) => Binary::from_elf(name, bytes, &elf),
                 goblin::Object::PE(pe) => Binary::from_pe(name, bytes, &pe),
+                goblin::Object::Mach(mach) => Binary::from_mach(name, bytes, &mach),
                 _ => Err("Unsupported file format!".into()),
             },
             _ => Ok(Binary::from_raw(name, bytes)),
