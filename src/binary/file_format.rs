@@ -6,6 +6,7 @@ pub enum Format {
     Unknown,
     ELF,
     PE,
+    MachO,
     Raw,
 }
 
@@ -17,6 +18,7 @@ impl FromStr for Format {
             "unknown" => Ok(Format::Unknown),
             "elf" => Ok(Format::ELF),
             "pe" => Ok(Format::PE),
+            "macho" => Ok(Format::MachO),
             "raw" => Ok(Format::Raw),
             _ => Err("Could not parse format string to enum"),
         }

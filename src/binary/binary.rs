@@ -200,6 +200,64 @@ impl Binary {
         Ok(bin)
     }
 
+    // Mach-O file -> Binary
+    fn from_mach(name: &str, bytes: &[u8], mach: &goblin::mach::Mach) -> Result<Binary, Box<dyn Error>> {
+        let mut bin = Binary::priv_new();
+
+        let temp_macho: goblin::mach::MachO;
+
+        let macho = match mach {
+            goblin::mach::Mach::Binary(bin) => bin,
+            goblin::mach::Mach::Fat(fat) => {
+                temp_macho = fat.find(|arch| {
+                    (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_X86_64) |
+                    (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_I386)
+                }).unwrap().unwrap(); // TODO better error handling
+                &temp_macho
+            },
+        };
+
+
+        bin.name = name.to_string();
+        bin.entry = macho.entry as u64;
+        bin.format = Format::MachO;
+
+        // Architecture
+        bin.arch = match macho.header.cputype() {
+            goblin::mach::constants::cputype::CPU_TYPE_X86_64 => Arch::X64,
+            goblin::mach::constants::cputype::CPU_TYPE_I386 => Arch::X86,
+            _ => {
+                return Err("Unsupported architecture!".into());
+            }
+        };
+
+        // Argument registers
+        if bin.arch == Arch::X64 {
+            bin.param_regs = Some(X64_PE_PARAM_REGS); // TODO MACHO_PARAM_REGS
+        }
+
+        // Executable segments
+        for section in macho
+            .segments
+            .sections()
+            .flatten()
+            .filter_map(|p| p.ok())
+            .map(|f| f.0)
+            .filter(|p| (p.flags & goblin::mach::constants::S_ATTR_PURE_INSTRUCTIONS) != 0)
+        {
+            let start_offset = section.offset as usize;
+            let end_offset = start_offset + section.size as usize;
+
+            bin.segments.insert(Segment::new(
+                section.addr as u64,
+                bytes[start_offset..end_offset].to_vec(),
+            ));
+        }
+
+        bin.remove_sub_segs();
+        Ok(bin)
+    }
+
     // Raw bytes -> Binary, Unknown arch to be updated by caller
     fn from_raw(name: &str, bytes: &[u8]) -> Binary {
         let mut bin = Binary::priv_new();
