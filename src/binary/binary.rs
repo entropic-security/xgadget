@@ -214,7 +214,7 @@ impl Binary {
                     (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_I386)
                 }) {
                     Some(binary) => binary?,
-                    None => return Err("Failed to retrieve support architecture from MultiArch Mach-O".into()),
+                    None => return Err("Failed to retrieve supported architecture from MultiArch Mach-O".into()),
                 };
                 &temp_macho
             },
@@ -243,9 +243,9 @@ impl Binary {
             .segments
             .sections()
             .flatten()
-            .filter_map(|p| p.ok())
-            .map(|f| f.0)
-            .filter(|p| (p.flags & goblin::mach::constants::S_ATTR_PURE_INSTRUCTIONS) != 0)
+            .filter_map(|sec| sec.ok())
+            .map(|sec| sec.0)
+            .filter(|sec| (sec.flags & goblin::mach::constants::S_ATTR_PURE_INSTRUCTIONS) != 0)
         {
             let start_offset = section.offset as usize;
             let end_offset = start_offset + section.size as usize;
