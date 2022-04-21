@@ -204,19 +204,21 @@ impl Binary {
     fn from_mach(name: &str, bytes: &[u8], mach: &goblin::mach::Mach) -> Result<Binary, Box<dyn Error>> {
         let mut bin = Binary::priv_new();
 
+        // Handle Mach-O and Multi-Architecture variants
         let temp_macho: goblin::mach::MachO;
-
         let macho = match mach {
-            goblin::mach::Mach::Binary(bin) => bin,
+            goblin::mach::Mach::Binary(binary) => binary,
             goblin::mach::Mach::Fat(fat) => {
-                temp_macho = fat.find(|arch| {
-                    (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_X86_64) |
+                temp_macho = match fat.find(|arch| {
+                    (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_X86_64) ||
                     (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_I386)
-                }).unwrap().unwrap(); // TODO better error handling
+                }) {
+                    Some(binary) => binary?,
+                    None => return Err("Failed to retrieve support architecture from MultiArch Mach-O".into()),
+                };
                 &temp_macho
             },
         };
-
 
         bin.name = name.to_string();
         bin.entry = macho.entry as u64;
