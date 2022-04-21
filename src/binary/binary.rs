@@ -235,7 +235,7 @@ impl Binary {
 
         // Argument registers
         if bin.arch == Arch::X64 {
-            bin.param_regs = Some(X64_PE_PARAM_REGS); // TODO MACHO_PARAM_REGS
+            bin.param_regs = Some(X64_MACHO_PARAM_REGS);
         }
 
         // Executable segments
