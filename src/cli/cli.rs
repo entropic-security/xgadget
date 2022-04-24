@@ -3,51 +3,51 @@ use std::fs;
 
 use checksec::elf::ElfCheckSecResults;
 use checksec::pe::PECheckSecResults;
+use clap::Parser;
 use colored::Colorize;
 use goblin::Object;
-use structopt::StructOpt;
 
 use super::checksec_fmt::{CustomElfCheckSecResults, CustomPeCheckSecResults};
 
 lazy_static! {
     static ref ABOUT_STR: String = format!(
         "\nAbout:\t{}\nCores:\t{} logical, {} physical",
-        structopt::clap::crate_description!(),
+        clap::crate_description!(),
         num_cpus::get(),
         num_cpus::get_physical(),
     );
 }
 
 lazy_static! {
-    static ref VERSION_STR: String = format!("v{}", structopt::clap::crate_version!());
+    static ref VERSION_STR: String = format!("v{}", clap::crate_version!());
 }
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "xgadget", version = VERSION_STR.as_str(), about = ABOUT_STR.as_str())]
+#[derive(Parser, Debug)]
+#[clap(name = "xgadget", version = VERSION_STR.as_str(), about = ABOUT_STR.as_str(), term_width = 150)]
 pub(crate) struct CLIOpts {
     /// 1+ binaries to gadget search. If > 1: gadgets common to all
-    #[structopt(required = true, min_values = 1, value_name = "FILE(S)")]
+    #[clap(required = true, min_values = 1, value_name = "FILE(S)")]
     pub(crate) bin_paths: Vec<String>,
 
     /// For raw (no header) files: specify arch ('x8086', 'x86', or 'x64')
-    #[structopt(short, long, default_value = "x64", value_name = "ARCH")]
+    #[clap(short, long, default_value = "x64", value_name = "ARCH")]
     pub(crate) arch: xgadget::Arch,
 
     /// Display gadgets using AT&T syntax [default: Intel syntax]
-    #[structopt(short = "t", long)]
+    #[clap(short = 't', long)]
     pub(crate) att: bool,
 
     /// Don't color output [default: color output]
-    #[structopt(short, long)]
+    #[clap(short, long)]
     pub(crate) no_color: bool,
 
     /// Print in terminal-wide format [default: only used for partial match search]
-    #[structopt(short, long)]
+    #[clap(short, long)]
     pub(crate) extended_fmt: bool,
 
     /// Gadgets up to LEN instrs long. If 0: all gadgets, any length
-    #[structopt(
-        short = "l",
+    #[clap(
+        short = 'l',
         long,
         required = false,
         default_value = "5",
@@ -56,68 +56,67 @@ pub(crate) struct CLIOpts {
     pub(crate) max_len: usize,
 
     /// Search for ROP gadgets only [default: ROP, JOP, and SYSCALL]
-    #[structopt(short, long)]
+    #[clap(short, long)]
     pub(crate) rop: bool,
 
     /// Search for JOP gadgets only [default: ROP, JOP, and SYSCALL]
-    #[structopt(short, long, conflicts_with = "rop")]
+    #[clap(short, long, conflicts_with = "rop")]
     pub(crate) jop: bool,
 
     /// Search for SYSCALL gadgets only [default: ROP, JOP, and SYSCALL]
-    #[structopt(short, long, conflicts_with = "jop")]
+    #[clap(short, long, conflicts_with = "jop")]
     pub(crate) sys: bool,
 
     /// Include '{ret, ret far} imm16' (e.g. add to stack ptr) [default: don't include]
-    #[structopt(long, conflicts_with = "jop")]
+    #[clap(long, conflicts_with = "jop")]
     pub(crate) inc_imm16: bool,
 
     /// Include gadgets containing a call [default: don't include]
-    #[structopt(long)]
+    #[clap(long)]
     pub(crate) inc_call: bool,
 
     /// Include cross-variant partial matches [default: full matches only]
-    #[structopt(short = "m", long)]
+    #[clap(short = 'm', long)]
     pub(crate) partial_match: bool,
 
     /// Filter to gadgets that write the stack ptr [default: all]
-    #[structopt(short = "p", long)]
+    #[clap(short = 'p', long)]
     pub(crate) stack_pivot: bool,
 
     /// Filter to potential JOP 'dispatcher' gadgets [default: all]
-    #[structopt(short, long, conflicts_with_all = &["rop", "stack_pivot"])]
+    #[clap(short, long, conflicts_with_all = &["rop", "stack-pivot"])]
     pub(crate) dispatcher: bool,
 
     /// Filter to 'pop {reg} * 1+, {ret or ctrl-ed jmp/call}' gadgets [default: all]
-    #[structopt(long, conflicts_with = "dispatcher")]
+    #[clap(long, conflicts_with = "dispatcher")]
     pub(crate) reg_pop: bool,
 
     /// Filter to gadgets that don't deref any regs or a specific reg [default: all]
-    #[structopt(long, value_name = "OPT_REG")]
+    #[clap(long, value_name = "OPT_REG")]
     pub(crate) no_deref: Option<Option<String>>,
 
     /// Filter to gadgets that control any reg or a specific reg [default: all]
-    #[structopt(long, value_name = "OPT_REG")]
+    #[clap(long, value_name = "OPT_REG")]
     pub(crate) reg_ctrl: Option<Option<String>>,
 
     /// Filter to gadgets that control function parameters [default: all]
-    #[structopt(long)]
+    #[clap(long)]
     pub(crate) param_ctrl: bool,
 
     /// Filter to gadgets whose addrs don't contain given bytes [default: all]
-    #[structopt(short, long, min_values = 1, value_name = "BYTE(S)")]
+    #[clap(short, long, min_values = 1, value_name = "BYTE(S)")]
     pub(crate) bad_bytes: Vec<String>,
 
     /// Filter to gadgets matching a regular expression
-    #[structopt(short = "f", long = "regex-filter", value_name = "EXPR")]
+    #[clap(short = 'f', long = "regex-filter", value_name = "EXPR")]
     pub(crate) usr_regex: Option<String>,
 
     /// Run checksec on the 1+ binaries instead of gadget search
-    #[structopt(short, long, conflicts_with_all = &[
-        "arch", "att", "extended_fmt", "max_len",
-        "rop", "jop", "sys", "imm16", "partial_match",
-        "stack_pivot", "dispatcher", "reg_pop", "usr_regex"
+    #[clap(short, long, conflicts_with_all = &[
+        "arch", "att", "extended-fmt", "max-len",
+        "rop", "jop", "sys", "inc-imm16", "partial-match",
+        "stack-pivot", "dispatcher", "reg-pop", "usr-regex"
     ])]
-    // TODO: Custom short name (e.g. "-m" for "--partial-match" not tagged as conflict) - why?
     pub(crate) check_sec: bool,
 }
 

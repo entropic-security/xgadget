@@ -1,9 +1,9 @@
 use std::time::Instant;
 
+use clap::Parser;
 use colored::Colorize;
 use rayon::prelude::*;
 use regex::Regex;
-use structopt::StructOpt;
 
 mod reg_str;
 use reg_str::str_to_reg;
@@ -17,7 +17,7 @@ mod checksec_fmt;
 extern crate lazy_static;
 
 fn main() {
-    let cli = CLIOpts::from_args();
+    let cli = CLIOpts::parse();
 
     let mut filter_matches = 0;
     let filter_regex = cli.usr_regex.clone().map(|r| Regex::new(&r).unwrap());

@@ -1,6 +1,6 @@
 [package]
 name = "xgadget"
-version = "0.5.1"
+version = "0.6.0"
 authors = ["Tiemoko Ballo"]
 edition = "2018"
 license = "MIT"
@@ -21,13 +21,13 @@ include = [
 
 [dependencies]
 iced-x86 = "1"
-goblin = "0.2"
+goblin = "0.2" # TODO: Cannot upgrade yet due to checksec dependency?
 rayon = "1"
 bitflags = "1"
 colored = "2"
 rustc-hash = "1"
 lazy_static = { version = "1", optional = true }
-structopt = { version = "0.3", default-features = false, optional = true }
+clap = { version = "3", features = ["derive", "cargo"], optional = true }
 num_cpus = { version = "1", optional = true }
 regex = { version = "1", optional = true }
 term_size = { version = "0.3", optional = true }
@@ -35,17 +35,17 @@ checksec = { version = "0.0.8", features = ["elf", "pe", "color"], optional = tr
 memmap = { version = "0.7", optional = true }
 
 [dev-dependencies]
-pprof = { version = "0.4", features = ["flamegraph"] }
+pprof = { version = "0.4", features = ["flamegraph"] } # TODO: bump to latest and test
 criterion = "0.3"
-rand = "0.7"
-dirs = "3"
-predicates = "1"
-assert_cmd = "1"
+rand = "0.8"
+dirs = "4"
+predicates = "2"
+assert_cmd = "2"
 tempfile = "3"
 regex = "1"
 
 [features]
-cli-bin = ["lazy_static", "structopt", "num_cpus", "regex", "term_size", "checksec", "memmap"]
+cli-bin = ["lazy_static", "clap", "num_cpus", "regex", "term_size", "checksec", "memmap"]
 
 [lib]
 name = "xgadget"

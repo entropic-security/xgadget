@@ -74,7 +74,7 @@ fn test_conflicting_flags_dispatcher_stack_set_reg() {
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "The argument '--dispatcher' cannot be used with '--reg-pop'",
+            "The argument '--reg-pop' cannot be used with '--dispatcher'",
         ));
 }
 
@@ -92,7 +92,7 @@ fn test_conflicting_flags_imm16_jop() {
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "The argument '--jop' cannot be used with '--inc-imm16'",
+            "The argument '--inc-imm16' cannot be used with '--jop'",
         ));
 }
 
