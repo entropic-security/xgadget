@@ -209,13 +209,10 @@ impl Binary {
         let macho = match mach {
             goblin::mach::Mach::Binary(binary) => binary,
             goblin::mach::Mach::Fat(fat) => {
-                temp_macho = match fat.find(|arch| {
+                temp_macho = fat.find(|arch| {
                     (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_X86_64) ||
                     (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_I386)
-                }) {
-                    Some(binary) => binary?,
-                    None => return Err("Failed to retrieve supported architecture from MultiArch Mach-O".into()),
-                };
+                }).ok_or("Failed to retrieve supported architecture from MultiArch Mach-O!")??;
                 &temp_macho
             },
         };
