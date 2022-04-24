@@ -221,7 +221,7 @@ impl Binary {
         };
 
         bin.name = name.to_string();
-        bin.entry = macho.entry as u64;
+        bin.entry = macho.entry;
         bin.format = Format::MachO;
 
         // Architecture
