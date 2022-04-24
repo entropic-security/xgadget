@@ -109,6 +109,7 @@ impl Binary {
                 goblin::Object::Unknown(_) => Ok(Binary::from_raw(name, bytes)),
                 goblin::Object::Elf(elf) => Binary::from_elf(name, bytes, &elf),
                 goblin::Object::PE(pe) => Binary::from_pe(name, bytes, &pe),
+                goblin::Object::Mach(mach) => Binary::from_mach(name, bytes, &mach),
                 _ => Err("Unsupported file format!".into()),
             },
             _ => Ok(Binary::from_raw(name, bytes)),
@@ -191,6 +192,63 @@ impl Binary {
 
             bin.segments.insert(Segment::new(
                 sec_tab.virtual_address as u64 + pe.image_base as u64,
+                bytes[start_offset..end_offset].to_vec(),
+            ));
+        }
+
+        bin.remove_sub_segs();
+        Ok(bin)
+    }
+
+    // Mach-O file -> Binary
+    fn from_mach(name: &str, bytes: &[u8], mach: &goblin::mach::Mach) -> Result<Binary, Box<dyn Error>> {
+        let mut bin = Binary::priv_new();
+
+        // Handle Mach-O and Multi-Architecture variants
+        let temp_macho: goblin::mach::MachO;
+        let macho = match mach {
+            goblin::mach::Mach::Binary(binary) => binary,
+            goblin::mach::Mach::Fat(fat) => {
+                temp_macho = fat.find(|arch| {
+                    (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_X86_64) ||
+                    (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_I386)
+                }).ok_or("Failed to retrieve supported architecture from MultiArch Mach-O!")??;
+                &temp_macho
+            },
+        };
+
+        bin.name = name.to_string();
+        bin.entry = macho.entry;
+        bin.format = Format::MachO;
+
+        // Architecture
+        bin.arch = match macho.header.cputype() {
+            goblin::mach::constants::cputype::CPU_TYPE_X86_64 => Arch::X64,
+            goblin::mach::constants::cputype::CPU_TYPE_I386 => Arch::X86,
+            _ => {
+                return Err("Unsupported architecture!".into());
+            }
+        };
+
+        // Argument registers
+        if bin.arch == Arch::X64 {
+            bin.param_regs = Some(X64_MACHO_PARAM_REGS);
+        }
+
+        // Executable segments
+        for section in macho
+            .segments
+            .sections()
+            .flatten()
+            .filter_map(|sec| sec.ok())
+            .map(|sec| sec.0)
+            .filter(|sec| (sec.flags & goblin::mach::constants::S_ATTR_PURE_INSTRUCTIONS) != 0)
+        {
+            let start_offset = section.offset as usize;
+            let end_offset = start_offset + section.size as usize;
+
+            bin.segments.insert(Segment::new(
+                section.addr as u64,
                 bytes[start_offset..end_offset].to_vec(),
             ));
         }
