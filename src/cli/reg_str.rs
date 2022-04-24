@@ -17,7 +17,7 @@ lazy_static! {
 
                 // Secondary key: R8L-R15L -> R8B-R15B
                 if (iced_x86::Register::R8L <= reg) && (reg <= iced_x86::Register::R15L) {
-                    srm.insert(reg_str.replace("L", "B"), reg);
+                    srm.insert(reg_str.replace('L', "B"), reg);
                 }
 
                 srm.insert(reg_str, reg);

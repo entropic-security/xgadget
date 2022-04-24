@@ -201,7 +201,11 @@ impl Binary {
     }
 
     // Mach-O file -> Binary
-    fn from_mach(name: &str, bytes: &[u8], mach: &goblin::mach::Mach) -> Result<Binary, Box<dyn Error>> {
+    fn from_mach(
+        name: &str,
+        bytes: &[u8],
+        mach: &goblin::mach::Mach,
+    ) -> Result<Binary, Box<dyn Error>> {
         let mut bin = Binary::priv_new();
 
         // Handle Mach-O and Multi-Architecture variants
@@ -209,12 +213,16 @@ impl Binary {
         let macho = match mach {
             goblin::mach::Mach::Binary(binary) => binary,
             goblin::mach::Mach::Fat(fat) => {
-                temp_macho = fat.find(|arch| {
-                    (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_X86_64) ||
-                    (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_I386)
-                }).ok_or("Failed to retrieve supported architecture from MultiArch Mach-O!")??;
+                temp_macho = fat
+                    .find(|arch| {
+                        (arch.as_ref().unwrap().cputype()
+                            == goblin::mach::constants::cputype::CPU_TYPE_X86_64)
+                            || (arch.as_ref().unwrap().cputype()
+                                == goblin::mach::constants::cputype::CPU_TYPE_I386)
+                    })
+                    .ok_or("Failed to retrieve supported architecture from MultiArch Mach-O!")??;
                 &temp_macho
-            },
+            }
         };
 
         bin.name = name.to_string();
