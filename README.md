@@ -4,28 +4,42 @@
 ![GitHub Actions](https://github.com/entropic-security/xgadget/workflows/test/badge.svg)
 
 Fast, parallel, cross-variant ROP/JOP gadget search for x86 (32-bit) and x64 (64-bit) binaries.
-Uses the [iced-x86 disassembler library](https://github.com/0xd4d/iced).
+Uses the [iced-x86 disassembler library](https://github.com/icedland/iced).
 
 **Current state:** decent test coverage, but still in beta. Issues/PRs welcome :)
 
+### Quickstart
+
+Install the CLI tool and show its help menu:
+
+```bash
+cargo install xgadget --features cli-bin    # Build on host (pre-req: https://www.rust-lang.org/tools/install)
+xgadget --help                              # List available commandline options
+```
 ### About
 
-To the best of my knowledge, `xgadget` is the first gadget search tool to have these features:
+`xgadget` is a tool for Return-Oriented Programming (ROP) and Jump-Oriented Programming (JOP) exploit development.
+It's a fast, multi-threaded alternative to awesome tools like [`ROPGadget`](https://github.com/JonathanSalwan/ROPgadget), [`Ropper`](https://github.com/sashs/Ropper), and [`rp`](https://github.com/0vercl0k/rp).
 
+Though not yet as mature as some of its contemporaries, it contains unique and experimental functionality.
+To the best of our knowledge, `xgadget` is the first gadget search tool to have these features:
+
+* Finds registers that can be controlled (overwritten) - not just those that match a user-provided regex
+    * Use the `--reg-ctrl <optional_register_name>` flag
 * JOP search uses instruction semantics - not hardcoded regex for individual encodings
-   * Optionally filter to JOP "dispatcher" gadgets with flag `--dispatcher`
+    * Optionally filter to JOP "dispatcher" gadgets with flag `--dispatcher`
 * Finds gadgets that work across multiple variants of a binary (e.g. different program or compiler versions)
-   * **Full-match** - Same instruction sequence, same program counter: gadget fully re-usable.
-       * E.g. `pop rsp; add [rax-0x77], cl; ret ------------------------------------- [ 0xc748d ]`
-   * **Partial-match** - Same instruction sequence, different program counter: gadget logic portable.
-       * E.g. `pop rsp; add [rax-0x77], cl; ret; --- [ 'bin_v1.1': 0xc748d, 'bin_v1.2': 0xc9106 ]`
-   * This is entirely optional, you're free to run this tool on a single binary.
+    * **Full-match** - Same instruction sequence, same program counter: gadget fully re-usable.
+        * E.g. `pop rsp; add [rax-0x77], cl; ret ------------------------------------- [ 0xc748d ]`
+    * **Partial-match** - Same instruction sequence, different program counter: gadget logic portable.
+        * E.g. `pop rsp; add [rax-0x77], cl; ret; --- [ 'bin_v1.1': 0xc748d, 'bin_v1.2': 0xc9106 ]`
+    * This is entirely optional, you're free to run this tool on a single binary.
 * The stack pointer is explicitly colored in terminal output, for workflow convenience.
 
 Other features include:
 
-* Both library API and CLI tool
-* Supports ELF32, ELF64, PE32, PE32+ \[1\], and raw files
+* Both a library API and CLI tool
+* Supports ELF32, ELF64, PE32, PE32+, Mach-O \[1\], and raw files
 * Parallel across available cores \[2\], whether searching a single binary or multiple variants
 * CI/CD for automated integration test and binary releases (Linux, 64-bit) \[3\]
 * Statistical benchmark harness for performance tuning \[4\]
@@ -66,20 +80,20 @@ use xgadget::{Gadget, GadgetAnalysis};
 
 /// Parallel filter to gadgets that write the stack pointer
 pub fn filter_stack_pivot<'a>(gadgets: &[Gadget<'a>]) -> Vec<Gadget<'a>> {
-   gadgets
-       .par_iter()
-       .filter(|g| {
-           let regs_overwritten = GadgetAnalysis::new(&g).regs_overwritten();
-           if regs_overwritten.contains(&iced_x86::Register::RSP)
-               || regs_overwritten.contains(&iced_x86::Register::ESP)
-               || regs_overwritten.contains(&iced_x86::Register::SP)
-           {
-               return true;
-           }
-           false
-       })
-       .cloned()
-       .collect()
+    gadgets
+        .par_iter()
+        .filter(|g| {
+            let regs_overwritten = GadgetAnalysis::new(&g).regs_overwritten();
+            if regs_overwritten.contains(&iced_x86::Register::RSP)
+                || regs_overwritten.contains(&iced_x86::Register::ESP)
+                || regs_overwritten.contains(&iced_x86::Register::SP)
+            {
+                return true;
+            }
+            false
+        })
+        .cloned()
+        .collect()
 }
 ```
 
@@ -88,42 +102,40 @@ pub fn filter_stack_pivot<'a>(gadgets: &[Gadget<'a>]) -> Vec<Gadget<'a>> {
 Run `xgadget --help`:
 
 ```
-xgadget v0.5.0
+xgadget v0.6.0
 
-About:    Fast, parallel, cross-variant ROP/JOP gadget search for x86/x64 binaries.
-Cores:    8 logical, 8 physical
+About:  Fast, parallel, cross-variant ROP/JOP gadget search for x86/x64 binaries.
+Cores:  8 logical, 8 physical
 
 USAGE:
-   xgadget [FLAGS] [OPTIONS] <FILE(S)>...
-
-FLAGS:
-   -t, --att              Display gadgets using AT&T syntax [default: Intel syntax]
-   -c, --check-sec        Run checksec on the 1+ binaries instead of gadget search
-   -d, --dispatcher       Filter to potential JOP 'dispatcher' gadgets [default: all]
-   -e, --extended-fmt     Print in terminal-wide format [default: only used for partial match search]
-   -h, --help             Prints help information
-       --inc-call         Include gadgets containing a call [default: don't include]
-       --inc-imm16        Include '{ret, ret far} imm16' (e.g. add to stack ptr) [default: don't include]
-   -j, --jop              Search for JOP gadgets only [default: ROP, JOP, and SYSCALL]
-   -n, --no-color         Don't color output [default: color output]
-       --param-ctrl       Filter to gadgets that control function parameters [default: all]
-   -m, --partial-match    Include cross-variant partial matches [default: full matches only]
-       --reg-pop          Filter to 'pop {reg} * 1+, {ret or ctrl-ed jmp/call}' gadgets [default: all]
-   -r, --rop              Search for ROP gadgets only [default: ROP, JOP, and SYSCALL]
-   -p, --stack-pivot      Filter to gadgets that write the stack ptr [default: all]
-   -s, --sys              Search for SYSCALL gadgets only [default: ROP, JOP, and SYSCALL]
-   -V, --version          Prints version information
-
-OPTIONS:
-   -a, --arch <ARCH>               For raw (no header) files: specify arch ('x8086', 'x86', or 'x64') [default: x64]
-   -b, --bad-bytes <BYTE(S)>...    Filter to gadgets whose addrs don't contain given bytes [default: all]
-   -l, --max-len <LEN>             Gadgets up to LEN instrs long. If 0: all gadgets, any length [default: 5]
-       --no-deref <OPT_REG>        Filter to gadgets that don't deref any regs or a specific reg [default: all]
-       --reg-ctrl <OPT_REG>        Filter to gadgets that control any reg or a specific reg [default: all]
-   -f, --regex-filter <EXPR>       Filter to gadgets matching a regular expression
+    xgadget [OPTIONS] <FILE(S)>...
 
 ARGS:
-   <FILE(S)>...    1+ binaries to gadget search. If > 1: gadgets common to all
+    <FILE(S)>...    1+ binaries to gadget search. If > 1: gadgets common to all
+
+OPTIONS:
+    -a, --arch <ARCH>               For raw (no header) files: specify arch ('x8086', 'x86', or 'x64') [default: x64]
+    -b, --bad-bytes <BYTE(S)>...    Filter to gadgets whose addrs don't contain given bytes [default: all]
+    -c, --check-sec                 Run checksec on the 1+ binaries instead of gadget search
+    -d, --dispatcher                Filter to potential JOP 'dispatcher' gadgets [default: all]
+    -e, --extended-fmt              Print in terminal-wide format [default: only used for partial match search]
+    -f, --regex-filter <EXPR>       Filter to gadgets matching a regular expression
+    -h, --help                      Print help information
+        --inc-call                  Include gadgets containing a call [default: don't include]
+        --inc-imm16                 Include '{ret, ret far} imm16' (e.g. add to stack ptr) [default: don't include]
+    -j, --jop                       Search for JOP gadgets only [default: ROP, JOP, and SYSCALL]
+    -l, --max-len <LEN>             Gadgets up to LEN instrs long. If 0: all gadgets, any length [default: 5]
+    -m, --partial-match             Include cross-variant partial matches [default: full matches only]
+    -n, --no-color                  Don't color output [default: color output]
+        --no-deref [<OPT_REG>]      Filter to gadgets that don't deref any regs or a specific reg [default: all]
+    -p, --stack-pivot               Filter to gadgets that write the stack ptr [default: all]
+        --param-ctrl                Filter to gadgets that control function parameters [default: all]
+    -r, --rop                       Search for ROP gadgets only [default: ROP, JOP, and SYSCALL]
+        --reg-ctrl [<OPT_REG>]      Filter to gadgets that control any reg or a specific reg [default: all]
+        --reg-pop                   Filter to 'pop {reg} * 1+, {ret or ctrl-ed jmp/call}' gadgets [default: all]
+    -s, --sys                       Search for SYSCALL gadgets only [default: ROP, JOP, and SYSCALL]
+    -t, --att                       Display gadgets using AT&T syntax [default: Intel syntax]
+    -V, --version                   Print version information
 ```
 
 ### CLI Build and Install (Recommended)
@@ -145,8 +157,8 @@ So building a dynamically-linked binary from source with the above `cargo instal
 
 ### Why No Chain Generation?
 
-Tools that attempt to automate ROP chain generation require heavyweight analysis - typically symbolic execution of an intermediate representation.
-While this works well for small binaries and CTF problems, it tends to be slow and difficult to scale for large, real-world programs.
+Tools that attempt to automate ROP/JOP chain generation require heavyweight analysis - typically symbolic execution of an intermediate representation.
+While this works well for small binaries and CTF problems, but tends to be error-prone and difficult to scale for large, real-world programs.
 At present, `xgadget` has a different goal: enable an expert user to manually craft stable exploits by providing fast, accurate gadget discovery.
 
 ### ~~Yeah, but can it do 10 OS kernels under 10 seconds?!~~ Repeatable Benchmark Harness
@@ -165,11 +177,16 @@ On an i7-9700K (8C/8T, 3.6GHz base, 4.9 GHz max) machine with `gcc` version 8.4.
 
 This project started as an optimized solution to Chapter 8, exercise 3 of "Practical Binary Analysis" by Dennis Andreisse \[6\], and builds on the design outlined therein.
 
+### License and Contributing
+
+Licensed under the [MIT license](https://github.com/entropic-security/xgadget/blob/master/LICENSE).
+[Contributions](https://github.com/entropic-security/xgadget/blob/master/CONTRIBUTING.md) are welcome!
+
 ### References
 
 * \[1\] [`goblin` crate by Lzu Tao, m4b, Philip Craig, seu, Will Glynn](https://crates.io/crates/goblin)
 * \[2\] [`rayon` crate by Josh Stone, Niko Matsakis](https://crates.io/crates/rayon)
 * \[3\] [`xgadget/.github/workflows`](https://github.com/entropic-security/xgadget/tree/master/.github/workflows)
 * \[4\] [`criterion` crate by Brook Heisler, Jorge Aparicio](https://crates.io/crates/criterion)
-* \[5\] [`iced-x86` crate by 0xd4d](https://crates.io/crates/iced-x86)
+* \[5\] [`iced-x86` crate by wtfsck](https://crates.io/crates/iced-x86)
 * \[6\] ["Practical Binary Analysis" by Dennis Andreisse](https://practicalbinaryanalysis.com/)

@@ -11,8 +11,10 @@ use super::checksec_fmt::{CustomElfCheckSecResults, CustomPeCheckSecResults};
 
 lazy_static! {
     static ref ABOUT_STR: String = format!(
-        "\nAbout:\t{}\nCores:\t{} logical, {} physical",
+        "\n{}\t{}\n{}\t{} logical, {} physical",
+        "About:".to_string().bright_magenta(),
         clap::crate_description!(),
+        "Cores:".to_string().bright_magenta(),
         num_cpus::get(),
         num_cpus::get_physical(),
     );
