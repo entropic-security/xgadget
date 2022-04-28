@@ -2,9 +2,9 @@ use std::time::Instant;
 
 use clap::Parser;
 use colored::Colorize;
+use num_format::{Locale, ToFormattedString};
 use rayon::prelude::*;
 use regex::Regex;
-use num_format::{Locale, ToFormattedString};
 
 mod reg_str;
 use reg_str::str_to_reg;

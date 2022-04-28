@@ -194,7 +194,10 @@ impl CLIOpts {
                 Object::Elf(elf) => {
                     println!(
                         "{}",
-                        CustomElfCheckSecResults(ElfCheckSecResults::parse(&elf))
+                        CustomElfCheckSecResults {
+                            results: ElfCheckSecResults::parse(&elf),
+                            no_color: self.no_color,
+                        }
                     );
                 }
                 Object::PE(pe) => {
@@ -202,7 +205,10 @@ impl CLIOpts {
                         unsafe { memmap::Mmap::map(&fs::File::open(path).unwrap()).unwrap() };
                     println!(
                         "{}",
-                        CustomPeCheckSecResults(PECheckSecResults::parse(&pe, &mm_buf))
+                        CustomPeCheckSecResults {
+                            results: PECheckSecResults::parse(&pe, &mm_buf),
+                            no_color: self.no_color,
+                        }
                     );
                 }
                 _ => panic!("Only ELF and PE checksec currently supported!"),
