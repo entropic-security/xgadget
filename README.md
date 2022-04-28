@@ -1,7 +1,8 @@
 # xgadget
 
-![crates.io](https://img.shields.io/crates/v/xgadget.svg)
-![GitHub Actions](https://github.com/entropic-security/xgadget/workflows/test/badge.svg)
+[![crates.io](https://img.shields.io/crates/v/xgadget.svg)](https://crates.io/crates/xgadget)
+[![GitHub Actions](https://github.com/entropic-security/xgadget/workflows/test/badge.svg)](https://github.com/entropic-security/xgadget/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://github.com/entropic-security/xgadget/blob/master/LICENSE)
 
 Fast, parallel, cross-variant ROP/JOP gadget search for x86 (32-bit) and x64 (64-bit) binaries.
 Uses the [iced-x86 disassembler library](https://github.com/icedland/iced).
@@ -24,7 +25,7 @@ It's a fast, multi-threaded alternative to awesome tools like [`ROPGadget`](http
 Though not yet as mature as some of its contemporaries, it contains unique and experimental functionality.
 To the best of our knowledge, `xgadget` is the first gadget search tool to have these features:
 
-* Finds registers that can be controlled (overwritten) - not just those that match a user-provided regex
+* Finds gadgets that control (overwrite) specific registers - not just operands of a `pop` instruction or matches for a given regex
     * Use the `--reg-ctrl <optional_register_name>` flag
 * JOP search uses instruction semantics - not hardcoded regex for individual encodings
     * Optionally filter to JOP "dispatcher" gadgets with flag `--dispatcher`
@@ -158,7 +159,7 @@ So building a dynamically-linked binary from source with the above `cargo instal
 ### Why No Chain Generation?
 
 Tools that attempt to automate ROP/JOP chain generation require heavyweight analysis - typically symbolic execution of an intermediate representation.
-While this works well for small binaries and CTF problems, but tends to be error-prone and difficult to scale for large, real-world programs.
+This works well for small binaries and CTF problems, but tends to be error-prone and difficult to scale for large, real-world programs.
 At present, `xgadget` has a different goal: enable an expert user to manually craft stable exploits by providing fast, accurate gadget discovery.
 
 ### ~~Yeah, but can it do 10 OS kernels under 10 seconds?!~~ Repeatable Benchmark Harness

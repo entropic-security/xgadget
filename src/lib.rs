@@ -19,7 +19,7 @@
 //! Though not yet as mature as some of its contemporaries, it contains unique and experimental functionality.
 //! To the best of our knowledge, `xgadget` is the first gadget search tool to have these features:
 //!
-//! * Finds registers that can be controlled (overwritten) - not just those that match a user-provided regex
+//! * Finds gadgets that control (overwrite) specific registers - not just operands of a `pop` instruction or matches for a given regex
 //!     * Use the `--reg-ctrl <optional_register_name>` flag
 //! * JOP search uses instruction semantics - not hardcoded regex for individual encodings
 //!     * Optionally filter to JOP "dispatcher" gadgets with flag `--dispatcher`
@@ -153,7 +153,7 @@
 //! ### Why No Chain Generation?
 //!
 //! Tools that attempt to automate ROP/JOP chain generation require heavyweight analysis - typically symbolic execution of an intermediate representation.
-//! While this works well for small binaries and CTF problems, but tends to be error-prone and difficult to scale for large, real-world programs.
+//! This works well for small binaries and CTF problems, but tends to be error-prone and difficult to scale for large, real-world programs.
 //! At present, `xgadget` has a different goal: enable an expert user to manually craft stable exploits by providing fast, accurate gadget discovery.
 //!
 //! ### ~~Yeah, but can it do 10 OS kernels under 10 seconds?!~~ Repeatable Benchmark Harness
