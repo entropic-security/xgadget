@@ -4,6 +4,7 @@ use clap::Parser;
 use colored::Colorize;
 use rayon::prelude::*;
 use regex::Regex;
+use num_format::{Locale, ToFormattedString};
 
 mod reg_str;
 use reg_str::str_to_reg;
@@ -210,8 +211,8 @@ fn main() {
         },
         {
             let found_cnt = match filter_regex {
-                Some(_) => filter_matches.to_string(),
-                None => printable_gadgets.len().to_string(),
+                Some(_) => filter_matches.to_formatted_string(&Locale::en),
+                None => printable_gadgets.len().to_formatted_string(&Locale::en),
             };
 
             cli.fmt_summary_item(found_cnt, false)
