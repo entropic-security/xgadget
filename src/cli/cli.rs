@@ -1,13 +1,14 @@
 use std::fmt;
 use std::fs;
 
-use checksec::elf::ElfCheckSecResults;
-use checksec::pe::PECheckSecResults;
+use checksec::{elf::ElfCheckSecResults, macho::MachOCheckSecResults, pe::PECheckSecResults};
 use clap::Parser;
 use colored::Colorize;
 use goblin::Object;
 
-use super::checksec_fmt::{CustomElfCheckSecResults, CustomPeCheckSecResults};
+use super::checksec_fmt::{
+    CustomElfCheckSecResults, CustomMachOCheckSecResults, CustomPeCheckSecResults,
+};
 
 lazy_static! {
     static ref ABOUT_STR: String = format!(
@@ -211,7 +212,19 @@ impl CLIOpts {
                         }
                     );
                 }
-                _ => panic!("Only ELF and PE checksec currently supported!"),
+                Object::Mach(mach) => match mach {
+                    goblin::mach::Mach::Binary(macho) => {
+                        println!(
+                            "{}",
+                            CustomMachOCheckSecResults {
+                                results: MachOCheckSecResults::parse(&macho),
+                                no_color: self.no_color,
+                            }
+                        );
+                    }
+                    _ => panic!("Checksec supports only single-arch Mach-O!"),
+                },
+                _ => panic!("Only ELF, PE, and Mach-O checksec currently supported!"),
             }
         }
     }
@@ -221,7 +234,7 @@ impl fmt::Display for CLIOpts {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} [ search: {}, x_match: {}, max_len: {}, syntax: {}, regex_filter: {} ]",
+            "{} [ search: {} | x_match: {} | max_len: {} | syntax: {} | regex_filter: {} ]",
             { self.fmt_summary_item("CONFIG".to_string(), true) },
             {
                 let mut search_mode = String::from("ROP-JOP-SYS (default)");

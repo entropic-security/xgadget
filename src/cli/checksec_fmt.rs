@@ -1,8 +1,8 @@
 use std::fmt;
 
-use checksec::colorize_bool;
-use checksec::elf::ElfCheckSecResults;
-use checksec::pe::PECheckSecResults;
+use checksec::{
+    colorize_bool, elf::ElfCheckSecResults, macho::MachOCheckSecResults, pe::PECheckSecResults,
+};
 use colored::Colorize;
 
 // This file provides a multi-line, optional-color alternative to checksec's single line print.
@@ -26,11 +26,11 @@ pub struct CustomElfCheckSecResults {
 }
 
 // Custom ELF string format
-// https://github.com/etke/checksec.rs/blob/3ef5573ac400c5d4aa5cd63cfcaab7db53f08b02/src/elf.rs#L133
+// https://github.com/etke/checksec.rs/blob/0ad2d5fbcd4dd0c3c37e7773301ccb017c2d33c9/src/elf.rs#L149
 impl fmt::Display for CustomElfCheckSecResults {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let results = format!(
-            "\tCanary: {}\n\tCFI: {}\n\tSafeStack: {}\n\tFortify: {}\n\tFortified: {}\n\t\
+            "\tCanary: {}\n\tCFI: {}\n\tSafeStack: {}\n\tFortify: {}\n\tFortified: {:2}\n\t\
             NX: {}\n\tPIE: {}\n\tRelro: {}\n\tRPATH: {}\n\tRUNPATH: {}",
             colorize_bool!(self.results.canary),
             colorize_bool!(self.results.clang_cfi),
@@ -58,7 +58,7 @@ pub struct CustomPeCheckSecResults {
 }
 
 // Custom PE string format
-// https://github.com/etke/checksec.rs/blob/3ef5573ac400c5d4aa5cd63cfcaab7db53f08b02/src/pe.rs#L339
+// https://github.com/etke/checksec.rs/blob/0ad2d5fbcd4dd0c3c37e7773301ccb017c2d33c9/src/pe.rs#L355
 impl fmt::Display for CustomPeCheckSecResults {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let results = format!(
@@ -78,6 +78,46 @@ impl fmt::Display for CustomPeCheckSecResults {
             colorize_bool!(self.results.rfg),
             colorize_bool!(self.results.safeseh),
             colorize_bool!(self.results.seh)
+        );
+
+        match self.no_color {
+            true => write!(f, "{}", remove_color(&results)),
+            false => write!(f, "{}", results),
+        }
+    }
+}
+
+// Mach-O results new type
+pub struct CustomMachOCheckSecResults {
+    pub results: MachOCheckSecResults,
+    pub no_color: bool,
+}
+
+// Custom Mach-O string format
+// https://github.com/etke/checksec.rs/blob/0ad2d5fbcd4dd0c3c37e7773301ccb017c2d33c9/src/macho.rs#L82
+impl fmt::Display for CustomMachOCheckSecResults {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let results = format!(
+            // TODO: enable once Mach-O fortify support lands on crates.io
+            /*
+            "\tARC: {}\n\tCanary: {}\n\tCode Signature: {}\n\tEncryption: {}\n\t\
+            Fortify: {}\n\tFortified {:2}\n\tNX Heap: {}\n\t\
+            NX Stack: {}\n\tPIE: {}\n\tRestrict: {}\n\tRPath: {}",
+            */
+            "\tARC: {}\n\tCanary: {}\n\tCode Signature: {}\n\tEncryption: {}\n\t\
+            NX Heap: {}\n\t\
+            NX Stack: {}\n\tPIE: {}\n\tRestrict: {}\n\tRPath: {}",
+            colorize_bool!(self.results.arc),
+            colorize_bool!(self.results.canary),
+            colorize_bool!(self.results.code_signature),
+            colorize_bool!(self.results.encrypted),
+            //colorize_bool!(self.results.fortify),
+            //self.results.fortified,
+            colorize_bool!(self.results.nx_heap),
+            colorize_bool!(self.results.nx_stack),
+            colorize_bool!(self.results.pie),
+            colorize_bool!(self.results.restrict),
+            colorize_bool!(self.results.rpath)
         );
 
         match self.no_color {

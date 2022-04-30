@@ -200,7 +200,7 @@ fn main() {
 
     println!("\n{}", cli);
     println!(
-        "{} [ {}: {}, search_time: {}, print_time: {} ]",
+        "{} [ {}: {} | search_time: {} | print_time: {} ]",
         { cli.fmt_summary_item("RESULT".to_string(), true) },
         {
             if bins.len() > 1 {
