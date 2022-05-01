@@ -122,7 +122,7 @@ pub(crate) struct CLIOpts {
     ])]
     pub(crate) check_sec: bool,
 
-    /// Compute Fast Exploit Similarity Score (FESS) for 2+ binaries instead of gadget search
+    /// Compute Fast Exploit Similarity Score (FESS) table for 2+ binaries
     #[clap(long, conflicts_with_all = &[
         "arch", "att", "extended-fmt", "max-len",
         "rop", "jop", "sys", "inc-imm16", "partial-match",
