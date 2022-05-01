@@ -202,7 +202,13 @@ impl CLIOpts {
 
         println!(
             "\n{}",
-            xgadget::fess::gen_fess_tbl(bins, self.max_len, self.get_search_config()).unwrap()
+            xgadget::fess::gen_fess_tbl(
+                bins,
+                self.max_len,
+                self.get_search_config(),
+                !self.no_color
+            )
+            .unwrap()
         );
     }
 
