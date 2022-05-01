@@ -118,9 +118,17 @@ pub(crate) struct CLIOpts {
     #[clap(short, long, conflicts_with_all = &[
         "arch", "att", "extended-fmt", "max-len",
         "rop", "jop", "sys", "inc-imm16", "partial-match",
-        "stack-pivot", "dispatcher", "reg-pop", "usr-regex"
+        "stack-pivot", "dispatcher", "reg-pop", "usr-regex", "fess"
     ])]
     pub(crate) check_sec: bool,
+
+    /// Compute Fast Exploit Similarity Score (FESS) for 2+ binaries instead of gadget search
+    #[clap(long, conflicts_with_all = &[
+        "arch", "att", "extended-fmt", "max-len",
+        "rop", "jop", "sys", "inc-imm16", "partial-match",
+        "stack-pivot", "dispatcher", "reg-pop", "usr-regex", "check-sec"
+    ])]
+    pub(crate) fess: bool,
 }
 
 impl CLIOpts {
@@ -184,6 +192,18 @@ impl CLIOpts {
             true => hdr(item),
             false => param(item),
         }
+    }
+
+    // Helper for computing FESS on requested binaries
+    pub(crate) fn run_fess(&self, bins: &[xgadget::binary::Binary]) {
+        if bins.len() < 2 {
+            panic!("--fess flag requires 2+ binaries!");
+        }
+
+        println!(
+            "\n{}",
+            xgadget::fess::gen_fess_tbl(bins, self.max_len, self.get_search_config()).unwrap()
+        );
     }
 
     // Helper for running checksec on requested binaries

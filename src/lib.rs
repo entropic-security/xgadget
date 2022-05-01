@@ -210,4 +210,8 @@ pub use crate::semantics::*;
 
 // Crate-internal ------------------------------------------------------------------------------------------------------
 
+#[cfg(not(feature = "cli-bin"))]
 mod fess;
+
+#[cfg(feature = "cli-bin")]
+pub mod fess;
