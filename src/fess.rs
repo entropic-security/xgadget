@@ -37,7 +37,7 @@ impl<'a> FESSData<'a> {
         gadget_set: &HashSet<gadget::Gadget>,
     ) -> Self {
         let mut fess_data = FESSData {
-            bin_name: &bin.name(),
+            bin_name: bin.name(),
             rop_full_cnt: 0,
             rop_part_cnt: 0,
             jop_full_cnt: 0,
@@ -175,7 +175,7 @@ pub fn gen_fess_tbl(
     // Collect data
     let mut fess_tbl_data = Vec::new();
     let fess_config = config | search::SearchConfig::PART;
-    let _ = search::find_gadgets_multi_bin(&bins, max_len, fess_config, Some(&mut fess_tbl_data))?;
+    let _ = search::find_gadgets_multi_bin(bins, max_len, fess_config, Some(&mut fess_tbl_data))?;
 
     // Build upper left header
     let mut tbl_hdr = vec!["Gadget Type".cell().bold(true)];
