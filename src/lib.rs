@@ -184,8 +184,8 @@
 //!
 //! ### Fast Exploit Similarity Score (FESS)
 //!
-//! The `--fess` flag uses cross-variant gadget matching as metric of binary similarity.
-//! It's a experiment in anti-diversification for exploitation.
+//! The `--fess` flag uses cross-variant gadget matching as a metric of binary similarity.
+//! It's an experiment in anti-diversification for exploitation.
 //! To view similarity scores for kernel versions `5.0.1`, `5.0.5`, and `5.0.10` within the container:
 //!
 //! ```bash
@@ -212,7 +212,7 @@
 //! +-------------+----------------------+----------------------+-----------------------+
 //! ```
 //!
-//! In the output table, we see that up to 45.16% of gadgets of individual ROP gadgets are portable across all three versions (counting partial matches).
+//! In the output table, we see that up to 45.16% of individual ROP gadgets are portable across all three versions (counting partial matches).
 //!
 //! ### Acknowledgements
 //!
