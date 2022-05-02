@@ -1,13 +1,14 @@
 use std::fmt;
 use std::fs;
 
-use checksec::elf::ElfCheckSecResults;
-use checksec::pe::PECheckSecResults;
+use checksec::{elf::ElfCheckSecResults, macho::MachOCheckSecResults, pe::PECheckSecResults};
 use clap::Parser;
 use colored::Colorize;
 use goblin::Object;
 
-use super::checksec_fmt::{CustomElfCheckSecResults, CustomPeCheckSecResults};
+use super::checksec_fmt::{
+    CustomElfCheckSecResults, CustomMachOCheckSecResults, CustomPeCheckSecResults,
+};
 
 lazy_static! {
     static ref ABOUT_STR: String = format!(
@@ -117,9 +118,17 @@ pub(crate) struct CLIOpts {
     #[clap(short, long, conflicts_with_all = &[
         "arch", "att", "extended-fmt", "max-len",
         "rop", "jop", "sys", "inc-imm16", "partial-match",
-        "stack-pivot", "dispatcher", "reg-pop", "usr-regex"
+        "stack-pivot", "dispatcher", "reg-pop", "usr-regex", "fess"
     ])]
     pub(crate) check_sec: bool,
+
+    /// Compute Fast Exploit Similarity Score (FESS) table for 2+ binaries
+    #[clap(long, conflicts_with_all = &[
+        "arch", "att", "extended-fmt", "max-len",
+        "rop", "jop", "sys", "inc-imm16", "partial-match",
+        "stack-pivot", "dispatcher", "reg-pop", "usr-regex", "check-sec"
+    ])]
+    pub(crate) fess: bool,
 }
 
 impl CLIOpts {
@@ -185,6 +194,24 @@ impl CLIOpts {
         }
     }
 
+    // Helper for computing FESS on requested binaries
+    pub(crate) fn run_fess(&self, bins: &[xgadget::binary::Binary]) {
+        if bins.len() < 2 {
+            panic!("--fess flag requires 2+ binaries!");
+        }
+
+        println!(
+            "\n{}",
+            xgadget::fess::gen_fess_tbl(
+                bins,
+                self.max_len,
+                self.get_search_config(),
+                !self.no_color
+            )
+            .unwrap()
+        );
+    }
+
     // Helper for running checksec on requested binaries
     pub(crate) fn run_checksec(&self) {
         for path in &self.bin_paths {
@@ -194,7 +221,10 @@ impl CLIOpts {
                 Object::Elf(elf) => {
                     println!(
                         "{}",
-                        CustomElfCheckSecResults(ElfCheckSecResults::parse(&elf))
+                        CustomElfCheckSecResults {
+                            results: ElfCheckSecResults::parse(&elf),
+                            no_color: self.no_color,
+                        }
                     );
                 }
                 Object::PE(pe) => {
@@ -202,10 +232,25 @@ impl CLIOpts {
                         unsafe { memmap::Mmap::map(&fs::File::open(path).unwrap()).unwrap() };
                     println!(
                         "{}",
-                        CustomPeCheckSecResults(PECheckSecResults::parse(&pe, &mm_buf))
+                        CustomPeCheckSecResults {
+                            results: PECheckSecResults::parse(&pe, &mm_buf),
+                            no_color: self.no_color,
+                        }
                     );
                 }
-                _ => panic!("Only ELF and PE checksec currently supported!"),
+                Object::Mach(mach) => match mach {
+                    goblin::mach::Mach::Binary(macho) => {
+                        println!(
+                            "{}",
+                            CustomMachOCheckSecResults {
+                                results: MachOCheckSecResults::parse(&macho),
+                                no_color: self.no_color,
+                            }
+                        );
+                    }
+                    _ => panic!("Checksec supports only single-arch Mach-O!"),
+                },
+                _ => panic!("Only ELF, PE, and Mach-O checksec currently supported!"),
             }
         }
     }
@@ -215,7 +260,7 @@ impl fmt::Display for CLIOpts {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} [ search: {}, x_match: {}, max_len: {}, syntax: {}, regex_filter: {} ]",
+            "{} [ search: {} | x_match: {} | max_len: {} | syntax: {} | regex_filter: {} ]",
             { self.fmt_summary_item("CONFIG".to_string(), true) },
             {
                 let mut search_mode = String::from("ROP-JOP-SYS (default)");

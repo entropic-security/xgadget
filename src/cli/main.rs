@@ -2,6 +2,7 @@ use std::time::Instant;
 
 use clap::Parser;
 use colored::Colorize;
+use num_format::{Locale, ToFormattedString};
 use rayon::prelude::*;
 use regex::Regex;
 
@@ -60,6 +61,13 @@ fn main() {
             },
             bin
         );
+    }
+
+    // FESS requested --------------------------------------------------------------------------------------------------
+
+    if cli.fess {
+        cli.run_fess(&bins);
+        std::process::exit(0);
     }
 
     // Search ----------------------------------------------------------------------------------------------------------
@@ -199,7 +207,7 @@ fn main() {
 
     println!("\n{}", cli);
     println!(
-        "{} [ {}: {}, search_time: {}, print_time: {} ]",
+        "{} [ {}: {} | search_time: {} | print_time: {} ]",
         { cli.fmt_summary_item("RESULT".to_string(), true) },
         {
             if bins.len() > 1 {
@@ -210,8 +218,8 @@ fn main() {
         },
         {
             let found_cnt = match filter_regex {
-                Some(_) => filter_matches.to_string(),
-                None => printable_gadgets.len().to_string(),
+                Some(_) => filter_matches.to_formatted_string(&Locale::en),
+                None => printable_gadgets.len().to_formatted_string(&Locale::en),
             };
 
             cli.fmt_summary_item(found_cnt, false)

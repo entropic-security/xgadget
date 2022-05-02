@@ -19,7 +19,7 @@
 //! Though not yet as mature as some of its contemporaries, it contains unique and experimental functionality.
 //! To the best of our knowledge, `xgadget` is the first gadget search tool to have these features:
 //!
-//! * Finds registers that can be controlled (overwritten) - not just those that match a user-provided regex
+//! * Finds gadgets that control (overwrite) specific registers - not just operands of a `pop` instruction or matches for a given regex
 //!     * Use the `--reg-ctrl <optional_register_name>` flag
 //! * JOP search uses instruction semantics - not hardcoded regex for individual encodings
 //!     * Optionally filter to JOP "dispatcher" gadgets with flag `--dispatcher`
@@ -97,7 +97,7 @@
 //! Run `xgadget --help`:
 //!
 //! ```ignore
-//! xgadget v0.6.0
+//! xgadget v0.7.0
 //!
 //! About:  Fast, parallel, cross-variant ROP/JOP gadget search for x86/x64 binaries.
 //! Cores:  8 logical, 8 physical
@@ -115,6 +115,7 @@
 //!     -d, --dispatcher                Filter to potential JOP 'dispatcher' gadgets [default: all]
 //!     -e, --extended-fmt              Print in terminal-wide format [default: only used for partial match search]
 //!     -f, --regex-filter <EXPR>       Filter to gadgets matching a regular expression
+//!         --fess                      Compute Fast Exploit Similarity Score (FESS) table for 2+ binaries
 //!     -h, --help                      Print help information
 //!         --inc-call                  Include gadgets containing a call [default: don't include]
 //!         --inc-imm16                 Include '{ret, ret far} imm16' (e.g. add to stack ptr) [default: don't include]
@@ -131,6 +132,7 @@
 //!     -s, --sys                       Search for SYSCALL gadgets only [default: ROP, JOP, and SYSCALL]
 //!     -t, --att                       Display gadgets using AT&T syntax [default: Intel syntax]
 //!     -V, --version                   Print version information
+//!
 //! ```
 //!
 //! ### CLI Build and Install (Recommended)
@@ -153,20 +155,64 @@
 //! ### Why No Chain Generation?
 //!
 //! Tools that attempt to automate ROP/JOP chain generation require heavyweight analysis - typically symbolic execution of an intermediate representation.
-//! While this works well for small binaries and CTF problems, but tends to be error-prone and difficult to scale for large, real-world programs.
+//! This works well for small binaries and CTF problems, but tends to be error-prone and difficult to scale for large, real-world programs.
 //! At present, `xgadget` has a different goal: enable an expert user to manually craft stable exploits by providing fast, accurate gadget discovery.
 //!
 //! ### ~~Yeah, but can it do 10 OS kernels under 10 seconds?!~~ Repeatable Benchmark Harness
 //!
+//! To build a Docker container and connect to it:
+//!
 //! ```bash
-//! bash ./benches/bench_setup_ubuntu.sh     # Ubuntu-specific, download/build 10 kernel versions
-//! cargo bench                              # Grab a coffee, this'll take a while...
+//! user@host$ git clone git@github.com:entropic-security/xgadget.git
+//! user@host$ cd xgadget
+//! user@host$ docker build -t xgadget_bench_container .
+//! user@host$ docker run -it xgadget_bench_container
+//! root@container:/xgadget#
 //! ```
 //!
-//! * `bench_setup_ubuntu.sh` downloads and builds 10 consecutive Linux kernels (versions `5.0.1` to `5.0.10` - with `x86_64_defconfig`).
-//! * `cargo bench`, among other benchmarks, searches all 10 kernels for common gadgets.
+//! The final build step runs `./benches/bench_setup_ubuntu.sh`.
+//! This script downloads and builds 10 consecutive Linux kernels (versions `5.0.1` to `5.0.10` - with `x86_64_defconfig`).
+//! Grab a coffee, it can take a while.
+//!
+//! Once it's done, run `cargo bench` to search all 10 kernels for common gadgets (among other benchmarks):
+//!
+//! ```bash
+//! root@container:/xgadget# cargo bench
+//! ```
 //!
 //! On an i7-9700K (8C/8T, 3.6GHz base, 4.9 GHz max) machine with `gcc` version 8.4.0: the average runtime, to process *all ten 54MB kernels simultaneously* with a max gadget length of 5 instructions and full-match search for all gadget types (ROP, JOP, and syscall gadgets), is *only 6.3 seconds*! Including partial matches as well takes *just 7.9 seconds*.
+//!
+//! ### Fast Exploit Similarity Score (FESS)
+//!
+//! The `--fess` flag uses cross-variant gadget matching as metric of binary similarity.
+//! It's a experiment in anti-diversification for exploitation.
+//! To view similarity scores for kernel versions `5.0.1`, `5.0.5`, and `5.0.10` within the container:
+//!
+//! ```bash
+//! root@container# cd ./benches/kernels/
+//! root@container# xgadget vmlinux-5.0.1 vmlinux-5.0.5 vmlinux-5.0.10 --fess
+//! TARGET 0 - 'vmlinux-5.0.1': ELF-X64, 0x00000001000000 entry, 21065728/2 executable bytes/segments
+//! TARGET 1 - 'vmlinux-5.0.5': ELF-X64, 0x00000001000000 entry, 21069824/2 executable bytes/segments
+//! TARGET 2 - 'vmlinux-5.0.10': ELF-X64, 0x00000001000000 entry, 21069824/2 executable bytes/segments
+//!
+//! +-------------+----------------------+----------------------+-----------------------+
+//! | Gadget Type | vmlinux-5.0.1 (base) | vmlinux-5.0.5 (diff) | vmlinux-5.0.10 (diff) |
+//! +-------------+----------------------+----------------------+-----------------------+
+//! | ROP (full)  |              175,740 |       11,124 (6.33%) |           699 (0.40%) |
+//! +-------------+----------------------+----------------------+-----------------------+
+//! | ROP (part)  |                    - |      85,717 (48.77%) |       79,367 (45.16%) |
+//! +-------------+----------------------+----------------------+-----------------------+
+//! | JOP (full)  |               97,239 |        1,093 (1.12%) |           277 (0.28%) |
+//! +-------------+----------------------+----------------------+-----------------------+
+//! | JOP (part)  |                    - |      16,792 (17.27%) |       12,635 (12.99%) |
+//! +-------------+----------------------+----------------------+-----------------------+
+//! | SYS (full)  |                   81 |          20 (24.69%) |           20 (24.69%) |
+//! +-------------+----------------------+----------------------+-----------------------+
+//! | SYS (part)  |                    - |          59 (72.84%) |           58 (71.60%) |
+//! +-------------+----------------------+----------------------+-----------------------+
+//! ```
+//!
+//! In the output table, we see that up to 45.16% of gadgets of individual ROP gadgets are portable across all three versions (counting partial matches).
 //!
 //! ### Acknowledgements
 //!
@@ -207,3 +253,11 @@ pub use crate::filters::*;
 
 pub mod semantics;
 pub use crate::semantics::*;
+
+// Crate-internal ------------------------------------------------------------------------------------------------------
+
+#[cfg(not(feature = "cli-bin"))]
+mod fess;
+
+#[cfg(feature = "cli-bin")]
+pub mod fess;

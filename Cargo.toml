@@ -1,6 +1,6 @@
 [package]
 name = "xgadget"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["Tiemoko Ballo"]
 edition = "2018"
 license = "MIT"
@@ -33,6 +33,9 @@ regex = { version = "1", optional = true }
 term_size = { version = "0.3", optional = true }
 checksec = { version = "0.0.8", features = ["elf", "pe", "color"], optional = true }
 memmap = { version = "0.7", optional = true }
+num-format = { version = "0.4", optional = true }
+strip-ansi-escapes = { version = "0.1", optional = true }
+cli-table = { version = "0.4", optional = true }
 
 [dev-dependencies]
 pprof = { version = "0.8", features = ["flamegraph"] }
@@ -45,7 +48,8 @@ tempfile = "3"
 regex = "1"
 
 [features]
-cli-bin = ["lazy_static", "clap", "num_cpus", "regex", "term_size", "checksec", "memmap"]
+cli-bin = ["lazy_static", "clap", "num_cpus", "regex", "term_size", "checksec",
+    "memmap", "num-format", "strip-ansi-escapes", "cli-table"]
 
 [lib]
 name = "xgadget"

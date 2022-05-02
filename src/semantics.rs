@@ -1,3 +1,5 @@
+use crate::binary;
+
 // Constructs for attacker control -------------------------------------------------------------------------------------
 
 /// Check if instruction is a ROP/JOP/SYS gadget tail
@@ -12,10 +14,19 @@ pub fn is_jop_gadget_tail(instr: &iced_x86::Instruction) -> bool {
     is_reg_indirect_call(instr) || is_reg_indirect_jmp(instr)
 }
 
-/// Check if instruction is a SYS gadget tail
+/// Check if instruction is a SYS gadget tail, in general
 #[inline(always)]
 pub fn is_sys_gadget_tail(instr: &iced_x86::Instruction) -> bool {
     is_syscall(instr) || is_legacy_linux_syscall(instr)
+}
+
+/// Check if instruction is a SYS gadget tail, for a specific binary
+pub fn is_sys_gadget_tail_bin_sensitive(
+    instr: &iced_x86::Instruction,
+    binary: &binary::Binary,
+) -> bool {
+    is_syscall(instr)
+        || (is_legacy_linux_syscall(instr) && (binary.format() == binary::Format::ELF))
 }
 
 // Categorization ------------------------------------------------------------------------------------------------------
