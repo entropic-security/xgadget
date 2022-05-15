@@ -1,7 +1,7 @@
 use std::fmt;
 use std::fs;
 
-use checksec::{elf::ElfCheckSecResults, macho::MachOCheckSecResults, pe::PECheckSecResults};
+use checksec::{elf, macho, pe};
 use clap::Parser;
 use colored::Colorize;
 use goblin::Object;
@@ -222,7 +222,7 @@ impl CLIOpts {
                     println!(
                         "{}",
                         CustomElfCheckSecResults {
-                            results: ElfCheckSecResults::parse(&elf),
+                            results: elf::CheckSecResults::parse(&elf),
                             no_color: self.no_color,
                         }
                     );
@@ -233,7 +233,7 @@ impl CLIOpts {
                     println!(
                         "{}",
                         CustomPeCheckSecResults {
-                            results: PECheckSecResults::parse(&pe, &mm_buf),
+                            results: pe::CheckSecResults::parse(&pe, &mm_buf),
                             no_color: self.no_color,
                         }
                     );
@@ -243,7 +243,7 @@ impl CLIOpts {
                         println!(
                             "{}",
                             CustomMachOCheckSecResults {
-                                results: MachOCheckSecResults::parse(&macho),
+                                results: macho::CheckSecResults::parse(&macho),
                                 no_color: self.no_color,
                             }
                         );
