@@ -14,6 +14,8 @@ use cli::CLIOpts;
 
 mod checksec_fmt;
 
+mod imports;
+
 #[macro_use]
 extern crate lazy_static;
 
@@ -27,6 +29,13 @@ fn main() {
 
     if cli.check_sec {
         cli.run_checksec();
+        std::process::exit(0);
+    }
+
+    // Imports requested -----------------------------------------------------------------------------------------------
+
+    if cli.imports {
+        cli.run_imports();
         std::process::exit(0);
     }
 

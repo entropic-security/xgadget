@@ -10,6 +10,8 @@ use super::checksec_fmt::{
     CustomElfCheckSecResults, CustomMachOCheckSecResults, CustomPeCheckSecResults,
 };
 
+use super::imports;
+
 lazy_static! {
     static ref ABOUT_STR: String = format!(
         "\n{}\t{}\n{}\t{} logical, {} physical",
@@ -118,7 +120,7 @@ pub(crate) struct CLIOpts {
     #[clap(short, long, conflicts_with_all = &[
         "arch", "att", "extended-fmt", "max-len",
         "rop", "jop", "sys", "inc-imm16", "partial-match",
-        "stack-pivot", "dispatcher", "reg-pop", "usr-regex", "fess"
+        "stack-pivot", "dispatcher", "reg-pop", "usr-regex", "fess", "imports"
     ])]
     pub(crate) check_sec: bool,
 
@@ -126,10 +128,19 @@ pub(crate) struct CLIOpts {
     #[clap(long, conflicts_with_all = &[
         "arch", "att", "extended-fmt", "max-len",
         "rop", "jop", "sys", "inc-imm16", "partial-match",
-        "stack-pivot", "dispatcher", "reg-pop", "usr-regex", "check-sec"
+        "stack-pivot", "dispatcher", "reg-pop", "usr-regex", "check-sec", "imports"
     ])]
     pub(crate) fess: bool,
+
+    /// List the imported symbols in the binary
+    #[clap(long, conflicts_with_all = &[
+        "arch", "att", "extended-fmt", "max-len",
+        "rop", "jop", "sys", "inc-imm16", "partial-match",
+        "stack-pivot", "dispatcher", "reg-pop", "usr-regex", "check-sec", "fess"
+    ])]
+    pub(crate) imports: bool,
 }
+
 
 impl CLIOpts {
     // User flags -> Search config bitfield
@@ -251,6 +262,18 @@ impl CLIOpts {
                     _ => panic!("Checksec supports only single-arch Mach-O!"),
                 },
                 _ => panic!("Only ELF, PE, and Mach-O checksec currently supported!"),
+            }
+        }
+    }
+
+    // Helper for printing imports from requested binaries
+    pub(crate) fn run_imports(&self) {
+        for path in &self.bin_paths {
+            println!("\n{}:", self.fmt_summary_item(path.to_string(), false));
+            let buf = fs::read(path).unwrap();
+            match Object::parse(&buf).unwrap() {
+                Object::Elf(elf) => imports::elf_imports(&elf),
+                _ => panic!("Only ELF imports currently supported!"),
             }
         }
     }
