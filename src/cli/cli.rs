@@ -1,4 +1,5 @@
 use std::fmt;
+use std::fmt::Debug;
 use std::fs;
 
 use checksec::{elf, macho, pe};
@@ -141,7 +142,6 @@ pub(crate) struct CLIOpts {
     pub(crate) imports: bool,
 }
 
-
 impl CLIOpts {
     // User flags -> Search config bitfield
     pub(crate) fn get_search_config(&self) -> xgadget::SearchConfig {
@@ -267,12 +267,24 @@ impl CLIOpts {
     }
 
     // Helper for printing imports from requested binaries
-    pub(crate) fn run_imports(&self) {
-        for path in &self.bin_paths {
-            println!("\n{}:", self.fmt_summary_item(path.to_string(), false));
+    pub(crate) fn run_imports(&self, bins: &[xgadget::binary::Binary]) {
+        for (idx, path) in self.bin_paths.iter().enumerate() {
+            println!(
+                "\nTARGET {} - {} \n",
+                {
+                    match self.no_color {
+                        true => format!("{}", idx).normal(),
+                        false => format!("{}", idx).red(),
+                    }
+                },
+                bins[idx]
+            );
+
+            // Binaries get reparsed here. This could be eliminated by adding symbol data
+            // to the Binary struct
             let buf = fs::read(path).unwrap();
             match Object::parse(&buf).unwrap() {
-                Object::Elf(elf) => imports::elf_imports(&elf),
+                Object::Elf(elf) => imports::dump_elf_imports(&elf, self.no_color),
                 _ => panic!("Only ELF imports currently supported!"),
             }
         }
