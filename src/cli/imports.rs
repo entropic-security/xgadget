@@ -2,17 +2,17 @@ use colored::Colorize;
 use std::fmt;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-struct Symbol {
+struct Import {
     name: String,
     source: String,
     attrs: Vec<String>,
     no_color: bool,
 }
 
-impl Symbol {
+impl Import {
     // Construction helper
-    fn priv_new() -> Symbol {
-        Symbol {
+    fn priv_new() -> Import {
+        Import {
             name: String::from("None"),
             source: String::from("None"),
             attrs: vec![],
@@ -25,7 +25,7 @@ impl Symbol {
         sym_idx: &usize,
         sym: &goblin::elf::sym::Sym,
         no_color: bool,
-    ) -> Symbol {
+    ) -> Import {
         fn get_symbol_version_string(elf: &goblin::elf::Elf, sym_idx: &usize) -> Option<String> {
             let vers_data = &elf.versym.as_ref()?.get_at(*sym_idx)?.vs_val;
 
@@ -83,30 +83,74 @@ impl Symbol {
             _ => val.to_string(),
         };
 
-        let mut symbol = Symbol::priv_new();
+        let mut imp = Import::priv_new();
 
-        symbol.name = match elf.dynstrtab.get_at(sym.st_name) {
+        imp.name = match elf.dynstrtab.get_at(sym.st_name) {
             Some(s) => s.to_string(),
             None => "".to_string(),
         };
 
-        symbol.source = get_symbol_version_string(&elf, &sym_idx)
+        imp.source = get_symbol_version_string(&elf, &sym_idx)
             .unwrap_or_else(|| "Unable to parse source".to_string());
 
-        symbol.attrs = vec![
+        imp.attrs = vec![
             get_symbol_type(sym.st_type()),
             get_symbol_binding(sym.st_bind()),
             get_symbol_visibility(sym.st_visibility()),
             get_symbol_index_type(sym.st_shndx),
         ];
 
-        symbol.no_color = no_color;
+        imp.no_color = no_color;
 
-        symbol
+        imp
+    }
+
+    fn from_pe(import: &goblin::pe::import::Import, no_color: bool) -> Import {
+        let mut imp = Import::priv_new();
+
+        imp.name = import.name.to_string();
+        imp.source = import.dll.to_string();
+
+        let offset = format!("0x{:08x}", import.offset);
+        let rva = format!("0x{:08x}", import.rva);
+
+        imp.attrs = vec![
+            import.ordinal.to_string(),
+            offset,
+            rva,
+        ];
+
+        imp.no_color = no_color;
+
+        imp
+    }
+
+    fn from_macho(import: &goblin::mach::imports::Import, no_color: bool) -> Import {
+        let mut imp = Import::priv_new();
+
+        imp.name = import.name.to_string();
+        imp.source = import.dylib.to_string();
+
+        let offset = format!("0x{:08x}", import.offset);
+        let address = format!("0x{:08x}", import.address);
+        let seq_offset = format!("0x{:08x}", import.start_of_sequence_offset);
+
+        imp.attrs = vec![
+            import.is_lazy.to_string(),
+            offset,
+            address,
+            import.addend.to_string(),
+            import.is_weak.to_string(),
+            seq_offset,
+        ];
+
+        imp.no_color = no_color;
+
+        imp
     }
 }
 
-impl fmt::Display for Symbol {
+impl fmt::Display for Import {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let color_punctuation = |s: &str| {
             if self.no_color {
@@ -121,7 +165,7 @@ impl fmt::Display for Symbol {
 
         write!(
             f,
-            "{}{}{}{} {} {}",
+            "{}{}{}{}  {}  {}",
             single_quote,
             {
                 match self.no_color {
@@ -147,9 +191,23 @@ pub fn dump_elf_imports(elf: &goblin::elf::Elf, no_color: bool) {
     println!("  'name': library, version (version number) [type, binding, visibility, ndx]");
     for (sym_idx, sym) in elf.dynsyms.into_iter().enumerate() {
         if sym.is_import() {
-            let symbol = Symbol::from_elf(elf, &sym_idx, &sym, no_color);
-
-            println!("  {}", symbol);
+            println!("  {}", Import::from_elf(elf, &sym_idx, &sym, no_color));
         }
+    }
+}
+
+pub fn dump_pe_imports(pe: &goblin::pe::PE, no_color: bool) {
+    println!("Imports:");
+    println!("  'name': dll [ordinal, offset, rva]");
+    for import in pe.imports.iter().as_ref() {
+        println!("  {}", Import::from_pe(import, no_color));
+    }
+}
+
+pub fn dump_macho_imports(macho: &goblin::mach::MachO, no_color: bool) {
+    println!("Imports:");
+    println!("  'name': dylib [is lazily evaluated?, offset, address, addend, is weak?, start of sequence offset]");
+    for import in macho.imports().expect("Error parsing imports") {
+        println!("  {}", Import::from_macho(&import, no_color));
     }
 }
