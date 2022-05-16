@@ -38,7 +38,7 @@ strip-ansi-escapes = { version = "0.1", optional = true }
 cli-table = { version = "0.4", optional = true }
 
 [patch.crates-io]
-checksec = { git = "https://github.com/etke/checksec.rs.git", features = ["elf", "pe", "color"], optional = true }
+checksec = { git = "https://github.com/etke/checksec.rs.git"} # Patch dependency does not support features
 
 [dev-dependencies]
 pprof = { version = "0.8", features = ["flamegraph"] }
