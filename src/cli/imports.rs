@@ -27,27 +27,26 @@ impl Import {
         no_color: bool,
     ) -> Import {
         fn get_symbol_version_string(elf: &goblin::elf::Elf, sym_idx: &usize) -> Option<String> {
-            let vers_data = &elf.versym.as_ref()?.get_at(*sym_idx)?.vs_val;
+            let vers_data = elf.versym.as_ref()?.get_at(*sym_idx)?.vs_val;
 
-            let (need_str, vers_str) = if let Some(needed) = elf
+            if vers_data == 0 {
+                return Some("local".to_string());
+            }
+
+            if let Some(needed) = elf
                 .verneed
                 .as_ref()?
                 .iter()
-                .find(|v| v.iter().any(|f| f.vna_other == *vers_data))
+                .find(|v| v.iter().any(|f| f.vna_other == vers_data))
             {
-                if let Some(version) = needed.iter().find(|f| f.vna_other == *vers_data) {
-                    (
-                        elf.dynstrtab.get_at(needed.vn_file)?,
-                        elf.dynstrtab.get_at(version.vna_name)?,
-                    )
-                } else {
-                    return Some("".to_string());
+                if let Some(version) = needed.iter().find(|f| f.vna_other == vers_data) {
+                    let need_str = elf.dynstrtab.get_at(needed.vn_file)?;
+                    let vers_str = elf.dynstrtab.get_at(version.vna_name)?;
+                    return Some(format!("{}, {} ({})", need_str, vers_str, vers_data));
                 }
-            } else {
-                return Some("".to_string());
-            };
+            }
 
-            Some(format!("{}, {} ({})", need_str, vers_str, vers_data))
+            None
         }
 
         let get_symbol_type = |val: u8| match val {
@@ -90,7 +89,7 @@ impl Import {
             None => "".to_string(),
         };
 
-        imp.source = get_symbol_version_string(&elf, &sym_idx)
+        imp.source = get_symbol_version_string(&elf, sym_idx)
             .unwrap_or_else(|| "Unable to parse source".to_string());
 
         imp.attrs = vec![
@@ -114,11 +113,7 @@ impl Import {
         let offset = format!("0x{:08x}", import.offset);
         let rva = format!("0x{:08x}", import.rva);
 
-        imp.attrs = vec![
-            import.ordinal.to_string(),
-            offset,
-            rva,
-        ];
+        imp.attrs = vec![import.ordinal.to_string(), offset, rva];
 
         imp.no_color = no_color;
 

@@ -289,11 +289,11 @@ impl CLIOpts {
                 Object::Mach(mach) => match mach {
                     goblin::mach::Mach::Binary(macho) => {
                         imports::dump_macho_imports(&macho, self.no_color)
-                    },
+                    }
                     goblin::mach::Mach::Fat(fat) => {
                         let macho = xgadget::binary::get_supported_macho(&fat).unwrap();
                         imports::dump_macho_imports(&macho, self.no_color)
-                    },
+                    }
                 },
                 _ => panic!("Only ELF, PE, and Mach-O binaries currently supported!"),
             }
