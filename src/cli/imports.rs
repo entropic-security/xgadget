@@ -49,6 +49,32 @@ impl Import {
             None
         }
 
+        fn get_got_plt_offset(elf: &goblin::elf::Elf, sym_idx: &usize) -> Option<u64> {
+            let offset = if let Some(reloc) = elf.pltrelocs.iter().find(|r| r.r_sym == *sym_idx) {
+                reloc.r_offset
+            } else {
+                return None;
+            };
+
+            Some(offset)
+        }
+
+        fn get_plt_offset(elf: &goblin::elf::Elf, sym_idx: &usize) -> Option<u64> {
+            let reloc_idx = elf.pltrelocs.iter().position(|r| r.r_sym == *sym_idx)?;
+
+            let mut offset = (reloc_idx as u64 + 1) * 16;
+
+            if let Some(plt) = &elf
+                .section_headers
+                .iter()
+                .find(|&s| elf.shdr_strtab.get_at(s.sh_name).unwrap().eq(".plt"))
+            {
+                offset += plt.sh_addr;
+            }
+
+            Some(offset)
+        }
+
         let get_symbol_type = |val: u8| match val {
             goblin::elf::sym::STT_NOTYPE => "NOTYPE".to_string(),
             goblin::elf::sym::STT_OBJECT => "OBJECT".to_string(),
@@ -92,7 +118,18 @@ impl Import {
         imp.source = get_symbol_version_string(&elf, sym_idx)
             .unwrap_or_else(|| "Unable to parse source".to_string());
 
+        let got_plt_offset = match get_got_plt_offset(&elf, sym_idx) {
+            Some(offset) => format!("0x{:08x}", offset),
+            None => "n/a".to_string(),
+        };
+        let plt_offset = match get_plt_offset(&elf, sym_idx) {
+            Some(offset) => format!("0x{:08x}", offset),
+            None => "n/a".to_string(),
+        };
+
         imp.attrs = vec![
+            got_plt_offset,
+            plt_offset,
             get_symbol_type(sym.st_type()),
             get_symbol_binding(sym.st_bind()),
             get_symbol_visibility(sym.st_visibility()),
@@ -183,7 +220,7 @@ impl fmt::Display for Import {
 
 pub fn dump_elf_imports(elf: &goblin::elf::Elf, no_color: bool) {
     println!("Imported symbols:");
-    println!("  'name': library, version (version number) [type, binding, visibility, ndx]");
+    println!("  'name': library, version (version number) [got_plt_offset, plt_offset, type, binding, visibility, ndx]");
     for (sym_idx, sym) in elf.dynsyms.into_iter().enumerate() {
         if sym.is_import() {
             println!("  {}", Import::from_elf(elf, &sym_idx, &sym, no_color));
