@@ -1,7 +1,7 @@
 use colored::Colorize;
 use std::fmt;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Default, Debug, PartialEq, Eq, Clone)]
 struct Import {
     name: String,
     source: String,
@@ -10,27 +10,19 @@ struct Import {
 }
 
 impl Import {
-    // Construction helper
-    fn priv_new() -> Import {
-        Import {
-            name: String::from("None"),
-            source: String::from("None"),
-            attrs: vec![],
-            no_color: false,
-        }
-    }
-
     fn from_elf(
         elf: &goblin::elf::Elf,
-        sym_idx: &usize,
+        sym_idx: usize,
         sym: &goblin::elf::sym::Sym,
         no_color: bool,
     ) -> Import {
-        fn get_symbol_version_string(elf: &goblin::elf::Elf, sym_idx: &usize) -> Option<String> {
-            let vers_data = elf.versym.as_ref()?.get_at(*sym_idx)?.vs_val;
+        fn get_symbol_version_string(elf: &goblin::elf::Elf, sym_idx: usize) -> Option<String> {
+            let vers_data = elf.versym.as_ref()?.get_at(sym_idx)?.vs_val;
 
-            if vers_data == 0 {
+            if vers_data == goblin::elf::symver::VER_NDX_LOCAL {
                 return Some("local".to_string());
+            } else if vers_data == goblin::elf::symver::VER_NDX_GLOBAL {
+                return Some("global".to_string());
             }
 
             if let Some(needed) = elf
@@ -49,8 +41,8 @@ impl Import {
             None
         }
 
-        fn get_got_plt_offset(elf: &goblin::elf::Elf, sym_idx: &usize) -> Option<u64> {
-            let offset = if let Some(reloc) = elf.pltrelocs.iter().find(|r| r.r_sym == *sym_idx) {
+        fn get_got_plt_offset(elf: &goblin::elf::Elf, sym_idx: usize) -> Option<u64> {
+            let offset = if let Some(reloc) = elf.pltrelocs.iter().find(|r| r.r_sym == sym_idx) {
                 reloc.r_offset
             } else {
                 return None;
@@ -59,8 +51,8 @@ impl Import {
             Some(offset)
         }
 
-        fn get_plt_offset(elf: &goblin::elf::Elf, sym_idx: &usize) -> Option<u64> {
-            let reloc_idx = elf.pltrelocs.iter().position(|r| r.r_sym == *sym_idx)?;
+        fn get_plt_offset(elf: &goblin::elf::Elf, sym_idx: usize) -> Option<u64> {
+            let reloc_idx = elf.pltrelocs.iter().position(|r| r.r_sym == sym_idx)?;
 
             let mut offset = (reloc_idx as u64 + 1) * 16;
 
@@ -101,14 +93,14 @@ impl Import {
             _ => val.to_string(),
         };
 
-        let get_symbol_index_type = |val: usize| match val {
-            0 => "UND".to_string(),
-            0xfff1 => "ABS".to_string(),
-            0xfff2 => "COM".to_string(),
+        let get_symbol_index_type = |val: u32| match val {
+            goblin::elf::section_header::SHN_UNDEF => "UND".to_string(),
+            goblin::elf::section_header::SHN_ABS => "ABS".to_string(),
+            goblin::elf::section_header::SHN_COMMON => "COM".to_string(),
             _ => val.to_string(),
         };
 
-        let mut imp = Import::priv_new();
+        let mut imp = Import::default();
 
         imp.name = match elf.dynstrtab.get_at(sym.st_name) {
             Some(s) => s.to_string(),
@@ -122,6 +114,7 @@ impl Import {
             Some(offset) => format!("0x{:08x}", offset),
             None => "n/a".to_string(),
         };
+
         let plt_offset = match get_plt_offset(&elf, sym_idx) {
             Some(offset) => format!("0x{:08x}", offset),
             None => "n/a".to_string(),
@@ -133,7 +126,7 @@ impl Import {
             get_symbol_type(sym.st_type()),
             get_symbol_binding(sym.st_bind()),
             get_symbol_visibility(sym.st_visibility()),
-            get_symbol_index_type(sym.st_shndx),
+            get_symbol_index_type(sym.st_shndx as u32),
         ];
 
         imp.no_color = no_color;
@@ -142,7 +135,7 @@ impl Import {
     }
 
     fn from_pe(import: &goblin::pe::import::Import, no_color: bool) -> Import {
-        let mut imp = Import::priv_new();
+        let mut imp = Import::default();
 
         imp.name = import.name.to_string();
         imp.source = import.dll.to_string();
@@ -158,7 +151,7 @@ impl Import {
     }
 
     fn from_macho(import: &goblin::mach::imports::Import, no_color: bool) -> Import {
-        let mut imp = Import::priv_new();
+        let mut imp = Import::default();
 
         imp.name = import.name.to_string();
         imp.source = import.dylib.to_string();
@@ -220,26 +213,26 @@ impl fmt::Display for Import {
 
 pub fn dump_elf_imports(elf: &goblin::elf::Elf, no_color: bool) {
     println!("Imported symbols:");
-    println!("  'name': library, version (version number) [got_plt_offset, plt_offset, type, binding, visibility, ndx]");
+    println!("\t'name': library, version (version number) [got_plt_offset, plt_offset, type, binding, visibility, ndx]");
     for (sym_idx, sym) in elf.dynsyms.into_iter().enumerate() {
         if sym.is_import() {
-            println!("  {}", Import::from_elf(elf, &sym_idx, &sym, no_color));
+            println!("\t{}", Import::from_elf(elf, sym_idx, &sym, no_color));
         }
     }
 }
 
 pub fn dump_pe_imports(pe: &goblin::pe::PE, no_color: bool) {
     println!("Imports:");
-    println!("  'name': dll [ordinal, offset, rva]");
+    println!("\t'name': dll [ordinal, offset, rva]");
     for import in pe.imports.iter().as_ref() {
-        println!("  {}", Import::from_pe(import, no_color));
+        println!("\t{}", Import::from_pe(import, no_color));
     }
 }
 
 pub fn dump_macho_imports(macho: &goblin::mach::MachO, no_color: bool) {
     println!("Imports:");
-    println!("  'name': dylib [is lazily evaluated?, offset, address, addend, is weak?, start of sequence offset]");
+    println!("\t'name': dylib [is lazily evaluated?, offset, address, addend, is weak?, start of sequence offset]");
     for import in macho.imports().expect("Error parsing imports") {
-        println!("  {}", Import::from_macho(&import, no_color));
+        println!("\t{}", Import::from_macho(&import, no_color));
     }
 }
