@@ -17,11 +17,11 @@ impl Import {
         no_color: bool,
     ) -> Import {
         fn get_symbol_version_string(elf: &goblin::elf::Elf, sym_idx: usize) -> Option<String> {
-            let vers_data = elf.versym.as_ref()?.get_at(sym_idx)?.vs_val;
+            let versym = elf.versym.as_ref()?.get_at(sym_idx)?;
 
-            if vers_data == goblin::elf::symver::VER_NDX_LOCAL {
+            if versym.is_local() {
                 return Some("local".to_string());
-            } else if vers_data == goblin::elf::symver::VER_NDX_GLOBAL {
+            } else if versym.is_global() {
                 return Some("global".to_string());
             }
 
@@ -29,12 +29,12 @@ impl Import {
                 .verneed
                 .as_ref()?
                 .iter()
-                .find(|v| v.iter().any(|f| f.vna_other == vers_data))
+                .find(|v| v.iter().any(|f| f.vna_other == versym.version()))
             {
-                if let Some(version) = needed.iter().find(|f| f.vna_other == vers_data) {
+                if let Some(version) = needed.iter().find(|f| f.vna_other == versym.version()) {
                     let need_str = elf.dynstrtab.get_at(needed.vn_file)?;
                     let vers_str = elf.dynstrtab.get_at(version.vna_name)?;
-                    return Some(format!("{}, {} ({})", need_str, vers_str, vers_data));
+                    return Some(format!("{}, {} ({})", need_str, vers_str, versym.version()));
                 }
             }
 
