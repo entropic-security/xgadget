@@ -1,7 +1,7 @@
 use colored::Colorize;
 use std::fmt;
 
-#[derive(Default, Debug, PartialEq, Eq, Clone)]
+#[derive(Default, Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
 struct Import {
     name: String,
     source: String,
@@ -142,54 +142,227 @@ impl fmt::Display for Import {
 // Dump Functions -----------------------------------------------------------------------------------------------------
 
 pub fn dump_elf_imports(elf: &goblin::elf::Elf, no_color: bool) {
-    println!("Procedural Linkage Table (PLT) symbols:");
-    print!("\tName: Source, Version  Address  [Reloc type, .plt address, Idx, Value");
-
-    if elf.dynamic.as_ref().unwrap().info.pltrel == goblin::elf::dynamic::DT_RELA {
-        println!(", Addend]");
-    } else {
-        println!("]");
-    }
-
+    // collect PLT relocations
+    let mut plt_imports = Vec::new();
     for reloc in elf.pltrelocs.iter() {
         if let Some(sym) = elf.dynsyms.get(reloc.r_sym) {
-            println!("\t{}", Import::from_elf(elf, &sym, &reloc, no_color))
+            plt_imports.push(Import::from_elf(elf, &sym, &reloc, no_color));
         }
+    }
+    plt_imports.sort();
+
+    // collect dynamic relocations
+    let mut dyn_imports = Vec::new();
+    if elf.dynamic.as_ref().unwrap().info.pltrel == goblin::elf::dynamic::DT_RELA {
+        for reloc in elf.dynrelas.iter() {
+            if let Some(sym) = elf.dynsyms.get(reloc.r_sym) {
+                dyn_imports.push(Import::from_elf(elf, &sym, &reloc, no_color));
+            }
+        }
+    } else {
+        for reloc in elf.dynrels.iter() {
+            if let Some(sym) = elf.dynsyms.get(reloc.r_sym) {
+                dyn_imports.push(Import::from_elf(elf, &sym, &reloc, no_color));
+            }
+        }
+    }
+    dyn_imports.sort();
+
+    // pretty print collected imports
+    let blank_string = "".to_string(); // there has to be a better way to do this
+    println!("Procedural Linkage Table (PLT) symbols:");
+    println!(
+        "{:25} {:25} {:18}  {:20} {:18}  {:5} {}",
+        "Name",
+        "Source, Version",
+        "Address",
+        "Reloc type",
+        ".plt Address",
+        "Idx",
+        {
+            match elf.dynamic.as_ref().unwrap().info.pltrel {
+                goblin::elf::dynamic::DT_RELA => "Addend",
+                _ => "",
+            }
+        },
+    );
+    for imp in plt_imports {
+        println!(
+            "{:25} {:25} {:18}  {:20} {:18}  {:5} {}",
+            {
+                match no_color {
+                    true => format!("{}", imp.name).normal(),
+                    false => format!("{}", imp.name).yellow(),
+                }
+            },
+            {
+                match no_color {
+                    true => format!("{}", imp.source).normal(),
+                    false => format!("{}", imp.source).green(),
+                }
+            },
+            {
+                match no_color {
+                    true => format!("{:#x}", imp.address).normal(),
+                    false => format!("{:#x}", imp.address).red(),
+                }
+            },
+            imp.attrs.get(0).unwrap_or(&blank_string),
+            {
+                match no_color {
+                    true => format!("{}", imp.attrs.get(1).unwrap_or(&blank_string)).normal(),
+                    false => format!("{}", imp.attrs.get(1).unwrap_or(&blank_string)).cyan(),
+                }
+            },
+            imp.attrs.get(2).unwrap_or(&blank_string),
+            imp.attrs.get(4).unwrap_or(&blank_string),
+        );
     }
 
     println!("\nOther dynamic symbols:");
-    print!("\tName: Source, Version  Address  [Reloc type, .plt address, Idx, Value");
-
-    if elf.dynamic.as_ref().unwrap().info.pltrel == goblin::elf::dynamic::DT_RELA {
-        println!(", Addend]");
-        for reloc in elf.dynrelas.iter() {
-            if let Some(sym) = elf.dynsyms.get(reloc.r_sym) {
-                println!("\t{}", Import::from_elf(elf, &sym, &reloc, no_color))
+    println!(
+        "{:25} {:25} {:18}  {:20} {:18}  {:5} {}",
+        "Name",
+        "Source, Version",
+        "Address",
+        "Reloc type",
+        "Value",
+        "Idx",
+        {
+            match elf.dynamic.as_ref().unwrap().info.pltrel {
+                goblin::elf::dynamic::DT_RELA => "Addend",
+                _ => "",
             }
-        }
-    } else {
-        println!("]");
-        for reloc in elf.dynrels.iter() {
-            if let Some(sym) = elf.dynsyms.get(reloc.r_sym) {
-                println!("\t{}", Import::from_elf(elf, &sym, &reloc, no_color))
-            }
-        }
+        },
+    );
+    for imp in dyn_imports {
+        println!(
+            "{:25} {:25} {:18}  {:20} {:18}  {:5} {}",
+            {
+                match no_color {
+                    true => format!("{}", imp.name).normal(),
+                    false => format!("{}", imp.name).yellow(),
+                }
+            },
+            {
+                match no_color {
+                    true => format!("{}", imp.source).normal(),
+                    false => format!("{}", imp.source).green(),
+                }
+            },
+            {
+                match no_color {
+                    true => format!("{:#x}", imp.address).normal(),
+                    false => format!("{:#x}", imp.address).red(),
+                }
+            },
+            imp.attrs.get(0).unwrap_or(&blank_string),
+            {
+                match no_color {
+                    true => format!("{}", imp.attrs.get(3).unwrap_or(&blank_string)).normal(),
+                    false => format!("{}", imp.attrs.get(3).unwrap_or(&blank_string)).cyan(),
+                }
+            },
+            imp.attrs.get(2).unwrap_or(&blank_string),
+            imp.attrs.get(4).unwrap_or(&blank_string),
+        );
     }
 }
 
 pub fn dump_pe_imports(pe: &goblin::pe::PE, no_color: bool) {
-    println!("Imports:");
-    println!("\t'name': dll rva [ordinal, offset]");
+    // collect imports
+    let mut imports = Vec::new();
     for import in pe.imports.iter().as_ref() {
-        println!("\t{}", Import::from_pe(import, no_color));
+        imports.push(Import::from_pe(import, no_color));
+    }
+    imports.sort();
+
+    // pretty print imports
+    let blank_string = "".to_string(); // there has to be a better way to do this
+    println!("Imports:");
+    println!(
+        "{:35} {:20} {:18} {:5} {:18}",
+        "Name", "DLL", "Rel Virt Addr", "Ord.", "Offset",
+    );
+    for imp in imports {
+        println!(
+            "{:35} {:20} {:18} {:5} {:18}",
+            {
+                match no_color {
+                    true => format!("{}", imp.name).normal(),
+                    false => format!("{}", imp.name).yellow(),
+                }
+            },
+            {
+                match no_color {
+                    true => format!("{}", imp.source).normal(),
+                    false => format!("{}", imp.source).green(),
+                }
+            },
+            {
+                match no_color {
+                    true => format!("{:#x}", imp.address).normal(),
+                    false => format!("{:#x}", imp.address).red(),
+                }
+            },
+            imp.attrs.get(0).unwrap_or(&blank_string),
+            {
+                match no_color {
+                    true => format!("{}", imp.attrs.get(1).unwrap_or(&blank_string)).normal(),
+                    false => format!("{}", imp.attrs.get(1).unwrap_or(&blank_string)).cyan(),
+                }
+            },
+        );
     }
 }
 
 pub fn dump_macho_imports(macho: &goblin::mach::MachO, no_color: bool) {
-    println!("Imports:");
-    println!("\t'name': dylib address [offset, start of sequence offset, addend, is lazily evaluated?, is weak?]");
+    // collect imports
+    let mut imports = Vec::new();
     for import in macho.imports().expect("Error parsing imports") {
-        println!("\t{}", Import::from_macho(import, no_color));
+        imports.push(Import::from_macho(import, no_color));
+    }
+    imports.sort();
+
+    // pretty print imports
+    let blank_string = "".to_string(); // there has to be a better way to do this
+    println!("Imports:");
+    println!(
+        "{:25} {:30} {:18} {:18} {:10} {:7} {:5} {:5}",
+        "Name", "Dylib", "Address", "Offset", "Seq. Off.", "Addend", "Lazy?", "Weak?",
+    );
+    for imp in imports {
+        println!(
+            "{:25} {:30} {:18} {:18} {:10} {:7} {:5} {:5}",
+            {
+                match no_color {
+                    true => format!("{}", imp.name).normal(),
+                    false => format!("{}", imp.name).yellow(),
+                }
+            },
+            {
+                match no_color {
+                    true => format!("{}", imp.source).normal(),
+                    false => format!("{}", imp.source).green(),
+                }
+            },
+            {
+                match no_color {
+                    true => format!("{:#x}", imp.address).normal(),
+                    false => format!("{:#x}", imp.address).red(),
+                }
+            },
+            {
+                match no_color {
+                    true => format!("{}", imp.attrs.get(0).unwrap_or(&blank_string)).normal(),
+                    false => format!("{}", imp.attrs.get(0).unwrap_or(&blank_string)).cyan(),
+                }
+            },
+            imp.attrs.get(1).unwrap_or(&blank_string),
+            imp.attrs.get(2).unwrap_or(&blank_string),
+            imp.attrs.get(3).unwrap_or(&blank_string),
+            imp.attrs.get(4).unwrap_or(&blank_string),
+        );
     }
 }
 
