@@ -151,9 +151,17 @@ pub fn dump_elf_imports(elf: &goblin::elf::Elf, no_color: bool) {
     }
     plt_imports.sort();
 
+    // determine if relocations include an addend
+    let rela = 
+        if let Some(dynamic) = elf.dynamic.as_ref() {
+            dynamic.info.pltrel == goblin::elf::dynamic::DT_RELA
+        } else {
+            false
+        };
+    
     // collect dynamic relocations
     let mut dyn_imports = Vec::new();
-    if elf.dynamic.as_ref().unwrap().info.pltrel == goblin::elf::dynamic::DT_RELA {
+    if rela {
         for reloc in elf.dynrelas.iter() {
             if let Some(sym) = elf.dynsyms.get(reloc.r_sym) {
                 dyn_imports.push(Import::from_elf(elf, &sym, &reloc, no_color));
@@ -180,9 +188,9 @@ pub fn dump_elf_imports(elf: &goblin::elf::Elf, no_color: bool) {
         ".plt Address",
         "Idx",
         {
-            match elf.dynamic.as_ref().unwrap().info.pltrel {
-                goblin::elf::dynamic::DT_RELA => "Addend",
-                _ => "",
+            match rela {
+                true => "Addend",
+                false => "",
             }
         },
     );
@@ -229,9 +237,9 @@ pub fn dump_elf_imports(elf: &goblin::elf::Elf, no_color: bool) {
         "Value",
         "Idx",
         {
-            match elf.dynamic.as_ref().unwrap().info.pltrel {
-                goblin::elf::dynamic::DT_RELA => "Addend",
-                _ => "",
+            match rela {
+                true => "Addend",
+                false => "",
             }
         },
     );
@@ -401,7 +409,7 @@ fn get_plt_address(elf: &goblin::elf::Elf, reloc: &goblin::elf::Reloc) -> Option
         let plt_base = &elf
             .section_headers
             .iter()
-            .find(|s| elf.shdr_strtab.get_at(s.sh_name).unwrap().eq(".plt"))?
+            .find(|s| elf.shdr_strtab.get_at(s.sh_name).unwrap_or("err").eq(".plt"))?
             .sh_addr;
 
         return Some(plt_base + offset);
