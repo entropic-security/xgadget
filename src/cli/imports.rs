@@ -11,10 +11,12 @@ struct Import {
 }
 
 impl Import {
-    fn from_elf(elf: &goblin::elf::Elf, reloc: &goblin::elf::Reloc, no_color: bool) -> Import {
-        let sym_idx = reloc.r_sym;
-        let sym = elf.dynsyms.get(sym_idx).unwrap(); //panic is unlikely, but could be handled better
-
+    fn from_elf(
+        elf: &goblin::elf::Elf,
+        sym: &goblin::elf::Sym,
+        reloc: &goblin::elf::Reloc,
+        no_color: bool,
+    ) -> Import {
         let mut imp = Import::default();
 
         imp.name = match elf.dynstrtab.get_at(sym.st_name) {
@@ -22,7 +24,7 @@ impl Import {
             None => "".to_string(),
         };
 
-        imp.source = get_elf_symbol_version_string(&elf, sym_idx)
+        imp.source = get_elf_symbol_version_string(&elf, reloc.r_sym)
             .unwrap_or_else(|| "Unable to parse source".to_string());
 
         imp.address = reloc.r_offset;
@@ -33,13 +35,14 @@ impl Import {
             _ => reloc.r_type.to_string(),
         };
 
+        // ELF attributes: reloc type, .plt address, symbol index, value, addend (if available)
         imp.attrs = vec![
             symbol_r_type,
             match get_plt_address(elf, &reloc) {
                 Some(a) => format!("{:#x}", a),
                 None => "".to_string(),
             },
-            sym_idx.to_string(),
+            reloc.r_sym.to_string(),
             format!("{:#x}", sym.st_value),
         ];
 
@@ -61,6 +64,7 @@ impl Import {
 
         let offset = format!("{:#x}", import.offset);
 
+        // PE attributes: ordinal, offset
         imp.attrs = vec![import.ordinal.to_string(), offset];
 
         imp.no_color = no_color;
@@ -78,6 +82,7 @@ impl Import {
         let offset = format!("{:#x}", import.offset);
         let seq_offset = format!("{:#x}", import.start_of_sequence_offset);
 
+        // Mach-O attributes: offset, start of sequence offset, addend, lazily evaluated?, weak?
         imp.attrs = vec![
             offset,
             seq_offset,
@@ -134,7 +139,7 @@ impl fmt::Display for Import {
     }
 }
 
-// Dump Functions
+// Dump Functions -----------------------------------------------------------------------------------------------------
 
 pub fn dump_elf_imports(elf: &goblin::elf::Elf, no_color: bool) {
     println!("Procedural Linkage Table (PLT) symbols:");
@@ -147,7 +152,9 @@ pub fn dump_elf_imports(elf: &goblin::elf::Elf, no_color: bool) {
     }
 
     for reloc in elf.pltrelocs.iter() {
-        println!("\t{}", Import::from_elf(elf, &reloc, no_color))
+        if let Some(sym) = elf.dynsyms.get(reloc.r_sym) {
+            println!("\t{}", Import::from_elf(elf, &sym, &reloc, no_color))
+        }
     }
 
     println!("\nOther dynamic symbols:");
@@ -156,12 +163,16 @@ pub fn dump_elf_imports(elf: &goblin::elf::Elf, no_color: bool) {
     if elf.dynamic.as_ref().unwrap().info.pltrel == goblin::elf::dynamic::DT_RELA {
         println!(", Addend]");
         for reloc in elf.dynrelas.iter() {
-            println!("\t{}", Import::from_elf(elf, &reloc, no_color))
+            if let Some(sym) = elf.dynsyms.get(reloc.r_sym) {
+                println!("\t{}", Import::from_elf(elf, &sym, &reloc, no_color))
+            }
         }
     } else {
         println!("]");
         for reloc in elf.dynrels.iter() {
-            println!("\t{}", Import::from_elf(elf, &reloc, no_color))
+            if let Some(sym) = elf.dynsyms.get(reloc.r_sym) {
+                println!("\t{}", Import::from_elf(elf, &sym, &reloc, no_color))
+            }
         }
     }
 }
@@ -182,7 +193,7 @@ pub fn dump_macho_imports(macho: &goblin::mach::MachO, no_color: bool) {
     }
 }
 
-// ELF Helper Functions
+// ELF Helper Functions -----------------------------------------------------------------------------------------------
 
 fn get_elf_symbol_version_string(elf: &goblin::elf::Elf, sym_idx: usize) -> Option<String> {
     let versym = elf.versym.as_ref()?.get_at(sym_idx)?;
