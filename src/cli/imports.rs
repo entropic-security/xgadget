@@ -1,5 +1,5 @@
 use colored::Colorize;
-use std::fmt;
+use std::{cmp, fmt};
 
 #[derive(Default, Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
 struct Import {
@@ -82,10 +82,10 @@ impl Import {
         let offset = format!("{:#x}", import.offset);
         let seq_offset = format!("{:#x}", import.start_of_sequence_offset);
 
-        // Mach-O attributes: offset, start of sequence offset, addend, lazily evaluated?, weak?
+        // Mach-O attributes: start of sequence offset, offset, addend, lazily evaluated?, weak?
         imp.attrs = vec![
-            offset,
             seq_offset,
+            offset,
             import.addend.to_string(),
             import.is_lazy.to_string(),
             import.is_weak.to_string(),
@@ -94,6 +94,18 @@ impl Import {
         imp.no_color = no_color;
 
         imp
+    }
+
+    fn get_print_vec(&self) -> Vec<String> {
+        let mut print_vec = vec![
+            format!("{:}", self.name),
+            format!("{:}", self.source),
+            format!("{:#x}", self.address),
+        ];
+        let mut attrs = self.attrs.clone();
+        print_vec.append(&mut attrs);
+
+        print_vec
     }
 }
 
@@ -109,10 +121,11 @@ impl fmt::Display for Import {
 
         let single_quote = color_punctuation("'");
         let colon = color_punctuation(":");
+        let comma = color_punctuation(",");
 
         write!(
             f,
-            "{}{}{}{}  {}  {}  {}",
+            "{}{}{}{}  {}{}  address: {}{}  attributes: {}",
             single_quote,
             {
                 match self.no_color {
@@ -128,12 +141,14 @@ impl fmt::Display for Import {
                     false => format!("{}", self.source).green(),
                 }
             },
+            comma,
             {
                 match self.no_color {
                     true => format!("{:#x}", self.address).normal(),
                     false => format!("{:#x}", self.address).red(),
                 }
             },
+            comma,
             format!("{:?}", self.attrs).normal(),
         )
     }
@@ -142,235 +157,185 @@ impl fmt::Display for Import {
 // Dump Functions -----------------------------------------------------------------------------------------------------
 
 pub fn dump_elf_imports(elf: &goblin::elf::Elf, no_color: bool) {
+    // determine if relocations include an addend
+    let rela = if let Some(dynamic) = elf.dynamic.as_ref() {
+        dynamic.info.pltrel == goblin::elf::dynamic::DT_RELA
+    } else {
+        false
+    };
+
+    // column headers for ELF imports
+    let headers = vec![
+        "Name",
+        "Source, Version",
+        "Address",
+        "Reloc type",
+        ".plt Addr",
+        "Idx",
+        "Value",
+        {
+            match rela {
+                true => "Addend",
+                false => "",
+            }
+        },
+    ];
+    // initialize column width vec based on header length
+    let mut col_width = vec![0; headers.len()];
+    for (idx, header) in headers.iter().enumerate() {
+        col_width[idx] = header.len();
+    }
+
     // collect PLT relocations
     let mut plt_imports = Vec::new();
     for reloc in elf.pltrelocs.iter() {
         if let Some(sym) = elf.dynsyms.get(reloc.r_sym) {
-            plt_imports.push(Import::from_elf(elf, &sym, &reloc, no_color));
+            let print_vec = Import::from_elf(elf, &sym, &reloc, no_color).get_print_vec();
+            // update column width to match longest string in column
+            for (idx, print_str) in print_vec.iter().enumerate() {
+                col_width[idx] = cmp::max(col_width[idx], print_str.len());
+            }
+
+            plt_imports.push(print_vec);
         }
     }
-    plt_imports.sort();
 
-    // determine if relocations include an addend
-    let rela = 
-        if let Some(dynamic) = elf.dynamic.as_ref() {
-            dynamic.info.pltrel == goblin::elf::dynamic::DT_RELA
-        } else {
-            false
-        };
-    
+    // print collected PLT relocations
+    println!("Procedural Linkage Table (PLT) symbols:");
+    print_imports(&headers, plt_imports, &col_width, no_color);
+
+    // re-initialize column width vec
+    for (idx, header) in headers.iter().enumerate() {
+        col_width[idx] = header.len();
+    }
+
     // collect dynamic relocations
     let mut dyn_imports = Vec::new();
     if rela {
         for reloc in elf.dynrelas.iter() {
             if let Some(sym) = elf.dynsyms.get(reloc.r_sym) {
-                dyn_imports.push(Import::from_elf(elf, &sym, &reloc, no_color));
+                let print_vec = Import::from_elf(elf, &sym, &reloc, no_color).get_print_vec();
+                // update column width to match longest string in column
+                for (idx, print_str) in print_vec.iter().enumerate() {
+                    col_width[idx] = cmp::max(col_width[idx], print_str.len());
+                }
+
+                dyn_imports.push(print_vec);
             }
         }
     } else {
         for reloc in elf.dynrels.iter() {
             if let Some(sym) = elf.dynsyms.get(reloc.r_sym) {
-                dyn_imports.push(Import::from_elf(elf, &sym, &reloc, no_color));
+                let print_vec = Import::from_elf(elf, &sym, &reloc, no_color).get_print_vec();
+                // update column width to match longest string in column
+                for (idx, print_str) in print_vec.iter().enumerate() {
+                    col_width[idx] = cmp::max(col_width[idx], print_str.len());
+                }
+
+                dyn_imports.push(print_vec);
             }
         }
     }
-    dyn_imports.sort();
 
-    // pretty print collected imports
-    let blank_string = "".to_string(); // there has to be a better way to do this
-    println!("Procedural Linkage Table (PLT) symbols:");
-    println!(
-        "{:25} {:25} {:18}  {:20} {:18}  {:5} {}",
-        "Name",
-        "Source, Version",
-        "Address",
-        "Reloc type",
-        ".plt Address",
-        "Idx",
-        {
-            match rela {
-                true => "Addend",
-                false => "",
-            }
-        },
-    );
-    for imp in plt_imports {
-        println!(
-            "{:25} {:25} {:18}  {:20} {:18}  {:5} {}",
-            {
-                match no_color {
-                    true => format!("{}", imp.name).normal(),
-                    false => format!("{}", imp.name).yellow(),
-                }
-            },
-            {
-                match no_color {
-                    true => format!("{}", imp.source).normal(),
-                    false => format!("{}", imp.source).green(),
-                }
-            },
-            {
-                match no_color {
-                    true => format!("{:#x}", imp.address).normal(),
-                    false => format!("{:#x}", imp.address).red(),
-                }
-            },
-            imp.attrs.get(0).unwrap_or(&blank_string),
-            {
-                match no_color {
-                    true => format!("{}", imp.attrs.get(1).unwrap_or(&blank_string)).normal(),
-                    false => format!("{}", imp.attrs.get(1).unwrap_or(&blank_string)).cyan(),
-                }
-            },
-            imp.attrs.get(2).unwrap_or(&blank_string),
-            imp.attrs.get(4).unwrap_or(&blank_string),
-        );
-    }
-
+    // print collected dynamic relocations
     println!("\nOther dynamic symbols:");
-    println!(
-        "{:25} {:25} {:18}  {:20} {:18}  {:5} {}",
-        "Name",
-        "Source, Version",
-        "Address",
-        "Reloc type",
-        "Value",
-        "Idx",
-        {
-            match rela {
-                true => "Addend",
-                false => "",
-            }
-        },
-    );
-    for imp in dyn_imports {
-        println!(
-            "{:25} {:25} {:18}  {:20} {:18}  {:5} {}",
-            {
-                match no_color {
-                    true => format!("{}", imp.name).normal(),
-                    false => format!("{}", imp.name).yellow(),
-                }
-            },
-            {
-                match no_color {
-                    true => format!("{}", imp.source).normal(),
-                    false => format!("{}", imp.source).green(),
-                }
-            },
-            {
-                match no_color {
-                    true => format!("{:#x}", imp.address).normal(),
-                    false => format!("{:#x}", imp.address).red(),
-                }
-            },
-            imp.attrs.get(0).unwrap_or(&blank_string),
-            {
-                match no_color {
-                    true => format!("{}", imp.attrs.get(3).unwrap_or(&blank_string)).normal(),
-                    false => format!("{}", imp.attrs.get(3).unwrap_or(&blank_string)).cyan(),
-                }
-            },
-            imp.attrs.get(2).unwrap_or(&blank_string),
-            imp.attrs.get(4).unwrap_or(&blank_string),
-        );
-    }
+    print_imports(&headers, dyn_imports, &col_width, no_color);
 }
 
 pub fn dump_pe_imports(pe: &goblin::pe::PE, no_color: bool) {
+    // column headers for PE imports
+    let headers = vec!["Name", "DLL", "Rel Virt Addr", "Ord", "Offset"];
+    // initialize column width vec based on header length
+    let mut col_width = vec![0; headers.len()];
+    for (idx, header) in headers.iter().enumerate() {
+        col_width[idx] = header.len();
+    }
+
     // collect imports
     let mut imports = Vec::new();
     for import in pe.imports.iter().as_ref() {
-        imports.push(Import::from_pe(import, no_color));
-    }
-    imports.sort();
+        let print_vec = Import::from_pe(import, no_color).get_print_vec();
+        // update column width to match longest string in column
+        for (idx, print_str) in print_vec.iter().enumerate() {
+            col_width[idx] = cmp::max(col_width[idx], print_str.len());
+        }
 
-    // pretty print imports
-    let blank_string = "".to_string(); // there has to be a better way to do this
-    println!("Imports:");
-    println!(
-        "{:35} {:20} {:18} {:5} {:18}",
-        "Name", "DLL", "Rel Virt Addr", "Ord.", "Offset",
-    );
-    for imp in imports {
-        println!(
-            "{:35} {:20} {:18} {:5} {:18}",
-            {
-                match no_color {
-                    true => format!("{}", imp.name).normal(),
-                    false => format!("{}", imp.name).yellow(),
-                }
-            },
-            {
-                match no_color {
-                    true => format!("{}", imp.source).normal(),
-                    false => format!("{}", imp.source).green(),
-                }
-            },
-            {
-                match no_color {
-                    true => format!("{:#x}", imp.address).normal(),
-                    false => format!("{:#x}", imp.address).red(),
-                }
-            },
-            imp.attrs.get(0).unwrap_or(&blank_string),
-            {
-                match no_color {
-                    true => format!("{}", imp.attrs.get(1).unwrap_or(&blank_string)).normal(),
-                    false => format!("{}", imp.attrs.get(1).unwrap_or(&blank_string)).cyan(),
-                }
-            },
-        );
+        imports.push(print_vec);
     }
+
+    // print collected imports
+    println!("Imports:");
+    print_imports(&headers, imports, &col_width, no_color);
 }
 
 pub fn dump_macho_imports(macho: &goblin::mach::MachO, no_color: bool) {
+    // column headers for Mach-O imports
+    let headers = vec![
+        "Name",
+        "Dylib",
+        "Address",
+        "Seq. Off.",
+        "Offset",
+        "Addend",
+        "Lazy?",
+        "Weak?",
+    ];
+    // initialize column width vec based on header length
+    let mut col_width = vec![0; headers.len()];
+    for (idx, header) in headers.iter().enumerate() {
+        col_width[idx] = header.len();
+    }
+
     // collect imports
     let mut imports = Vec::new();
     for import in macho.imports().expect("Error parsing imports") {
-        imports.push(Import::from_macho(import, no_color));
+        let print_vec = Import::from_macho(import, no_color).get_print_vec();
+        // update column width to match longest string in column
+        for (idx, print_str) in print_vec.iter().enumerate() {
+            col_width[idx] = cmp::max(col_width[idx], print_str.len());
+        }
+
+        imports.push(print_vec);
     }
+
+    // print collected imports
+    println!("Imports:");
+    print_imports(&headers, imports, &col_width, no_color);
+}
+
+fn print_imports(
+    headers: &Vec<&str>,
+    mut imports: Vec<Vec<String>>,
+    col_width: &Vec<usize>,
+    no_color: bool,
+) {
     imports.sort();
 
-    // pretty print imports
-    let blank_string = "".to_string(); // there has to be a better way to do this
-    println!("Imports:");
-    println!(
-        "{:25} {:30} {:18} {:18} {:10} {:7} {:5} {:5}",
-        "Name", "Dylib", "Address", "Offset", "Seq. Off.", "Addend", "Lazy?", "Weak?",
-    );
-    for imp in imports {
-        println!(
-            "{:25} {:30} {:18} {:18} {:10} {:7} {:5} {:5}",
-            {
-                match no_color {
-                    true => format!("{}", imp.name).normal(),
-                    false => format!("{}", imp.name).yellow(),
-                }
-            },
-            {
-                match no_color {
-                    true => format!("{}", imp.source).normal(),
-                    false => format!("{}", imp.source).green(),
-                }
-            },
-            {
-                match no_color {
-                    true => format!("{:#x}", imp.address).normal(),
-                    false => format!("{:#x}", imp.address).red(),
-                }
-            },
-            {
-                match no_color {
-                    true => format!("{}", imp.attrs.get(0).unwrap_or(&blank_string)).normal(),
-                    false => format!("{}", imp.attrs.get(0).unwrap_or(&blank_string)).cyan(),
-                }
-            },
-            imp.attrs.get(1).unwrap_or(&blank_string),
-            imp.attrs.get(2).unwrap_or(&blank_string),
-            imp.attrs.get(3).unwrap_or(&blank_string),
-            imp.attrs.get(4).unwrap_or(&blank_string),
-        );
+    print!("\t");
+    for (idx, hdr) in headers.iter().enumerate() {
+        let width = col_width[idx];
+        print!("{:width$}  ", hdr);
+    }
+    println!();
+
+    for import in imports {
+        print!("\t");
+        for (idx, print_str) in import.iter().enumerate() {
+            let width = col_width[idx];
+
+            if idx == 0 && !no_color {
+                print!("{:width$}  ", print_str.yellow());
+            } else if idx == 1 && !no_color {
+                print!("{:width$}  ", print_str.green());
+            } else if idx == 2 && !no_color {
+                print!("{:width$}  ", print_str.red());
+            } else if idx == 4 && !no_color {
+                print!("{:width$}  ", print_str.cyan());
+            } else {
+                print!("{:width$}  ", print_str);
+            }
+        }
+        println!();
     }
 }
 
@@ -409,7 +374,12 @@ fn get_plt_address(elf: &goblin::elf::Elf, reloc: &goblin::elf::Reloc) -> Option
         let plt_base = &elf
             .section_headers
             .iter()
-            .find(|s| elf.shdr_strtab.get_at(s.sh_name).unwrap_or("err").eq(".plt"))?
+            .find(|s| {
+                elf.shdr_strtab
+                    .get_at(s.sh_name)
+                    .unwrap_or("err")
+                    .eq(".plt")
+            })?
             .sh_addr;
 
         return Some(plt_base + offset);
