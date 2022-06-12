@@ -17,14 +17,18 @@ impl Import {
         reloc: &goblin::elf::Reloc,
         no_color: bool,
     ) -> Import {
-        let mut imp = Import::default();
-
-        imp.name = match elf.dynstrtab.get_at(sym.st_name) {
-            Some(s) => s.to_string(),
-            None => "".to_string(),
+        let mut imp = Import {
+            name: match elf.dynstrtab.get_at(sym.st_name) {
+                Some(s) => s.to_string(),
+                None => "".to_string(),
+            },
+            source: get_elf_symbol_version_string(elf, reloc.r_sym)
+                .unwrap_or_else(|| "Unable to parse source".to_string()),
+            address: reloc.r_offset,
+            ..Default::default()
         };
 
-        imp.source = get_elf_symbol_version_string(&elf, reloc.r_sym)
+        imp.source = get_elf_symbol_version_string(elf, reloc.r_sym)
             .unwrap_or_else(|| "Unable to parse source".to_string());
 
         imp.address = reloc.r_offset;
@@ -38,7 +42,7 @@ impl Import {
         // ELF attributes: reloc type, .plt address, symbol index, value, addend (if available)
         imp.attrs = vec![
             symbol_r_type,
-            match get_plt_address(elf, &reloc) {
+            match get_plt_address(elf, reloc) {
                 Some(a) => format!("{:#x}", a),
                 None => "".to_string(),
             },
@@ -56,11 +60,12 @@ impl Import {
     }
 
     fn from_pe(import: &goblin::pe::import::Import, no_color: bool) -> Import {
-        let mut imp = Import::default();
-
-        imp.name = import.name.to_string();
-        imp.source = import.dll.to_string();
-        imp.address = import.rva as u64;
+        let mut imp = Import {
+            name: import.name.to_string(),
+            source: import.dll.to_string(),
+            address: import.rva as u64,
+            ..Default::default()
+        };
 
         let offset = format!("{:#x}", import.offset);
 
@@ -73,11 +78,12 @@ impl Import {
     }
 
     fn from_macho(import: goblin::mach::imports::Import, no_color: bool) -> Import {
-        let mut imp = Import::default();
-
-        imp.name = import.name.to_string();
-        imp.source = import.dylib.to_string();
-        imp.address = import.address;
+        let mut imp = Import {
+            name: import.name.to_string(),
+            source: import.dylib.to_string(),
+            address: import.address,
+            ..Default::default()
+        };
 
         let offset = format!("{:#x}", import.offset);
         let seq_offset = format!("{:#x}", import.start_of_sequence_offset);
@@ -129,16 +135,16 @@ impl fmt::Display for Import {
             single_quote,
             {
                 match self.no_color {
-                    true => format!("{}", self.name).normal(),
-                    false => format!("{}", self.name).yellow(),
+                    true => self.name.to_string().normal(),
+                    false => self.name.to_string().yellow(),
                 }
             },
             single_quote,
             colon,
             {
                 match self.no_color {
-                    true => format!("{}", self.source).normal(),
-                    false => format!("{}", self.source).green(),
+                    true => self.source.to_string().normal(),
+                    false => self.source.to_string().green(),
                 }
             },
             comma,
@@ -304,9 +310,9 @@ pub fn dump_macho_imports(macho: &goblin::mach::MachO, no_color: bool) {
 }
 
 fn print_imports(
-    headers: &Vec<&str>,
+    headers: &[&str],
     mut imports: Vec<Vec<String>>,
-    col_width: &Vec<usize>,
+    col_width: &[usize],
     no_color: bool,
 ) {
     imports.sort();
