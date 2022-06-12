@@ -1,7 +1,8 @@
 use std::fmt;
+use std::fmt::Debug;
 use std::fs;
 
-use checksec::{elf::ElfCheckSecResults, macho::MachOCheckSecResults, pe::PECheckSecResults};
+use checksec::{elf, macho, pe};
 use clap::Parser;
 use colored::Colorize;
 use goblin::Object;
@@ -9,6 +10,8 @@ use goblin::Object;
 use super::checksec_fmt::{
     CustomElfCheckSecResults, CustomMachOCheckSecResults, CustomPeCheckSecResults,
 };
+
+use super::imports;
 
 lazy_static! {
     static ref ABOUT_STR: String = format!(
@@ -118,7 +121,7 @@ pub(crate) struct CLIOpts {
     #[clap(short, long, conflicts_with_all = &[
         "arch", "att", "extended-fmt", "max-len",
         "rop", "jop", "sys", "inc-imm16", "partial-match",
-        "stack-pivot", "dispatcher", "reg-pop", "usr-regex", "fess"
+        "stack-pivot", "dispatcher", "reg-pop", "usr-regex", "fess", "imports"
     ])]
     pub(crate) check_sec: bool,
 
@@ -126,9 +129,17 @@ pub(crate) struct CLIOpts {
     #[clap(long, conflicts_with_all = &[
         "arch", "att", "extended-fmt", "max-len",
         "rop", "jop", "sys", "inc-imm16", "partial-match",
-        "stack-pivot", "dispatcher", "reg-pop", "usr-regex", "check-sec"
+        "stack-pivot", "dispatcher", "reg-pop", "usr-regex", "check-sec", "imports"
     ])]
     pub(crate) fess: bool,
+
+    /// List the imported symbols in the binary
+    #[clap(long, conflicts_with_all = &[
+        "arch", "att", "extended-fmt", "max-len",
+        "rop", "jop", "sys", "inc-imm16", "partial-match",
+        "stack-pivot", "dispatcher", "reg-pop", "usr-regex", "check-sec", "fess"
+    ])]
+    pub(crate) imports: bool,
 }
 
 impl CLIOpts {
@@ -222,7 +233,7 @@ impl CLIOpts {
                     println!(
                         "{}",
                         CustomElfCheckSecResults {
-                            results: ElfCheckSecResults::parse(&elf),
+                            results: elf::CheckSecResults::parse(&elf),
                             no_color: self.no_color,
                         }
                     );
@@ -233,7 +244,7 @@ impl CLIOpts {
                     println!(
                         "{}",
                         CustomPeCheckSecResults {
-                            results: PECheckSecResults::parse(&pe, &mm_buf),
+                            results: pe::CheckSecResults::parse(&pe, &mm_buf),
                             no_color: self.no_color,
                         }
                     );
@@ -243,7 +254,7 @@ impl CLIOpts {
                         println!(
                             "{}",
                             CustomMachOCheckSecResults {
-                                results: MachOCheckSecResults::parse(&macho),
+                                results: macho::CheckSecResults::parse(&macho),
                                 no_color: self.no_color,
                             }
                         );
@@ -251,6 +262,40 @@ impl CLIOpts {
                     _ => panic!("Checksec supports only single-arch Mach-O!"),
                 },
                 _ => panic!("Only ELF, PE, and Mach-O checksec currently supported!"),
+            }
+        }
+    }
+
+    // Helper for printing imports from requested binaries
+    pub(crate) fn run_imports(&self, bins: &[xgadget::binary::Binary]) {
+        for (idx, path) in self.bin_paths.iter().enumerate() {
+            println!(
+                "\nTARGET {} - {} \n",
+                {
+                    match self.no_color {
+                        true => format!("{}", idx).normal(),
+                        false => format!("{}", idx).red(),
+                    }
+                },
+                bins[idx]
+            );
+
+            // Binaries get reparsed here. This could be eliminated by adding symbol data
+            // to the Binary struct
+            let buf = fs::read(path).unwrap();
+            match Object::parse(&buf).unwrap() {
+                Object::Elf(elf) => imports::dump_elf_imports(&elf, self.no_color),
+                Object::PE(pe) => imports::dump_pe_imports(&pe, self.no_color),
+                Object::Mach(mach) => match mach {
+                    goblin::mach::Mach::Binary(macho) => {
+                        imports::dump_macho_imports(&macho, self.no_color)
+                    }
+                    goblin::mach::Mach::Fat(fat) => {
+                        let macho = xgadget::binary::get_supported_macho(&fat).unwrap();
+                        imports::dump_macho_imports(&macho, self.no_color)
+                    }
+                },
+                _ => panic!("Only ELF, PE, and Mach-O binaries currently supported!"),
             }
         }
     }

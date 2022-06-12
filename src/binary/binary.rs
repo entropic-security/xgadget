@@ -213,14 +213,7 @@ impl Binary {
         let macho = match mach {
             goblin::mach::Mach::Binary(binary) => binary,
             goblin::mach::Mach::Fat(fat) => {
-                temp_macho = fat
-                    .find(|arch| {
-                        (arch.as_ref().unwrap().cputype()
-                            == goblin::mach::constants::cputype::CPU_TYPE_X86_64)
-                            || (arch.as_ref().unwrap().cputype()
-                                == goblin::mach::constants::cputype::CPU_TYPE_I386)
-                    })
-                    .ok_or("Failed to retrieve supported architecture from MultiArch Mach-O!")??;
+                temp_macho = get_supported_macho(fat)?;
                 &temp_macho
             }
         };
@@ -390,4 +383,17 @@ pub fn get_all_param_regs(bins: &[Binary]) -> Vec<iced_x86::Register> {
     }
 
     param_regs.into_iter().collect()
+}
+
+pub fn get_supported_macho<'a>(
+    fat: &'a goblin::mach::MultiArch
+) -> Result<goblin::mach::MachO<'a>, Box<dyn Error>> {
+    let macho = fat
+        .find(|arch| {
+            (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_X86_64)
+            || (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_I386)
+    })
+    .ok_or("Failed to retrieve supported architecture from MultiArch Mach-O")??;
+
+    Ok(macho)
 }

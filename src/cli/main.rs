@@ -14,6 +14,8 @@ use cli::CLIOpts;
 
 mod checksec_fmt;
 
+mod imports;
+
 #[macro_use]
 extern crate lazy_static;
 
@@ -29,7 +31,6 @@ fn main() {
         cli.run_checksec();
         std::process::exit(0);
     }
-
     // Process 1+ files ------------------------------------------------------------------------------------------------
 
     // File paths -> Binaries
@@ -49,6 +50,15 @@ fn main() {
             binary
         })
         .collect();
+
+    // Imports requested -----------------------------------------------------------------------------------------------
+
+    if cli.imports {
+        cli.run_imports(&bins);
+        std::process::exit(0);
+    }
+
+    // Print targets ____-----------------------------------------------------------------------------------------------
 
     for (i, bin) in bins.iter().enumerate() {
         println!(

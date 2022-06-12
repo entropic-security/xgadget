@@ -1,7 +1,7 @@
 use std::fmt;
 
 use checksec::{
-    colorize_bool, elf::ElfCheckSecResults, macho::MachOCheckSecResults, pe::PECheckSecResults,
+    colorize_bool, elf, macho, pe,
 };
 use colored::Colorize;
 
@@ -21,7 +21,7 @@ fn remove_color(results: &str) -> String {
 
 // ELF results new type
 pub struct CustomElfCheckSecResults {
-    pub results: ElfCheckSecResults,
+    pub results: elf::CheckSecResults,
     pub no_color: bool,
 }
 
@@ -53,7 +53,7 @@ impl fmt::Display for CustomElfCheckSecResults {
 
 // PE results new type
 pub struct CustomPeCheckSecResults {
-    pub results: PECheckSecResults,
+    pub results: pe::CheckSecResults,
     pub no_color: bool,
 }
 
@@ -89,7 +89,7 @@ impl fmt::Display for CustomPeCheckSecResults {
 
 // Mach-O results new type
 pub struct CustomMachOCheckSecResults {
-    pub results: MachOCheckSecResults,
+    pub results: macho::CheckSecResults,
     pub no_color: bool,
 }
 
