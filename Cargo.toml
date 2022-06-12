@@ -1,7 +1,7 @@
 [package]
 name = "xgadget"
-version = "0.7.0"
-authors = ["Tiemoko Ballo"]
+version = "0.8.0"
+authors = ["Tiemoko Ballo", "d3vco"]
 edition = "2018"
 license = "MIT"
 readme = "README.md"
@@ -21,7 +21,7 @@ include = [
 
 [dependencies]
 iced-x86 = "1"
-goblin = "0.4.3" # TODO: Cannot upgrade yet due to checksec dependency
+goblin = "0.5"
 rayon = "1"
 bitflags = "1"
 colored = "2"
@@ -31,14 +31,11 @@ clap = { version = "3", features = ["derive", "cargo"], optional = true }
 num_cpus = { version = "1", optional = true }
 regex = { version = "1", optional = true }
 term_size = { version = "0.3", optional = true }
-checksec = { version = "0.0.8", features = ["elf", "pe", "color"], optional = true }
+checksec = { version = "0.0.9", features = ["elf", "pe", "color"], optional = true }
 memmap = { version = "0.7", optional = true }
 num-format = { version = "0.4", optional = true }
 strip-ansi-escapes = { version = "0.1", optional = true }
 cli-table = { version = "0.4", optional = true }
-
-[patch.crates-io]
-checksec = { git = "https://github.com/etke/checksec.rs.git"} # Patch dependency does not support features
 
 [dev-dependencies]
 pprof = { version = "0.8", features = ["flamegraph"] }
