@@ -249,7 +249,7 @@ impl Binary {
             let end_offset = start_offset + section.size as usize;
 
             bin.segments.insert(Segment::new(
-                section.addr as u64,
+                section.addr,
                 bytes[start_offset..end_offset].to_vec(),
             ));
         }
@@ -388,13 +388,15 @@ pub fn get_all_param_regs(bins: &[Binary]) -> Vec<iced_x86::Register> {
 pub fn get_supported_macho<'a>(
     fat: &'a goblin::mach::MultiArch,
 ) -> Result<goblin::mach::MachO<'a>, Box<dyn Error>> {
-    let macho = fat
+    Ok(fat
         .find(|arch| {
             (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_X86_64)
                 || (arch.as_ref().unwrap().cputype()
                     == goblin::mach::constants::cputype::CPU_TYPE_I386)
         })
-        .ok_or("Failed to retrieve supported architecture from MultiArch Mach-O")??;
-
-    Ok(macho)
+        .ok_or("Failed to retrieve supported architecture from MultiArch Mach-O")?
+        .map(|single_arch| match single_arch {
+            goblin::mach::SingleArch::MachO(macho) => Ok(macho),
+            _ => Err("Failed to retrieve supported architecture from MultiArch Mach-O"),
+        })??)
 }

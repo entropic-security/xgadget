@@ -26,7 +26,7 @@ fn test_no_arg_err() {
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "The following required arguments were not provided:",
+            "the following required arguments were not provided:",
         ));
 }
 
@@ -56,7 +56,7 @@ fn test_conflicting_flags_rop_jop() {
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "The argument '--rop' cannot be used with '--jop'",
+            "the argument '--rop' cannot be used with '--jop'",
         ));
 }
 
@@ -74,7 +74,7 @@ fn test_conflicting_flags_dispatcher_stack_set_reg() {
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "The argument '--reg-pop' cannot be used with '--dispatcher'",
+            "the argument '--reg-pop' cannot be used with '--dispatcher'",
         ));
 }
 
@@ -92,7 +92,7 @@ fn test_conflicting_flags_imm16_jop() {
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "The argument '--inc-imm16' cannot be used with '--jop'",
+            "the argument '--inc-imm16' cannot be used with '--jop'",
         ));
 }
 

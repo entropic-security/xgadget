@@ -16,15 +16,15 @@ pub const MAX_INSTR_BYTE_CNT: usize = 15;
 
 bitflags! {
     /// Bitflag that controls search parameters
+    #[derive(Debug, Copy, Clone)]
     pub struct SearchConfig: u32 {
-        const UNSET = 0b0000_0000;
         const ROP   = 0b0000_0001;
         const JOP   = 0b0000_0010;
         const SYS   = 0b0000_0100;
         const PART  = 0b0000_1000;
         const IMM16 = 0b0001_0000;
         const CALL  = 0b0010_0000;
-        const DEFAULT = Self::ROP.bits | Self::JOP.bits | Self::SYS.bits;
+        const DEFAULT = Self::ROP.bits() | Self::JOP.bits() | Self::SYS.bits();
     }
 }
 

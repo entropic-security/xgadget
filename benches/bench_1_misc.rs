@@ -40,9 +40,7 @@ pub fn filter_stack_pivot_seq_fast<'a>(
 // We're comparing it against the actual filter implementation which:
 // - Is stricter, only consecutive pop sequences before the tail instruction, no other instrs allowed
 // - Is faster, no need to string format and run a regex state machine
-pub fn filter_reg_pop_only_regex<'a>(
-    gadgets: &[xgadget::gadget::Gadget<'a>],
-) -> Vec<(String, String)> {
+pub fn filter_reg_pop_only_regex(gadgets: &[xgadget::gadget::Gadget<'_>]) -> Vec<(String, String)> {
     let re = Regex::new(r"^(?:pop)(?:.*(?:pop))*.*(?:ret|call|jmp)").unwrap();
     let mut matches = Vec::new();
 

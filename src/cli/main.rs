@@ -2,7 +2,6 @@ use std::time::Instant;
 
 use clap::Parser;
 use colored::Colorize;
-use num_format::{Locale, ToFormattedString};
 use rayon::prelude::*;
 use regex::Regex;
 
@@ -16,9 +15,7 @@ mod checksec_fmt;
 
 mod imports;
 
-#[macro_use]
-extern crate lazy_static;
-
+// TODO: update table dep
 fn main() {
     let cli = CLIOpts::parse();
 
@@ -215,26 +212,14 @@ fn main() {
 
     // Print Summary ---------------------------------------------------------------------------------------------------
 
-    println!("\n{}", cli);
-    println!(
-        "{} [ {}: {} | search_time: {} | print_time: {} ]",
-        { cli.fmt_summary_item("RESULT".to_string(), true) },
-        {
-            if bins.len() > 1 {
-                "unique_x_variant_gadgets".to_string()
-            } else {
-                "unique_gadgets".to_string()
-            }
-        },
-        {
-            let found_cnt = match filter_regex {
-                Some(_) => filter_matches.to_formatted_string(&Locale::en),
-                None => printable_gadgets.len().to_formatted_string(&Locale::en),
-            };
+    let found_cnt = match filter_regex {
+        Some(_) => filter_matches,
+        None => printable_gadgets.len(),
+    };
 
-            cli.fmt_summary_item(found_cnt, false)
-        },
-        { cli.fmt_summary_item(format!("{:?}", run_time), false) },
-        { cli.fmt_summary_item(format!("{:?}", start_time.elapsed() - run_time), false) }
+    println!(
+        "\n{}\n{}",
+        cli,
+        cli.fmt_perf_result(bins.len(), found_cnt, start_time, run_time)
     );
 }
