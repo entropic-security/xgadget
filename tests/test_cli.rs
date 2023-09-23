@@ -123,7 +123,7 @@ fn test_invalid_reg_name() {
     xgadget_bin
         .assert()
         .failure()
-        .stderr(predicate::str::contains("'Invalid register: \"r42\"'"));
+        .stderr(predicate::str::contains("Invalid register: \"r42\""));
 }
 
 // Non-exhaustive Success Cases ----------------------------------------------------------------------------------------

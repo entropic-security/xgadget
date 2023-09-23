@@ -14,7 +14,7 @@ fn elf_kernel_bench(c: &mut Criterion) {
     let bins: Vec<_> = files
         .into_iter()
         .map(|file| file.unwrap().path())
-        .map(|path| xgadget::Binary::from_path_str(path.to_str().unwrap()).unwrap())
+        .map(|path| xgadget::Binary::from_path(path.to_str().unwrap()).unwrap())
         .collect();
 
     c.bench_function("10_kernel_search_full_match", |b| {

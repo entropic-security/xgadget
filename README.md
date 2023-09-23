@@ -57,15 +57,15 @@ let max_gadget_len = 5;
 
 // Search single binary
 let search_config = xgadget::SearchConfig::DEFAULT;
-let bin_1 = xgadget::Binary::from_path_str("/path/to/bin_v1").unwrap();
+let bin_1 = xgadget::Binary::from_path("/path/to/bin_v1").unwrap();
 let bins = vec![bin_1];
 let gadgets = xgadget::find_gadgets(&bins, max_gadget_len, search_config).unwrap();
 let stack_pivot_gadgets = xgadget::filter_stack_pivot(&gadgets);
 
 // Search for cross-variant gadgets, including partial matches
 let search_config = xgadget::SearchConfig::DEFAULT | xgadget::SearchConfig::PART;
-let bin_1 = xgadget::Binary::from_path_str("/path/to/bin_v1").unwrap();
-let bin_2 = xgadget::Binary::from_path_str("/path/to/bin_v2").unwrap();
+let bin_1 = xgadget::Binary::from_path("/path/to/bin_v1").unwrap();
+let bin_2 = xgadget::Binary::from_path("/path/to/bin_v2").unwrap();
 let bins = vec![bin_1, bin_2];
 let cross_gadgets = xgadget::find_gadgets(&bins, max_gadget_len, search_config).unwrap();
 let cross_reg_pop_gadgets = xgadget::filter_reg_pop_only(&cross_gadgets);

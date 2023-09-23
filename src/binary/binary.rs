@@ -11,6 +11,8 @@ use super::consts::*;
 use super::file_format::Format;
 use super::segment::Segment;
 
+// TODO: get rid of dyn error every where, use enums
+
 // Binary --------------------------------------------------------------------------------------------------------------
 
 /// File format agnostic binary
@@ -34,12 +36,17 @@ impl Binary {
     }
 
     /// Path str -> Binary
-    pub fn from_path_str(path: &str) -> Result<Binary, Box<dyn Error>> {
-        let name = Path::new(path).file_name().ok_or("No filename.")?;
-        let name_str = name.to_str().ok_or("Failed filename decode.")?;
-        let bytes = fs::read(path)?;
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Binary, Box<dyn Error>> {
+        let name = path
+            .as_ref()
+            .file_name()
+            .ok_or("No filename.")?
+            .to_str()
+            .ok_or("Failed filename decode.")?;
 
-        Binary::priv_from_buf(name_str, &bytes)
+        let bytes = fs::read(path.as_ref())?;
+
+        Binary::priv_from_buf(name, &bytes)
     }
 
     /// Get name
@@ -106,10 +113,10 @@ impl Binary {
     fn priv_from_buf(name: &str, bytes: &[u8]) -> Result<Binary, Box<dyn Error>> {
         match goblin::Object::parse(bytes) {
             Ok(obj) => match obj {
-                goblin::Object::Unknown(_) => Ok(Binary::from_raw(name, bytes)),
                 goblin::Object::Elf(elf) => Binary::from_elf(name, bytes, &elf),
                 goblin::Object::PE(pe) => Binary::from_pe(name, bytes, &pe),
                 goblin::Object::Mach(mach) => Binary::from_mach(name, bytes, &mach),
+                goblin::Object::Unknown(_) => Ok(Binary::from_raw(name, bytes)),
                 _ => Err("Unsupported file format!".into()),
             },
             _ => Ok(Binary::from_raw(name, bytes)),

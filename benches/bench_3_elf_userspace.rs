@@ -5,7 +5,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 const MAX_GADGET_LEN: usize = 3;
 
 fn elf_userspace_bench(c: &mut Criterion) {
-    let bin = xgadget::Binary::from_path_str("/usr/bin/readelf").unwrap();
+    let bin = xgadget::Binary::from_path("/usr/bin/readelf").unwrap();
     let bins = vec![bin];
     c.bench_function("readelf_search", |b| {
         b.iter(|| {

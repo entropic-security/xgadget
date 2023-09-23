@@ -56,12 +56,12 @@ pub fn filter_reg_pop_only_regex(gadgets: &[xgadget::gadget::Gadget<'_>]) -> Vec
 fn pivot_bench(c: &mut Criterion) {
     const MAX_GADGET_LEN: usize = 5;
 
-    let readelf_bin = xgadget::Binary::from_path_str("/usr/bin/readelf").unwrap();
+    let readelf_bin = xgadget::Binary::from_path("/usr/bin/readelf").unwrap();
     let bins = vec![readelf_bin];
     let readelf_gadgets =
         xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
 
-    let gdb_bin = xgadget::Binary::from_path_str("/usr/bin/gdb").unwrap();
+    let gdb_bin = xgadget::Binary::from_path("/usr/bin/gdb").unwrap();
     let bins = vec![gdb_bin];
     let gdb_gadgets =
         xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
@@ -83,12 +83,12 @@ fn pivot_bench(c: &mut Criterion) {
 fn reg_pop_only_bench(c: &mut Criterion) {
     const MAX_GADGET_LEN: usize = 5;
 
-    let readelf_bin = xgadget::Binary::from_path_str("/usr/bin/readelf").unwrap();
+    let readelf_bin = xgadget::Binary::from_path("/usr/bin/readelf").unwrap();
     let bins = vec![readelf_bin];
     let readelf_gadgets =
         xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
 
-    let gdb_bin = xgadget::Binary::from_path_str("/usr/bin/gdb").unwrap();
+    let gdb_bin = xgadget::Binary::from_path("/usr/bin/gdb").unwrap();
     let bins = vec![gdb_bin];
     let gdb_gadgets =
         xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::DEFAULT).unwrap();

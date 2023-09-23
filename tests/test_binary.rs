@@ -3,7 +3,7 @@ mod common;
 #[cfg(target_os = "linux")]
 #[test]
 fn test_elf() {
-    let bin = xgadget::Binary::from_path_str("/bin/cat").unwrap();
+    let bin = xgadget::Binary::from_path("/bin/cat").unwrap();
     assert_eq!(bin.name(), "cat");
     assert_eq!(bin.format(), xgadget::Format::ELF);
 

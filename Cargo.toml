@@ -11,33 +11,40 @@ documentation = "https://docs.rs/xgadget"
 keywords = ["rop", "jop", "gadget", "x86", "x64"]
 categories = ["algorithms", "development-tools", "command-line-utilities"]
 description = "Fast, parallel, cross-variant ROP/JOP gadget search for x86/x64 binaries."
-include = [
-    "**/*.rs",
-    "**/*.md",
-    "**/*.sh",
-    "Cargo.toml",
-    "LICENSE",
-]
+include = ["**/*.rs", "**/*.md", "**/*.sh", "Cargo.toml", "LICENSE"]
 
 [dependencies]
+
+# Library deps
 iced-x86 = "1"
 goblin = "0.7"
 rayon = "1"
 bitflags = "2"
 colored = "2"
 rustc-hash = "1"
+
+# CLI deps
 lazy_static = { version = "1", optional = true }
-clap = { version = "4", features = ["derive", "cargo", "color"], optional = true }
+clap = { version = "4", features = [
+    "derive",
+    "cargo",
+    "color",
+], optional = true }
 num_cpus = { version = "1", optional = true }
 regex = { version = "1", optional = true }
 term_size = { version = "0.3", optional = true }
-checksec = { version = "0.0.9", features = ["elf", "pe", "color"], optional = true }
+checksec = { version = "0.0.9", features = [
+    "elf",
+    "pe",
+    "color",
+], optional = true }
 # TODO: temp duplicate until `checksec` upgrades its `goblin` dep version
 checksec_goblin = { package = "goblin", version = "0.5", optional = true }
 memmap = { version = "0.7", optional = true }
 num-format = { version = "0.4", optional = true }
 strip-ansi-escapes = { version = "0.2", optional = true }
 cli-table = { version = "0.4", optional = true }
+color-eyre = { version = "0.6", default-features = false, optional = true }
 
 [dev-dependencies]
 pprof = { version = "0.8", features = ["flamegraph"] }
@@ -50,8 +57,20 @@ tempfile = "3"
 regex = "1"
 
 [features]
-cli-bin = ["lazy_static", "clap", "num_cpus", "regex", "term_size", "checksec",  "checksec_goblin",
-    "memmap", "num-format", "strip-ansi-escapes", "cli-table"]
+cli-bin = [
+    "lazy_static",
+    "clap",
+    "num_cpus",
+    "regex",
+    "term_size",
+    "checksec",
+    "checksec_goblin",
+    "memmap",
+    "num-format",
+    "strip-ansi-escapes",
+    "cli-table",
+    "color-eyre",
+]
 
 [lib]
 name = "xgadget"
@@ -85,6 +104,6 @@ debug = false
 rpath = false
 lto = "fat"
 debug-assertions = false
-codegen-units = 16
+codegen-units = 1
 incremental = false
 overflow-checks = false

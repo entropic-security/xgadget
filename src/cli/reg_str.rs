@@ -5,27 +5,20 @@ use rustc_hash::FxHashMap as HashMap;
 
 lazy_static! {
     static ref STR_REG_MAP: HashMap<String, iced_x86::Register> = {
-        let mut srm = HashMap::default();
-
-        for reg in iced_x86::Register::values() {
-            if reg != iced_x86::Register::None {
-                let reg_str = format!("{:?}", reg).to_uppercase();
-
-                // Skip iced_x86 sentinels
-                if reg_str.contains("DONTUSE") {
-                    continue;
-                }
-
+        iced_x86::Register::values()
+            .filter(|r| *r != iced_x86::Register::None)
+            .map(|r| (format!("{:?}", r).to_uppercase(), r))
+            // Skip `iced_x86` sentinels
+            .filter(|(rs, _)| !rs.contains("DONTUSE"))
+            .flat_map(|(rs, r)| {
                 // Secondary key: R8L-R15L -> R8B-R15B
-                if (iced_x86::Register::R8L <= reg) && (reg <= iced_x86::Register::R15L) {
-                    srm.insert(reg_str.replace('L', "B"), reg);
+                if (iced_x86::Register::R8L <= r) && (r <= iced_x86::Register::R15L) {
+                    [(rs.clone(), r), (rs.replace('L', "B"), r)].to_vec()
+                } else {
+                    [(rs, r)].to_vec()
                 }
-
-                srm.insert(reg_str, reg);
-            }
-        }
-
-        srm
+            })
+            .collect()
     };
 }
 

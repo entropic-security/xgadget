@@ -1,9 +1,12 @@
 use std::time::Instant;
 
 use clap::Parser;
+use color_eyre::eyre::Result;
 use colored::Colorize;
 use rayon::prelude::*;
 use regex::Regex;
+
+// Internal deps -------------------------------------------------------------------------------------------------------
 
 mod reg_str;
 use reg_str::str_to_reg;
@@ -15,8 +18,11 @@ mod checksec_fmt;
 
 mod imports;
 
-// TODO: update table dep
-fn main() {
+// Driver --------------------------------------------------------------------------------------------------------------
+
+fn main() -> Result<()> {
+    color_eyre::install()?;
+
     let cli = CLIOpts::parse();
 
     let mut filter_matches = 0;
@@ -28,13 +34,14 @@ fn main() {
         cli.run_checksec();
         std::process::exit(0);
     }
+
     // Process 1+ files ------------------------------------------------------------------------------------------------
 
     // File paths -> Binaries
     let bins: Vec<xgadget::Binary> = cli
         .bin_paths
         .par_iter()
-        .map(|path| xgadget::Binary::from_path_str(path).unwrap())
+        .map(|path| xgadget::Binary::from_path(path).unwrap())
         .map(|mut binary| {
             if binary.arch() == xgadget::Arch::Unknown {
                 binary.set_arch(cli.arch);
@@ -55,7 +62,7 @@ fn main() {
         std::process::exit(0);
     }
 
-    // Print targets ____-----------------------------------------------------------------------------------------------
+    // Print targets ---------------------------------------------------------------------------------------------------
 
     for (i, bin) in bins.iter().enumerate() {
         println!(
@@ -222,4 +229,6 @@ fn main() {
         cli,
         cli.fmt_perf_result(bins.len(), found_cnt, start_time, run_time)
     );
+
+    Ok(())
 }
