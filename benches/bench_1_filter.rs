@@ -7,6 +7,7 @@ use regex::Regex;
 // We're comparing it against the actual filter implementation which:
 //  - Is slower per-gadget but more readable (uses the general purpose gadget analysis)
 //  - Is faster overall on multi-core systems due to parallel processing
+// TODO: inline actual implementation code here
 pub fn filter_stack_pivot_seq_fast<'a>(
     gadgets: &Vec<xgadget::gadget::Gadget<'a>>,
 ) -> Vec<xgadget::gadget::Gadget<'a>> {

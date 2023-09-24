@@ -59,7 +59,7 @@ fn test_jop_semantics() {
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_jop_gadget_tail(&instr));
 
-    // Negative test
+    // Negative --------------------------------------------------------------------------------------------------------
     let instr = common::decode_single_x64_instr(0, &jmp_fixed_deref);
     assert!(!xgadget::is_reg_indirect_jmp(&instr));
     assert!(!xgadget::is_gadget_tail(&instr));
@@ -80,7 +80,7 @@ fn test_jop_semantics() {
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_jop_gadget_tail(&instr));
 
-    // Negative test
+    // Negative --------------------------------------------------------------------------------------------------------
     let instr = common::decode_single_x64_instr(0, &call_fixed_deref);
     assert!(!xgadget::is_reg_indirect_call(&instr));
     assert!(!xgadget::is_gadget_tail(&instr));
@@ -110,7 +110,7 @@ fn test_sys_semantics() {
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_sys_gadget_tail(&instr));
 
-    // Negative test
+    // Negative --------------------------------------------------------------------------------------------------------
     let instr = common::decode_single_x64_instr(0, &int_0x10);
     assert!(!xgadget::is_legacy_linux_syscall(&instr));
     assert!(!xgadget::is_gadget_tail(&instr));
@@ -119,7 +119,7 @@ fn test_sys_semantics() {
 
 #[test]
 fn test_rw_semantics() {
-    // Positive test
+    // Positive --------------------------------------------------------------------------------------------------------
     let add_rax_0x08: [u8; 4] = [0x48, 0x83, 0xc0, 0x08];
     let instr = common::decode_single_x64_instr(0, &add_rax_0x08);
     assert!(xgadget::semantics::is_reg_rw(
@@ -127,7 +127,7 @@ fn test_rw_semantics() {
         &iced_x86::Register::RAX
     ));
 
-    // Negative test
+    // Negative --------------------------------------------------------------------------------------------------------
     let pop_r15: [u8; 2] = [0x41, 0x5f];
     let instr = common::decode_single_x64_instr(0, &pop_r15);
     assert!(!xgadget::semantics::is_reg_rw(
@@ -138,7 +138,7 @@ fn test_rw_semantics() {
 
 #[test]
 fn test_reg_set_semantics() {
-    // Positive test
+    // Positive --------------------------------------------------------------------------------------------------------
     let pop_r15: [u8; 2] = [0x41, 0x5f];
     let instr = common::decode_single_x64_instr(0, &pop_r15);
     assert!(xgadget::semantics::is_reg_set(
@@ -146,7 +146,7 @@ fn test_reg_set_semantics() {
         &iced_x86::Register::R15
     ));
 
-    // Negative test
+    // Negative --------------------------------------------------------------------------------------------------------
     let add_rax_0x08: [u8; 4] = [0x48, 0x83, 0xc0, 0x08];
     let instr = common::decode_single_x64_instr(0, &add_rax_0x08);
     assert!(!xgadget::semantics::is_reg_set(
@@ -157,7 +157,7 @@ fn test_reg_set_semantics() {
 
 #[test]
 fn test_has_ctrled_ops() {
-    // Positive test
+    // Positive --------------------------------------------------------------------------------------------------------
     let jmp_rax: [u8; 2] = [0xff, 0xe0];
     let instr = common::decode_single_x64_instr(0, &jmp_rax);
     assert!(xgadget::semantics::has_ctrled_ops_only(&instr));
@@ -174,7 +174,7 @@ fn test_has_ctrled_ops() {
     let instr = common::decode_single_x64_instr(0, &mov_rax_rbx);
     assert!(xgadget::semantics::has_ctrled_ops_only(&instr));
 
-    // Negative test
+    // Negative --------------------------------------------------------------------------------------------------------
     let add_rax_0x08: [u8; 4] = [0x48, 0x83, 0xc0, 0x08];
     let instr = common::decode_single_x64_instr(0, &add_rax_0x08);
     assert!(!xgadget::semantics::has_ctrled_ops_only(&instr));

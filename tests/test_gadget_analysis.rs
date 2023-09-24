@@ -9,7 +9,7 @@ fn test_regs_deref() {
 
     gadgets.retain(|g| g.full_matches().contains(&0x0));
     assert!(gadgets.len() == 1);
-    assert!(xgadget::filter_no_deref(&gadgets, None).is_empty());
+    assert!(xgadget::filter_no_deref(gadgets.clone(), None).is_empty());
 
     let analysis = xgadget::gadget::GadgetAnalysis::new(&gadgets[0]);
 
@@ -50,7 +50,7 @@ fn test_regs_updated() {
 
     gadgets.retain(|g| g.full_matches().contains(&0x24));
     assert!(gadgets.len() == 1);
-    assert!(xgadget::filter_no_deref(&gadgets, None).is_empty());
+    assert!(xgadget::filter_no_deref(gadgets.clone(), None).is_empty());
 
     let analysis = xgadget::gadget::GadgetAnalysis::new(&gadgets[0]);
 
@@ -68,7 +68,7 @@ fn test_regs_overwritten() {
 
     gadgets.retain(|g| g.full_matches().contains(&0x20));
     assert!(gadgets.len() == 1);
-    assert!(xgadget::filter_no_deref(&gadgets, None).is_empty());
+    assert!(xgadget::filter_no_deref(gadgets.clone(), None).is_empty());
 
     let analysis = xgadget::gadget::GadgetAnalysis::new(&gadgets[0]);
 
@@ -95,5 +95,5 @@ fn test_no_deref_1() {
         common::dump_instr(instr);
     }
 
-    assert!(xgadget::filter_no_deref(&gadgets, None).is_empty());
+    assert!(xgadget::filter_no_deref(gadgets, None).is_empty());
 }

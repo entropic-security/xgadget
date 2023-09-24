@@ -1,7 +1,13 @@
+#[cfg(test)]
+use std::sync::atomic::{AtomicU8, Ordering};
+
 use lazy_static::lazy_static;
 use rustc_hash::FxHashMap as HashMap;
 
 // Dynamic Init --------------------------------------------------------------------------------------------------------
+
+#[cfg(test)]
+static SECONDARY_KEY_CNT: AtomicU8 = AtomicU8::new(0);
 
 lazy_static! {
     static ref STR_REG_MAP: HashMap<String, iced_x86::Register> = {
@@ -13,6 +19,9 @@ lazy_static! {
             .flat_map(|(rs, r)| {
                 // Secondary key: R8L-R15L -> R8B-R15B
                 if (iced_x86::Register::R8L <= r) && (r <= iced_x86::Register::R15L) {
+                    #[cfg(test)]
+                    SECONDARY_KEY_CNT.fetch_add(1, Ordering::SeqCst);
+
                     [(rs.clone(), r), (rs.replace('L', "B"), r)].to_vec()
                 } else {
                     [(rs, r)].to_vec()
@@ -34,12 +43,11 @@ pub fn str_to_reg(rs: &str) -> Option<iced_x86::Register> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use xgadget::binary::ICED_X86_REG_TOTAL;
+    use xgadget::binary::ICED_X86_REG_TOTAL_VALID;
 
     #[test]
     fn test_reg_strs() {
-        const ICED_X86_REG_TOTAL: usize = 256;
-        const ICED_X86_REG_TOTAL_VALID: usize = 248;
-
         let mut count = 0;
         let mut valid_count = 0;
 
@@ -61,5 +69,9 @@ mod tests {
 
         assert_eq!(count, ICED_X86_REG_TOTAL);
         assert_eq!(valid_count, ICED_X86_REG_TOTAL_VALID);
+        assert_eq!(
+            STR_REG_MAP.len(),
+            ICED_X86_REG_TOTAL_VALID + usize::from(SECONDARY_KEY_CNT.load(Ordering::SeqCst))
+        );
     }
 }

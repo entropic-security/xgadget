@@ -1,3 +1,5 @@
+use core::iter::FromIterator;
+
 use rustc_hash::FxHashSet as HashSet;
 
 use super::gadget::Gadget;
@@ -47,17 +49,17 @@ impl GadgetAnalysis {
     }
 
     /// Get full register usage info
-    pub fn used_regs(&self) -> Vec<iced_x86::UsedRegister> {
-        self.used_regs.iter().cloned().collect()
+    pub fn used_regs(&self) -> impl ExactSizeIterator<Item = iced_x86::UsedRegister> + '_ {
+        self.used_regs.iter().copied()
     }
 
     /// Get full memory usage info
-    pub fn used_mem(&self) -> Vec<iced_x86::UsedMemory> {
-        self.used_mem.iter().cloned().collect()
+    pub fn used_mem(&self) -> impl ExactSizeIterator<Item = iced_x86::UsedMemory> + '_ {
+        self.used_mem.iter().copied()
     }
 
     /// Get registers overwritten by gadget (written without reading previous value)
-    pub fn regs_overwritten(&self) -> Vec<iced_x86::Register> {
+    pub fn regs_overwritten(&self) -> HashSet<iced_x86::Register> {
         self.used_regs
             .iter()
             .filter(|ur| ur.access() == iced_x86::OpAccess::Write)
@@ -66,7 +68,7 @@ impl GadgetAnalysis {
     }
 
     /// Get registers updated by gadget (read and then written)
-    pub fn regs_updated(&self) -> Vec<iced_x86::Register> {
+    pub fn regs_updated(&self) -> HashSet<iced_x86::Register> {
         self.used_regs
             .iter()
             .filter(|ur| ur.access() == iced_x86::OpAccess::ReadWrite)
@@ -77,50 +79,36 @@ impl GadgetAnalysis {
     }
 
     /// Get registers dereferenced by gadget
-    pub fn regs_dereferenced(&self) -> Vec<iced_x86::Register> {
-        let mut regs = HashSet::default();
-
-        for r in self.regs_dereferenced_read() {
-            regs.insert(r);
-        }
-
-        for r in self.regs_dereferenced_write() {
-            regs.insert(r);
-        }
-
-        regs.into_iter().collect()
+    pub fn regs_dereferenced(&self) -> HashSet<iced_x86::Register> {
+        HashSet::from_iter(
+            self.regs_dereferenced_read()
+                .into_iter()
+                .chain(self.regs_dereferenced_write().into_iter()),
+        )
     }
 
     /// Get registers dereferenced for read by gadget
-    pub fn regs_dereferenced_read(&self) -> Vec<iced_x86::Register> {
-        let mem_reads = self
-            .used_mem
-            .iter()
-            .filter(|um| {
-                let access = um.access();
-                (access == iced_x86::OpAccess::Read)
-                    || (access == iced_x86::OpAccess::CondRead)
-                    || (access == iced_x86::OpAccess::ReadWrite)
-                    || (access == iced_x86::OpAccess::ReadCondWrite)
-            })
-            .collect();
+    pub fn regs_dereferenced_read(&self) -> HashSet<iced_x86::Register> {
+        let mem_reads = self.used_mem.iter().filter(|um| {
+            let access = um.access();
+            (access == iced_x86::OpAccess::Read)
+                || (access == iced_x86::OpAccess::CondRead)
+                || (access == iced_x86::OpAccess::ReadWrite)
+                || (access == iced_x86::OpAccess::ReadCondWrite)
+        });
 
         Self::unique_regs_dereferenced(mem_reads)
     }
 
     /// Get registers dereferenced for write by gadget
-    pub fn regs_dereferenced_write(&self) -> Vec<iced_x86::Register> {
-        let mem_writes = self
-            .used_mem
-            .iter()
-            .filter(|um| {
-                let access = um.access();
-                (access == iced_x86::OpAccess::Write)
-                    || (access == iced_x86::OpAccess::CondWrite)
-                    || (access == iced_x86::OpAccess::ReadWrite)
-                    || (access == iced_x86::OpAccess::ReadCondWrite)
-            })
-            .collect();
+    pub fn regs_dereferenced_write(&self) -> HashSet<iced_x86::Register> {
+        let mem_writes = self.used_mem.iter().filter(|um| {
+            let access = um.access();
+            (access == iced_x86::OpAccess::Write)
+                || (access == iced_x86::OpAccess::CondWrite)
+                || (access == iced_x86::OpAccess::ReadWrite)
+                || (access == iced_x86::OpAccess::ReadCondWrite)
+        });
 
         Self::unique_regs_dereferenced(mem_writes)
     }
@@ -128,7 +116,9 @@ impl GadgetAnalysis {
     // GadgetAnalysis Private API --------------------------------------------------------------------------------------
 
     // Private helper for deref reg collection
-    fn unique_regs_dereferenced(used_mem: Vec<&iced_x86::UsedMemory>) -> Vec<iced_x86::Register> {
+    fn unique_regs_dereferenced<'a>(
+        used_mem: impl Iterator<Item = &'a iced_x86::UsedMemory>,
+    ) -> HashSet<iced_x86::Register> {
         let mut regs = HashSet::default();
 
         for um in used_mem {
@@ -143,6 +133,8 @@ impl GadgetAnalysis {
             }
         }
 
-        regs.into_iter().collect()
+        regs
     }
 }
+
+// TODO: add a simple test case here

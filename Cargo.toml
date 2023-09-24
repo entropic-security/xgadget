@@ -82,7 +82,11 @@ path = "src/cli/main.rs"
 required-features = ["cli-bin"]
 
 [[bench]]
-name = "bench_1_misc"
+name = "bench_0_elf_userspace"
+harness = false
+
+[[bench]]
+name = "bench_1_filter"
 harness = false
 
 [[bench]]
@@ -90,11 +94,7 @@ name = "bench_2_fmt"
 harness = false
 
 [[bench]]
-name = "bench_3_elf_userspace"
-harness = false
-
-[[bench]]
-name = "bench_4_elf_kernels"
+name = "bench_3_elf_kernels"
 harness = false
 
 [profile.release]
@@ -107,3 +107,11 @@ debug-assertions = false
 codegen-units = 1
 incremental = false
 overflow-checks = false
+
+[profile.bench]
+debug = true
+
+# TODO: lock to bench
+[target.x86_64-unknown-linux-gnu]
+linker = "/usr/bin/clang"
+rustflags = ["-Clink-arg=-fuse-ld=lld", "-Clink-arg=-Wl,--no-rosegment"]

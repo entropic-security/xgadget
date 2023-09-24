@@ -1,3 +1,8 @@
+// Supported register counts -------------------------------------------------------------------------------------------
+
+pub const ICED_X86_REG_TOTAL: usize = 256;
+pub const ICED_X86_REG_TOTAL_VALID: usize = 248;
+
 // Argument Registers --------------------------------------------------------------------------------------------------
 
 /// x64 ELF argument registers
@@ -30,3 +35,9 @@ pub static X64_MACHO_PARAM_REGS: &[iced_x86::Register] = &[
     iced_x86::Register::R8,
     iced_x86::Register::R9,
 ];
+
+// Test-only -----------------------------------------------------------------------------------------------------------
+
+// TODO: currently unused
+#[cfg(test)]
+pub const CARGO_TEST_DEFAULT_STACK_LIMIT_BYTES: usize = 2_097_152;

@@ -90,15 +90,15 @@ fn main() -> Result<()> {
     let mut gadgets = xgadget::find_gadgets(&bins, cli.max_len, cli.get_search_config()).unwrap();
 
     if cli.stack_pivot {
-        gadgets = xgadget::filter_stack_pivot(&gadgets);
+        gadgets = xgadget::filter_stack_pivot(gadgets);
     }
 
     if cli.dispatcher {
-        gadgets = xgadget::filter_dispatcher(&gadgets);
+        gadgets = xgadget::filter_dispatcher(gadgets);
     }
 
     if cli.reg_pop {
-        gadgets = xgadget::filter_reg_pop_only(&gadgets);
+        gadgets = xgadget::filter_reg_pop_only(gadgets);
     }
 
     if let Some(opt_reg) = &cli.reg_ctrl {
@@ -106,9 +106,9 @@ fn main() -> Result<()> {
             Some(reg_str) => {
                 let reg = str_to_reg(reg_str)
                     .unwrap_or_else(|| panic!("Invalid register: {:?}", reg_str));
-                gadgets = xgadget::filter_regs_overwritten(&gadgets, Some(&[reg]))
+                gadgets = xgadget::filter_regs_overwritten(gadgets, Some(&[reg]))
             }
-            None => gadgets = xgadget::filter_regs_overwritten(&gadgets, None),
+            None => gadgets = xgadget::filter_regs_overwritten(gadgets, None),
         }
     }
 
@@ -117,15 +117,15 @@ fn main() -> Result<()> {
             Some(reg_str) => {
                 let reg = str_to_reg(reg_str)
                     .unwrap_or_else(|| panic!("Invalid register: {:?}", reg_str));
-                gadgets = xgadget::filter_no_deref(&gadgets, Some(&[reg]))
+                gadgets = xgadget::filter_no_deref(gadgets, Some(&[reg]))
             }
-            None => gadgets = xgadget::filter_no_deref(&gadgets, None),
+            None => gadgets = xgadget::filter_no_deref(gadgets, None),
         }
     }
 
     if cli.param_ctrl {
         let param_regs = xgadget::get_all_param_regs(&bins);
-        gadgets = xgadget::filter_set_params(&gadgets, &param_regs);
+        gadgets = xgadget::filter_set_params(gadgets, &param_regs);
     }
 
     if !cli.bad_bytes.is_empty() {
@@ -136,7 +136,7 @@ fn main() -> Result<()> {
             .map(|s| u8::from_str_radix(s, 16).unwrap())
             .collect::<Vec<u8>>();
 
-        gadgets = xgadget::filter_bad_addr_bytes(&gadgets, bytes.as_slice());
+        gadgets = xgadget::filter_bad_addr_bytes(gadgets, bytes.as_slice());
     }
 
     let run_time = start_time.elapsed();

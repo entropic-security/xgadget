@@ -1,3 +1,6 @@
+// TODO: include readme
+// TODO: add checksec and import examples
+
 //! Fast, parallel, cross-variant ROP/JOP gadget search for x86 (32-bit) and x64 (64-bit) binaries.
 //! Uses the [iced-x86 disassembler library](https://github.com/icedland/iced).
 //!
@@ -54,7 +57,7 @@
 //! let bin_1 = xgadget::Binary::from_path("/path/to/bin_v1").unwrap();
 //! let bins = vec![bin_1];
 //! let gadgets = xgadget::find_gadgets(&bins, max_gadget_len, search_config).unwrap();
-//! let stack_pivot_gadgets = xgadget::filter_stack_pivot(&gadgets);
+//! let stack_pivot_gadgets = xgadget::filter_stack_pivot(gadgets);
 //!
 //! // Search for cross-variant gadgets, including partial matches
 //! let search_config = xgadget::SearchConfig::DEFAULT | xgadget::SearchConfig::PART;
@@ -62,7 +65,7 @@
 //! let bin_2 = xgadget::Binary::from_path("/path/to/bin_v2").unwrap();
 //! let bins = vec![bin_1, bin_2];
 //! let cross_gadgets = xgadget::find_gadgets(&bins, max_gadget_len, search_config).unwrap();
-//! let cross_reg_pop_gadgets = xgadget::filter_reg_pop_only(&cross_gadgets);
+//! let cross_reg_pop_gadgets = xgadget::filter_reg_pop_only(cross_gadgets);
 //! ```
 //!
 //! Custom filters can be created using the [`GadgetAnalysis`](crate::gadget::GadgetAnalysis) object and/or functions from the [`semantics`](crate::semantics) module.
