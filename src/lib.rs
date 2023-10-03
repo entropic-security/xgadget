@@ -257,6 +257,9 @@ pub use crate::filters::*;
 pub mod semantics;
 pub use crate::semantics::*;
 
+pub mod error;
+pub use crate::error::Error;
+
 // Crate-internal ------------------------------------------------------------------------------------------------------
 
 #[cfg(not(feature = "cli-bin"))]

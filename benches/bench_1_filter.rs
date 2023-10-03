@@ -7,7 +7,7 @@ use regex::Regex;
 // We're comparing it against the actual filter implementation which:
 //  - Is slower per-gadget but more readable (uses the general purpose gadget analysis)
 //  - Is faster overall on multi-core systems due to parallel processing
-// TODO: inline actual implementation code here
+//  - Includes cost-of-clone in the below benchmark implementations
 pub fn filter_stack_pivot_seq_fast<'a>(
     gadgets: &Vec<xgadget::gadget::Gadget<'a>>,
 ) -> Vec<xgadget::gadget::Gadget<'a>> {
@@ -71,13 +71,13 @@ fn pivot_bench(c: &mut Criterion) {
         b.iter(|| filter_stack_pivot_seq_fast(&readelf_gadgets))
     });
     c.bench_function("readelf_pivot_filter_par", |b| {
-        b.iter(|| xgadget::filter_stack_pivot(&readelf_gadgets))
+        b.iter(|| xgadget::filter_stack_pivot(readelf_gadgets.clone()))
     });
     c.bench_function("gdb_pivot_filter_seq_fast", |b| {
         b.iter(|| filter_stack_pivot_seq_fast(&gdb_gadgets))
     });
     c.bench_function("gdb_pivot_filter_par", |b| {
-        b.iter(|| xgadget::filter_stack_pivot(&gdb_gadgets))
+        b.iter(|| xgadget::filter_stack_pivot(gdb_gadgets.clone()))
     });
 }
 
@@ -95,13 +95,13 @@ fn reg_pop_only_bench(c: &mut Criterion) {
         xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
 
     c.bench_function("readelf_reg_pop_only_filter_par", |b| {
-        b.iter(|| xgadget::filter_reg_pop_only(&readelf_gadgets))
+        b.iter(|| xgadget::filter_reg_pop_only(readelf_gadgets.clone()))
     });
     c.bench_function("readelf_reg_pop_only_regex", |b| {
         b.iter(|| filter_reg_pop_only_regex(&readelf_gadgets))
     });
     c.bench_function("gdb_reg_pop_only_filter_par", |b| {
-        b.iter(|| xgadget::filter_reg_pop_only(&gdb_gadgets))
+        b.iter(|| xgadget::filter_reg_pop_only(gdb_gadgets.clone()))
     });
     c.bench_function("gdb_reg_pop_only_regex", |b| {
         b.iter(|| filter_reg_pop_only_regex(&gdb_gadgets))

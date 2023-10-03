@@ -165,6 +165,7 @@ macro_rules! build_row {
     }};
 }
 
+// TODO: remove Box<dyn Error>
 #[cfg(feature = "cli-bin")]
 pub fn gen_fess_tbl(
     bins: &[binary::Binary],

@@ -1,4 +1,6 @@
-use std::str::FromStr;
+use core::str::FromStr;
+
+use crate::error::Error;
 
 /// Architecture
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -17,7 +19,7 @@ impl Arch {
 }
 
 impl FromStr for Arch {
-    type Err = &'static str;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -25,7 +27,7 @@ impl FromStr for Arch {
             "x8086" => Ok(Arch::X8086),
             "x86" => Ok(Arch::X86),
             "x64" => Ok(Arch::X64),
-            _ => Err("Could not parse architecture string to enum"),
+            _ => Err(Error::UnsupportedArch),
         }
     }
 }

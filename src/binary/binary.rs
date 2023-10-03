@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::fmt;
 use std::fs;
 use std::path::Path;
@@ -10,8 +9,7 @@ use super::arch::Arch;
 use super::consts::*;
 use super::file_format::Format;
 use super::segment::Segment;
-
-// TODO: get rid of dyn error every where, use enums
+use crate::error::Error;
 
 // Binary --------------------------------------------------------------------------------------------------------------
 
@@ -31,18 +29,18 @@ impl Binary {
     // Binary Public API -----------------------------------------------------------------------------------------------
 
     /// Byte slice -> Binary
-    pub fn from_bytes(name: &str, bytes: &[u8]) -> Result<Binary, Box<dyn Error>> {
+    pub fn from_bytes(name: &str, bytes: &[u8]) -> Result<Binary, Error> {
         Binary::priv_from_buf(name, bytes)
     }
 
     /// Path str -> Binary
-    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Binary, Box<dyn Error>> {
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Binary, Error> {
         let name = path
             .as_ref()
             .file_name()
-            .ok_or("No filename.")?
+            .ok_or(Error::NoFileName)?
             .to_str()
-            .ok_or("Failed filename decode.")?;
+            .ok_or(Error::NoFileName)?;
 
         let bytes = fs::read(path.as_ref())?;
 
@@ -110,25 +108,21 @@ impl Binary {
     }
 
     // Bytes -> Binary
-    fn priv_from_buf(name: &str, bytes: &[u8]) -> Result<Binary, Box<dyn Error>> {
+    fn priv_from_buf(name: &str, bytes: &[u8]) -> Result<Binary, Error> {
         match goblin::Object::parse(bytes) {
             Ok(obj) => match obj {
                 goblin::Object::Elf(elf) => Binary::from_elf(name, bytes, &elf),
                 goblin::Object::PE(pe) => Binary::from_pe(name, bytes, &pe),
                 goblin::Object::Mach(mach) => Binary::from_mach(name, bytes, &mach),
                 goblin::Object::Unknown(_) => Ok(Binary::from_raw(name, bytes)),
-                _ => Err("Unsupported file format!".into()),
+                _ => Err(Error::UnsupportedFileFormat),
             },
             _ => Ok(Binary::from_raw(name, bytes)),
         }
     }
 
     // ELF file -> Binary
-    fn from_elf(
-        name: &str,
-        bytes: &[u8],
-        elf: &goblin::elf::Elf,
-    ) -> Result<Binary, Box<dyn Error>> {
+    fn from_elf(name: &str, bytes: &[u8], elf: &goblin::elf::Elf) -> Result<Binary, Error> {
         let mut bin = Binary::priv_new();
 
         bin.name = name.to_string();
@@ -140,7 +134,7 @@ impl Binary {
             goblin::elf::header::EM_X86_64 => Arch::X64,
             goblin::elf::header::EM_386 => Arch::X86,
             _ => {
-                return Err("Unsupported architecture!".into());
+                return Err(Error::UnsupportedArch);
             }
         };
 
@@ -169,7 +163,7 @@ impl Binary {
     }
 
     // PE file -> Binary
-    fn from_pe(name: &str, bytes: &[u8], pe: &goblin::pe::PE) -> Result<Binary, Box<dyn Error>> {
+    fn from_pe(name: &str, bytes: &[u8], pe: &goblin::pe::PE) -> Result<Binary, Error> {
         let mut bin = Binary::priv_new();
 
         bin.name = name.to_string();
@@ -181,7 +175,7 @@ impl Binary {
             goblin::pe::header::COFF_MACHINE_X86_64 => Arch::X64,
             goblin::pe::header::COFF_MACHINE_X86 => Arch::X86,
             _ => {
-                return Err("Unsupported architecture!".into());
+                return Err(Error::UnsupportedArch);
             }
         };
 
@@ -208,11 +202,7 @@ impl Binary {
     }
 
     // Mach-O file -> Binary
-    fn from_mach(
-        name: &str,
-        bytes: &[u8],
-        mach: &goblin::mach::Mach,
-    ) -> Result<Binary, Box<dyn Error>> {
+    fn from_mach(name: &str, bytes: &[u8], mach: &goblin::mach::Mach) -> Result<Binary, Error> {
         let mut bin = Binary::priv_new();
 
         // Handle Mach-O and Multi-Architecture variants
@@ -234,7 +224,7 @@ impl Binary {
             goblin::mach::constants::cputype::CPU_TYPE_X86_64 => Arch::X64,
             goblin::mach::constants::cputype::CPU_TYPE_I386 => Arch::X86,
             _ => {
-                return Err("Unsupported architecture!".into());
+                return Err(Error::UnsupportedArch);
             }
         };
 
@@ -394,16 +384,16 @@ pub fn get_all_param_regs(bins: &[Binary]) -> Vec<iced_x86::Register> {
 
 pub fn get_supported_macho<'a>(
     fat: &'a goblin::mach::MultiArch,
-) -> Result<goblin::mach::MachO<'a>, Box<dyn Error>> {
-    Ok(fat
-        .find(|arch| {
-            (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_X86_64)
-                || (arch.as_ref().unwrap().cputype()
-                    == goblin::mach::constants::cputype::CPU_TYPE_I386)
-        })
-        .ok_or("Failed to retrieve supported architecture from MultiArch Mach-O")?
-        .map(|single_arch| match single_arch {
-            goblin::mach::SingleArch::MachO(macho) => Ok(macho),
-            _ => Err("Failed to retrieve supported architecture from MultiArch Mach-O"),
-        })??)
+) -> Result<goblin::mach::MachO<'a>, Error> {
+    fat.find(|arch| {
+        (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_X86_64)
+            || (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_I386)
+    })
+    .ok_or(Error::UnsupportedArch)?
+    // Don't expose goblin-internal errors
+    .map_err(|_| Error::UnsupportedArch)
+    .and_then(|single_arch| match single_arch {
+        goblin::mach::SingleArch::MachO(macho) => Ok(macho),
+        _ => Err(Error::UnsupportedArch),
+    })
 }

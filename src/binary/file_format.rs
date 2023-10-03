@@ -1,4 +1,6 @@
-use std::str::FromStr;
+use core::str::FromStr;
+
+use crate::error::Error;
 
 /// File format
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -11,7 +13,7 @@ pub enum Format {
 }
 
 impl FromStr for Format {
-    type Err = &'static str;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -20,7 +22,7 @@ impl FromStr for Format {
             "pe" => Ok(Format::PE),
             "macho" => Ok(Format::MachO),
             "raw" => Ok(Format::Raw),
-            _ => Err("Could not parse format string to enum"),
+            _ => Err(Error::UnsupportedFileFormat),
         }
     }
 }

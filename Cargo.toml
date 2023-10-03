@@ -22,6 +22,7 @@ rayon = "1"
 bitflags = "2"
 colored = "2"
 rustc-hash = "1"
+thiserror = "1"
 
 # CLI deps
 lazy_static = { version = "1", optional = true }

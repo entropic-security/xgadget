@@ -1,10 +1,10 @@
 use std::collections::BTreeSet;
-use std::error::Error;
 
 use rayon::prelude::*;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::binary;
+use crate::error::Error;
 use crate::fess::FESSData;
 use crate::gadget;
 use crate::semantics;
@@ -35,7 +35,7 @@ pub fn find_gadgets(
     bins: &[binary::Binary],
     max_len: usize,
     s_config: SearchConfig,
-) -> Result<Vec<gadget::Gadget>, Box<dyn Error>> {
+) -> Result<Vec<gadget::Gadget>, Error> {
     find_gadgets_multi_bin(bins, max_len, s_config, None)
 }
 
@@ -48,7 +48,7 @@ pub(crate) fn find_gadgets_multi_bin<'a>(
     max_len: usize,
     s_config: SearchConfig,
     fess_tbl: Option<&mut Vec<FESSData<'a>>>,
-) -> Result<Vec<gadget::Gadget<'a>>, Box<dyn Error>> {
+) -> Result<Vec<gadget::Gadget<'a>>, Error> {
     let bin_cnt = bins.len();
 
     // Process binaries in parallel
@@ -121,7 +121,7 @@ pub(crate) fn find_gadgets_multi_bin<'a>(
                             }
                             temp_gadgets.insert(updated_g);
                         }
-                        None => return Err("Fatal gadget comparison logic bug!".into()),
+                        None => return Err(Error::TemporaryError),
                     }
                 }
 
@@ -135,7 +135,7 @@ pub(crate) fn find_gadgets_multi_bin<'a>(
             }
             Ok(common_gadgets.into_iter().collect())
         }
-        _ => Err("No binaries to search!".into()),
+        _ => Err(Error::NoBinaries),
     }
 }
 
