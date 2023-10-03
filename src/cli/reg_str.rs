@@ -43,8 +43,8 @@ pub fn str_to_reg(rs: &str) -> Option<iced_x86::Register> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use xgadget::binary::ICED_X86_REG_TOTAL;
-    use xgadget::binary::ICED_X86_REG_TOTAL_VALID;
+    use xgadget::ICED_X86_REG_TOTAL;
+    use xgadget::ICED_X86_REG_TOTAL_VALID;
 
     #[test]
     fn test_reg_strs() {

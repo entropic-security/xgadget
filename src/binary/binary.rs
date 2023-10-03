@@ -382,6 +382,7 @@ pub fn get_all_param_regs(bins: &[Binary]) -> Vec<iced_x86::Register> {
     param_regs.into_iter().collect()
 }
 
+#[doc(hidden)]
 pub fn get_supported_macho<'a>(
     fat: &'a goblin::mach::MultiArch,
 ) -> Result<goblin::mach::MachO<'a>, Error> {

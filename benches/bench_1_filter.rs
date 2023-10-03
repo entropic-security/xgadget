@@ -9,8 +9,8 @@ use regex::Regex;
 //  - Is faster overall on multi-core systems due to parallel processing
 //  - Includes cost-of-clone in the below benchmark implementations
 pub fn filter_stack_pivot_seq_fast<'a>(
-    gadgets: &Vec<xgadget::gadget::Gadget<'a>>,
-) -> Vec<xgadget::gadget::Gadget<'a>> {
+    gadgets: &Vec<xgadget::Gadget<'a>>,
+) -> Vec<xgadget::Gadget<'a>> {
     let rsp_write = iced_x86::UsedRegister::new(iced_x86::Register::RSP, iced_x86::OpAccess::Write);
     let esp_write = iced_x86::UsedRegister::new(iced_x86::Register::ESP, iced_x86::OpAccess::Write);
     let sp_write = iced_x86::UsedRegister::new(iced_x86::Register::SP, iced_x86::OpAccess::Write);
@@ -41,7 +41,7 @@ pub fn filter_stack_pivot_seq_fast<'a>(
 // We're comparing it against the actual filter implementation which:
 // - Is stricter, only consecutive pop sequences before the tail instruction, no other instrs allowed
 // - Is faster, no need to string format and run a regex state machine
-pub fn filter_reg_pop_only_regex(gadgets: &[xgadget::gadget::Gadget<'_>]) -> Vec<(String, String)> {
+pub fn filter_reg_pop_only_regex(gadgets: &[xgadget::Gadget<'_>]) -> Vec<(String, String)> {
     let re = Regex::new(r"^(?:pop)(?:.*(?:pop))*.*(?:ret|call|jmp)").unwrap();
     let mut matches = Vec::new();
 

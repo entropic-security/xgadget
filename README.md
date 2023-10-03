@@ -50,7 +50,7 @@ Other features include:
 
 Find gadgets:
 
-```rust
+```rust,no_run
 use xgadget;
 
 let max_gadget_len = 5;
@@ -68,10 +68,10 @@ let bin_1 = xgadget::Binary::from_path("/path/to/bin_v1").unwrap();
 let bin_2 = xgadget::Binary::from_path("/path/to/bin_v2").unwrap();
 let bins = vec![bin_1, bin_2];
 let cross_gadgets = xgadget::find_gadgets(&bins, max_gadget_len, search_config).unwrap();
-let cross_reg_pop_gadgets = xgadget::filter_reg_pop_only(&cross_gadgets);
+let cross_reg_pop_gadgets = xgadget::filter_reg_pop_only(cross_gadgets);
 ```
 
-Custom filters can be created using the [`GadgetAnalysis`](crate::gadget::GadgetAnalysis) object and/or functions from the [`semantics`](crate::semantics) module.
+Custom filters can be created using the [`GadgetAnalysis`](crate::GadgetAnalysis) object and/or functions from the [`semantics`](crate::semantics) module.
 How the above [`filter_stack_pivot`](crate::filters::filter_stack_pivot) function is implemented:
 
 ```rust
@@ -80,11 +80,14 @@ use iced_x86;
 use xgadget::{Gadget, GadgetAnalysis};
 
 /// Parallel filter to gadgets that write the stack pointer
-pub fn filter_stack_pivot<'a>(gadgets: &[Gadget<'a>]) -> Vec<Gadget<'a>> {
+pub fn filter_stack_pivot<'a, P>(gadgets: P) -> P
+where
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
+{
     gadgets
-        .par_iter()
+        .into_par_iter()
         .filter(|g| {
-            let regs_overwritten = GadgetAnalysis::new(&g).regs_overwritten();
+            let regs_overwritten = GadgetAnalysis::new(g).regs_overwritten();
             if regs_overwritten.contains(&iced_x86::Register::RSP)
                 || regs_overwritten.contains(&iced_x86::Register::ESP)
                 || regs_overwritten.contains(&iced_x86::Register::SP)
@@ -93,7 +96,6 @@ pub fn filter_stack_pivot<'a>(gadgets: &[Gadget<'a>]) -> Vec<Gadget<'a>> {
             }
             false
         })
-        .cloned()
         .collect()
 }
 ```
@@ -102,7 +104,7 @@ pub fn filter_stack_pivot<'a>(gadgets: &[Gadget<'a>]) -> Vec<Gadget<'a>> {
 
 Run `xgadget --help`:
 
-```ignore
+```text
 xgadget v0.7.0
 
 About:  Fast, parallel, cross-variant ROP/JOP gadget search for x86/x64 binaries.

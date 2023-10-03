@@ -151,8 +151,7 @@ fn test_x64_filter_set_params() {
     let bins = vec![bin_filters];
     let gadgets =
         xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
-    let param_ctrl_gadgets =
-        xgadget::filter_set_params(gadgets, xgadget::binary::X64_ELF_PARAM_REGS);
+    let param_ctrl_gadgets = xgadget::filter_set_params(gadgets, xgadget::X64_ELF_PARAM_REGS);
     let param_ctrl_gadget_strs = common::get_gadget_strs(&param_ctrl_gadgets, false);
     common::print_gadget_strs(&param_ctrl_gadget_strs);
 

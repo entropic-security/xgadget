@@ -211,7 +211,7 @@ impl CLIOpts {
     }
 
     // Helper for computing FESS on requested binaries
-    pub(crate) fn run_fess(&self, bins: &[xgadget::binary::Binary]) {
+    pub(crate) fn run_fess(&self, bins: &[xgadget::Binary]) {
         if bins.len() < 2 {
             panic!("--fess flag requires 2+ binaries!");
         }
@@ -244,7 +244,7 @@ impl CLIOpts {
     }
 
     // Helper for printing imports from requested binaries
-    pub(crate) fn run_imports(&self, bins: &[xgadget::binary::Binary]) {
+    pub(crate) fn run_imports(&self, bins: &[xgadget::Binary]) {
         for (idx, path) in self.bin_paths.iter().enumerate() {
             println!(
                 "\nTARGET {} - {} \n",
@@ -268,7 +268,7 @@ impl CLIOpts {
                         imports::dump_macho_imports(&macho, self.no_color)
                     }
                     goblin::mach::Mach::Fat(fat) => {
-                        let macho = xgadget::binary::get_supported_macho(&fat).unwrap();
+                        let macho = xgadget::get_supported_macho(&fat).unwrap();
                         imports::dump_macho_imports(&macho, self.no_color)
                     }
                 },

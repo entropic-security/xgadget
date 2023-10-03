@@ -11,7 +11,7 @@ fn test_regs_deref() {
     assert!(gadgets.len() == 1);
     assert!(xgadget::filter_no_deref(gadgets.clone(), None).is_empty());
 
-    let analysis = xgadget::gadget::GadgetAnalysis::new(&gadgets[0]);
+    let analysis = xgadget::GadgetAnalysis::new(&gadgets[0]);
 
     assert!(analysis.regs_dereferenced().len() == 3);
     assert!(analysis
@@ -52,7 +52,7 @@ fn test_regs_updated() {
     assert!(gadgets.len() == 1);
     assert!(xgadget::filter_no_deref(gadgets.clone(), None).is_empty());
 
-    let analysis = xgadget::gadget::GadgetAnalysis::new(&gadgets[0]);
+    let analysis = xgadget::GadgetAnalysis::new(&gadgets[0]);
 
     assert!(analysis.regs_updated().len() == 2);
     assert!(analysis.regs_updated().contains(&iced_x86::Register::RAX));
@@ -70,7 +70,7 @@ fn test_regs_overwritten() {
     assert!(gadgets.len() == 1);
     assert!(xgadget::filter_no_deref(gadgets.clone(), None).is_empty());
 
-    let analysis = xgadget::gadget::GadgetAnalysis::new(&gadgets[0]);
+    let analysis = xgadget::GadgetAnalysis::new(&gadgets[0]);
 
     assert!(analysis.regs_overwritten().len() == 1);
     assert!(analysis
@@ -88,7 +88,7 @@ fn test_no_deref_1() {
     gadgets.retain(|g| g.full_matches().contains(&0x0));
     assert!(gadgets.len() == 1);
 
-    let analysis = xgadget::gadget::GadgetAnalysis::new(&gadgets[0]);
+    let analysis = xgadget::GadgetAnalysis::new(&gadgets[0]);
     assert!(!analysis.regs_dereferenced().is_empty());
 
     for instr in gadgets[0].instrs() {

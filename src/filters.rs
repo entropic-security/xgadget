@@ -1,17 +1,17 @@
 use rayon::prelude::*;
 
-use crate::gadget;
 use crate::semantics;
+use crate::{Gadget, GadgetAnalysis};
 
 /// Parallel filter to gadgets that write the stack pointer
 pub fn filter_stack_pivot<'a, P>(gadgets: P) -> P
 where
-    P: IntoParallelIterator<Item = gadget::Gadget<'a>> + FromParallelIterator<gadget::Gadget<'a>>,
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
 {
     gadgets
         .into_par_iter()
         .filter(|g| {
-            let regs_overwritten = gadget::GadgetAnalysis::new(g).regs_overwritten();
+            let regs_overwritten = GadgetAnalysis::new(g).regs_overwritten();
             if regs_overwritten.contains(&iced_x86::Register::RSP)
                 || regs_overwritten.contains(&iced_x86::Register::ESP)
                 || regs_overwritten.contains(&iced_x86::Register::SP)
@@ -26,7 +26,7 @@ where
 /// Parallel filter to gadgets that may be suitable JOP dispatchers
 pub fn filter_dispatcher<'a, P>(gadgets: P) -> P
 where
-    P: IntoParallelIterator<Item = gadget::Gadget<'a>> + FromParallelIterator<gadget::Gadget<'a>>,
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
 {
     gadgets
         .into_par_iter()
@@ -50,7 +50,7 @@ where
 /// Parallel filter to gadgets of the form "pop {reg} * 1+, {ret or ctrl-ed jmp/call}"
 pub fn filter_reg_pop_only<'a, P>(gadgets: P) -> P
 where
-    P: IntoParallelIterator<Item = gadget::Gadget<'a>> + FromParallelIterator<gadget::Gadget<'a>>,
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
 {
     gadgets
         .into_par_iter()
@@ -85,7 +85,7 @@ where
 /// Parallel filter to gadgets that write parameter registers or stack push any register
 pub fn filter_set_params<'a, P>(gadgets: P, param_regs: &[iced_x86::Register]) -> P
 where
-    P: IntoParallelIterator<Item = gadget::Gadget<'a>> + FromParallelIterator<gadget::Gadget<'a>>,
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
 {
     gadgets
         .into_par_iter()
@@ -124,12 +124,12 @@ where
 /// Doesn't count the stack pointer unless explicitly provided in `opt_regs`.
 pub fn filter_no_deref<'a, P>(gadgets: P, opt_regs: Option<&[iced_x86::Register]>) -> P
 where
-    P: IntoParallelIterator<Item = gadget::Gadget<'a>> + FromParallelIterator<gadget::Gadget<'a>>,
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
 {
     gadgets
         .into_par_iter()
         .filter(|g| {
-            let mut regs_derefed = gadget::GadgetAnalysis::new(g).regs_dereferenced();
+            let mut regs_derefed = GadgetAnalysis::new(g).regs_dereferenced();
             match opt_regs {
                 Some(regs) => regs.iter().all(|r| !regs_derefed.contains(r)),
                 None => {
@@ -149,12 +149,12 @@ where
 /// or write specific registers (if `opt_regs.is_some()`).
 pub fn filter_regs_overwritten<'a, P>(gadgets: P, opt_regs: Option<&[iced_x86::Register]>) -> P
 where
-    P: IntoParallelIterator<Item = gadget::Gadget<'a>> + FromParallelIterator<gadget::Gadget<'a>>,
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
 {
     gadgets
         .into_par_iter()
         .filter(|g| {
-            let regs_overwritten = gadget::GadgetAnalysis::new(g).regs_overwritten();
+            let regs_overwritten = GadgetAnalysis::new(g).regs_overwritten();
             match opt_regs {
                 Some(regs) => regs.iter().all(|r| regs_overwritten.contains(r)),
                 None => !regs_overwritten.is_empty(),
@@ -166,7 +166,7 @@ where
 /// Parallel filter to gadget's whose addresses don't contain specified bytes
 pub fn filter_bad_addr_bytes<'a, P>(gadgets: P, bad_bytes: &[u8]) -> P
 where
-    P: IntoParallelIterator<Item = gadget::Gadget<'a>> + FromParallelIterator<gadget::Gadget<'a>>,
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
 {
     gadgets
         .into_par_iter()
