@@ -8,8 +8,8 @@ use regex::Regex;
 
 // Internal deps -------------------------------------------------------------------------------------------------------
 
-mod reg_str;
-use reg_str::str_to_reg;
+mod str_fmt;
+use str_fmt::str_to_reg;
 
 mod cli;
 use cli::CLIOpts;
