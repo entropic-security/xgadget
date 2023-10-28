@@ -10,10 +10,8 @@ use rustc_hash::FxHashMap as HashMap;
 #[cfg(test)]
 static SECONDARY_KEY_CNT: AtomicU8 = AtomicU8::new(0);
 
-// TODO: Add a mnemonic map for coloring those as well!
-
 lazy_static! {
-    static ref STR_REG_MAP: HashMap<String, iced_x86::Register> = {
+    pub static ref STR_REG_MAP: HashMap<String, iced_x86::Register> = {
         iced_x86::Register::values()
             .filter(|r| *r != iced_x86::Register::None)
             .map(|r| (format!("{:?}", r).to_uppercase(), r))
@@ -33,6 +31,187 @@ lazy_static! {
             .collect()
     };
 }
+lazy_static! {
+    pub static ref VERSION_STR: String = format!("v{}", clap::crate_version!());
+}
+
+lazy_static! {
+    pub static ref ABOUT_STR: String = format!(
+        "{} {}{}\n\n{}\t{}\n{}\t{} logical{} {} physical",
+        clap::crate_name!().green(),
+        "v".bright_magenta(),
+        cli_help_fmt(clap::crate_version!(), false, false),
+        "About:".to_string().cyan(),
+        cli_help_fmt(clap::crate_description!(), false, false),
+        "Cores:".to_string().cyan(),
+        num_cpus::get().to_string().red(),
+        ",".bright_magenta(),
+        num_cpus::get_physical().to_string().red(),
+    );
+}
+
+use clap::builder::{styling::AnsiColor, Styles};
+lazy_static! {
+    pub static ref CMD_COLOR: Styles = Styles::styled()
+        .header(AnsiColor::Yellow.on_default())
+        .usage(AnsiColor::Cyan.on_default())
+        .valid(AnsiColor::Green.on_default())
+        .error(AnsiColor::Red.on_default())
+        .invalid(AnsiColor::Red.on_default())
+        .literal(AnsiColor::Green.on_default())
+        .placeholder(AnsiColor::BrightBlue.on_default().bold());
+}
+
+macro_rules! gen_help_str {
+    ($(($static_name:ident, $has_default:expr, $fess_entry:expr, $help_str:literal $(,)?)),* $(,)?) => {
+        $(
+            lazy_static! {
+                pub static ref $static_name: String = cli_help_fmt(
+                    $help_str,
+                    $has_default,
+                    $fess_entry,
+                );
+            }
+        )*
+    }
+}
+
+// TODO: at the UI level, can these be broken up into sub-categories?
+gen_help_str!(
+    (
+        HELP_BIN_PATHS,
+        false,
+        false,
+        "1+ binaries to gadget search. If > 1: gadgets common to all",
+    ),
+    (
+        HELP_ARCH,
+        true,
+        false,
+        "For raw (no header) files: specify arch ('x8086', 'x86', or 'x64')",
+    ),
+    (
+        HELP_ATT,
+        false,
+        false,
+        "Display gadgets using AT&T syntax (otherwise Intel syntax)",
+    ),
+    (HELP_NO_COLOR, false, false, "Don't color output"),
+    (
+        HELP_EXTENDED_FMT,
+        false,
+        false,
+        "Print in terminal-wide format (otherwise only used for partial match search)",
+    ),
+    (
+        HELP_MAX_LEN,
+        true,
+        false,
+        "Gadgets up to LEN instrs long. If 0: all gadgets, any length",
+    ),
+    (
+        HELP_ROP,
+        false,
+        false,
+        "Search for ROP gadgets only (otherwise ROP, JOP, and SYSCALL)",
+    ),
+    (
+        HELP_JOP,
+        false,
+        false,
+        "Search for JOP gadgets only (otherwise ROP, JOP, and SYSCALL)",
+    ),
+    (
+        HELP_SYS,
+        false,
+        false,
+        "Search for SYSCALL gadgets only (otherwise ROP, JOP, and SYSCALL)",
+    ),
+    (
+        HELP_INC_IMM16,
+        false,
+        false,
+        "Include '{ret, ret far} imm16', e.g. add to stack ptr (otherwise don't include)",
+    ),
+    (
+        HELP_CALL,
+        false,
+        false,
+        "Include gadgets containing a call (otherwise don't include)",
+    ),
+    (
+        HELP_PARTIAL_MACH,
+        false,
+        false,
+        "Include cross-variant partial matches (otherwise: full matches only)",
+    ),
+    (
+        HELP_STACK_PIVOT,
+        false,
+        false,
+        "Filter to gadgets that write the stack ptr (otherwise: all)",
+    ),
+    (
+        HELP_DISPATCHER,
+        false,
+        false,
+        "Filter to potential JOP 'dispatcher' gadgets (otherwise: all)",
+    ),
+    (
+        HELP_REG_POP,
+        false,
+        false,
+        "Filter to 'pop {reg} * 1+, {ret or ctrl-ed jmp/call}' gadgets (otherwise: all)",
+    ),
+    (
+        HELP_NO_DEREF,
+        false,
+        false,
+        "Filter to gadgets that don't deref any regs or a specific reg (otherwise: all)",
+    ),
+    (
+        HELP_REG_CTRL,
+        false,
+        false,
+        "Filter to gadgets that control any reg or a specific reg (otherwise: all)",
+    ),
+    (
+        HELP_PARAM_CTRL,
+        false,
+        false,
+        "Filter to gadgets that control function parameters (otherwise: all)",
+    ),
+    (
+        HELP_BAD_BYTES,
+        false,
+        false,
+        "Filter to gadgets whose addrs don't contain given bytes (otherwise: all)",
+    ),
+    (
+        HELP_USER_REGEX,
+        false,
+        false,
+        "Filter to gadgets matching a regular expression",
+    ),
+    (
+        HELP_CHECKSEC,
+        false,
+        false,
+        "Run checksec on the 1+ binaries instead of gadget search",
+    ),
+    (
+        HELP_FESS,
+        false,
+        true,
+        "Compute Fast Exploit Similarity Score (FESS) table for 2+ binaries",
+    ),
+    (
+        HELP_IMPORTS,
+        false,
+        false,
+        "List the imported symbols in the binary",
+    ),
+);
 
 // Public API ----------------------------------------------------------------------------------------------------------
 
@@ -45,17 +224,19 @@ pub fn str_to_reg(rs: &str) -> Option<iced_x86::Register> {
 /// Cannot do this for `[default: x64]` postfix - those are clap generated.
 pub fn cli_help_fmt(help_desc: &str, has_default: bool, fess_entry: bool) -> String {
     use std::io::Write;
-    const PUNCTUATION_SET: &[char; 14] = &[
-        '[', ']', '{', '}', '(', ')', ':', '\'', '.', ',', '+', '*', '/', '\\',
+    const PUNCTUATION_SET: &[char; 16] = &[
+        '[', ']', '{', '}', '(', ')', ':', '\'', '.', ',', '+', '*', '/', '\\', '>', '<',
     ];
 
     let working_buf_to_string = |buf: &[char]| {
         let token: String = buf.into_iter().collect();
         match token.as_str() {
             // Arg-like tokens
-            "x8086" | "x86" | "x64" | "LEN" => token.bright_blue(),
-            // Search type tokens
-            "ROP" | "JOP" | "SYS" | "SYSCALL" => token.cyan(),
+            "x8086" | "x86" | "x64" | "LEN" => token.bold().bright_blue(),
+            // Flag-like tokens
+            "ROP" | "JOP" | "SYS" | "SYSCALL" | "AT&T" => token.green(),
+            // Select mnemonics
+            "jmp" | "call" | "ret" | "pop" => token.cyan(),
             // FESS feature advertisement
             "Fast" | "Exploit" | "Similarity" | "Score" => match fess_entry {
                 true => token.red(),
@@ -66,15 +247,7 @@ pub fn cli_help_fmt(help_desc: &str, has_default: bool, fess_entry: bool) -> Str
                 false => token.normal(),
             },
             // All other words
-            other => match STR_REG_MAP.contains_key(other) {
-                // Register name
-                true => match other {
-                    "rsp" | "esp" | "sp" => other.red(),
-                    _ => other.yellow(),
-                },
-                // Anything else
-                false => token.normal(),
-            },
+            _ => token.normal(),
         }
     };
 
@@ -91,7 +264,7 @@ pub fn cli_help_fmt(help_desc: &str, has_default: bool, fess_entry: bool) -> Str
     for c in help_desc.chars() {
         if PUNCTUATION_SET.contains(&c) {
             flush_working_buf(&mut tokens, &mut working_buf);
-            tokens.push(c.to_string().bright_magenta());
+            tokens.push(c.to_string().bold().bright_magenta());
         } else if c.is_whitespace() {
             flush_working_buf(&mut tokens, &mut working_buf);
             tokens.push(c.to_string().normal());
@@ -103,7 +276,7 @@ pub fn cli_help_fmt(help_desc: &str, has_default: bool, fess_entry: bool) -> Str
 
     // Separator before `clap`'s non-colored default
     if has_default {
-        tokens.push(" |".green());
+        tokens.push(" |".bold().yellow());
     }
 
     // Cannot `join"("")` a `Vec<ColoredString>`

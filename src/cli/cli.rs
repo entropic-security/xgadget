@@ -1,69 +1,14 @@
 use std::{fmt, fs, time};
 
-use clap::{
-    builder::{styling::AnsiColor, Styles},
-    Parser,
-};
+use clap::Parser;
 use colored::Colorize;
 use goblin::Object;
-use lazy_static::lazy_static;
 use num_format::{Locale, ToFormattedString};
-
-use crate::str_fmt;
 
 use super::checksec_fmt::CustomCheckSecResultsDisplay;
 use super::imports;
 
-// Global CLI metadata -------------------------------------------------------------------------------------------------
-
-// TODO: move to str_fmt.rs
-
-lazy_static! {
-    static ref VERSION_STR: String = format!("v{}", clap::crate_version!());
-}
-
-lazy_static! {
-    static ref ABOUT_STR: String = format!(
-        "{} {}{}\n\n{}\t{}\n{}\t{} logical{} {} physical",
-        clap::crate_name!().cyan(),
-        "v".bright_magenta(),
-        str_fmt::cli_help_fmt(clap::crate_version!(), false, false),
-        "About:".to_string().green(),
-        str_fmt::cli_help_fmt(clap::crate_description!(), false, false),
-        "Cores:".to_string().green(),
-        num_cpus::get().to_string().red(),
-        ",".bright_magenta(),
-        num_cpus::get_physical().to_string().red(),
-    );
-}
-
-lazy_static! {
-    static ref CMD_COLOR: Styles = Styles::styled()
-        .header(AnsiColor::Yellow.on_default())
-        .usage(AnsiColor::Green.on_default())
-        .valid(AnsiColor::Green.on_default())
-        .error(AnsiColor::Red.on_default())
-        .invalid(AnsiColor::Red.on_default())
-        .literal(AnsiColor::Cyan.on_default())
-        .placeholder(AnsiColor::BrightBlue.on_default());
-}
-
-// TODO: macro to stamp these out
-lazy_static! {
-    static ref HELP_STR_ARCH: String = str_fmt::cli_help_fmt(
-        "For raw (no header) files: specify arch ('x8086', 'x86', or 'x64')",
-        true,
-        false,
-    );
-}
-
-lazy_static! {
-    static ref HELP_STR_FESS: String = str_fmt::cli_help_fmt(
-        "Compute Fast Exploit Similarity Score (FESS) table for 2+ binaries",
-        false,
-        true
-    );
-}
+use crate::str_fmt::*;
 
 // Arg parse -----------------------------------------------------------------------------------------------------------
 
@@ -82,27 +27,23 @@ enum SummaryItemType {
     styles = CMD_COLOR.clone(),
 )]
 pub(crate) struct CLIOpts {
-    /// 1+ binaries to gadget search. If > 1: gadgets common to all
-    #[arg(required = true, num_args = 1.., value_name = "FILE(S)")]
+    #[arg(help = HELP_BIN_PATHS.as_str(), required = true, num_args = 1.., value_name = "FILE(S)")]
     pub(crate) bin_paths: Vec<String>,
 
-    #[arg(help = HELP_STR_ARCH.as_str(), short, long, default_value = "x64", value_name = "ARCH")]
+    #[arg(help = HELP_ARCH.as_str(), short, long, default_value = "x64", value_name = "ARCH")]
     pub(crate) arch: xgadget::Arch,
 
-    /// Display gadgets using AT&T syntax [default: Intel syntax]
-    #[arg(short = 't', long)]
+    #[arg(help = HELP_ATT.as_str(), short = 't', long)]
     pub(crate) att: bool,
 
-    /// Don't color output [default: color output]
-    #[arg(short, long)]
+    #[arg(help = HELP_NO_COLOR.as_str(), short, long)]
     pub(crate) no_color: bool,
 
-    /// Print in terminal-wide format [default: only used for partial match search]
-    #[arg(short, long)]
+    #[arg(help = HELP_EXTENDED_FMT.as_str(), short, long)]
     pub(crate) extended_fmt: bool,
 
-    /// Gadgets up to LEN instrs long. If 0: all gadgets, any length
     #[arg(
+        help = HELP_MAX_LEN.as_str(),
         short = 'l',
         long,
         required = false,
@@ -111,64 +52,49 @@ pub(crate) struct CLIOpts {
     )]
     pub(crate) max_len: usize,
 
-    /// Search for ROP gadgets only [default: ROP, JOP, and SYSCALL]
-    #[arg(short, long)]
+    #[arg(help = HELP_ROP.as_str(), short, long)]
     pub(crate) rop: bool,
 
-    /// Search for JOP gadgets only [default: ROP, JOP, and SYSCALL]
-    #[arg(short, long, conflicts_with = "rop")]
+    #[arg(help = HELP_JOP.as_str(), short, long, conflicts_with = "rop")]
     pub(crate) jop: bool,
 
-    /// Search for SYSCALL gadgets only [default: ROP, JOP, and SYSCALL]
-    #[arg(short, long, conflicts_with = "jop")]
+    #[arg(help = HELP_SYS.as_str(), short, long, conflicts_with = "jop")]
     pub(crate) sys: bool,
 
-    /// Include '{ret, ret far} imm16' (e.g. add to stack ptr) [default: don't include]
-    #[arg(long, conflicts_with = "jop")]
+    #[arg(help = HELP_INC_IMM16.as_str(), long, conflicts_with = "jop")]
     pub(crate) inc_imm16: bool,
 
-    /// Include gadgets containing a call [default: don't include]
-    #[arg(long)]
+    #[arg(help = HELP_CALL.as_str(), long)]
     pub(crate) inc_call: bool,
 
-    /// Include cross-variant partial matches [default: full matches only]
-    #[arg(short = 'm', long)]
+    #[arg(help = HELP_PARTIAL_MACH.as_str(), short = 'm', long)]
     pub(crate) partial_match: bool,
 
-    /// Filter to gadgets that write the stack ptr [default: all]
-    #[arg(short = 'p', long)]
+    #[arg(help = HELP_STACK_PIVOT.as_str(), short = 'p', long)]
     pub(crate) stack_pivot: bool,
 
-    /// Filter to potential JOP 'dispatcher' gadgets [default: all]
-    #[arg(short, long, conflicts_with_all = &["rop", "stack_pivot"])]
+    #[arg(help = HELP_DISPATCHER.as_str(), short, long, conflicts_with_all = &["rop", "stack_pivot"])]
     pub(crate) dispatcher: bool,
 
-    /// Filter to 'pop {reg} * 1+, {ret or ctrl-ed jmp/call}' gadgets [default: all]
-    #[arg(long, conflicts_with = "dispatcher")]
+    #[arg(help = HELP_REG_POP.as_str(), long, conflicts_with = "dispatcher")]
     pub(crate) reg_pop: bool,
 
-    /// Filter to gadgets that don't deref any regs or a specific reg [default: all]
-    #[arg(long, value_name = "OPT_REG")]
+    #[arg(help = HELP_NO_DEREF.as_str(), long, value_name = "OPT_REG")]
     pub(crate) no_deref: Option<Option<String>>,
 
-    /// Filter to gadgets that control any reg or a specific reg [default: all]
-    #[arg(long, value_name = "OPT_REG")]
+    #[arg(help = HELP_REG_CTRL.as_str(), long, value_name = "OPT_REG")]
     pub(crate) reg_ctrl: Option<Option<String>>,
 
-    /// Filter to gadgets that control function parameters [default: all]
-    #[arg(long)]
+    #[arg(help = HELP_PARAM_CTRL.as_str(), long)]
     pub(crate) param_ctrl: bool,
 
-    /// Filter to gadgets whose addrs don't contain given bytes [default: all]
-    #[arg(short, long, num_args = 1.., value_name = "BYTE(S)")]
+    #[arg(help = HELP_BAD_BYTES.as_str(), short, long, num_args = 1.., value_name = "BYTE(S)")]
     pub(crate) bad_bytes: Vec<String>,
 
-    /// Filter to gadgets matching a regular expression
-    #[arg(short = 'f', long = "regex_filter", value_name = "EXPR")]
+    #[arg(help = HELP_USER_REGEX.as_str(), short = 'f', long = "regex_filter", value_name = "EXPR")]
     pub(crate) usr_regex: Option<String>,
 
-    /// Run checksec on the 1+ binaries instead of gadget search
-    #[arg(short, long, conflicts_with_all = &[
+    #[arg(help = HELP_CHECKSEC.as_str(), short, long, conflicts_with_all = &[
         "arch", "att", "extended_fmt", "max_len",
         "rop", "jop", "sys", "inc_imm16", "partial_match",
         "stack_pivot", "dispatcher", "reg_pop", "usr_regex", "fess", "imports"
@@ -176,15 +102,14 @@ pub(crate) struct CLIOpts {
     pub(crate) check_sec: bool,
 
     // TODO: conflict list gen by removal
-    #[arg(help = HELP_STR_FESS.as_str(), long, conflicts_with_all = &[
+    #[arg(help = HELP_FESS.as_str(), long, conflicts_with_all = &[
         "arch", "att", "extended_fmt", "max_len",
         "rop", "jop", "sys", "inc_imm16", "partial_match",
         "stack_pivot", "dispatcher", "reg_pop", "usr_regex", "check_sec", "imports"
     ])]
     pub(crate) fess: bool,
 
-    /// List the imported symbols in the binary
-    #[arg(long, conflicts_with_all = &[
+    #[arg(help = HELP_IMPORTS.as_str(), long, conflicts_with_all = &[
         "arch", "att", "extended_fmt", "max_len",
         "rop", "jop", "sys", "inc_imm16", "partial_match",
         "stack_pivot", "dispatcher", "reg_pop", "usr_regex", "check_sec", "fess"
