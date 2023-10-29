@@ -17,6 +17,6 @@ fn test_elf() {
 
     // Regardless of version, should find some gadgets
     let bins = vec![bin];
-    let gadgets = xgadget::find_gadgets(&bins, 5, xgadget::SearchConfig::DEFAULT).unwrap();
+    let gadgets = xgadget::find_gadgets(&bins, 5, xgadget::SearchConfig::default()).unwrap();
     assert!(!gadgets.is_empty());
 }

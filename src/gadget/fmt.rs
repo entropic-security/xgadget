@@ -10,7 +10,7 @@ use crate::gadget;
 
 // Public Types and Traits ---------------------------------------------------------------------------------------------
 
-/// Implementors track count of visible terminal characters for `Display`'s `fmt` function (for colored strings).
+/// Track count of visible terminal characters for `Display`'s `fmt` function (for colored strings).
 pub trait DisplayLen: Display {
     /// Get the count of visible terminal characters for `Display`'s `fmt` function
     fn len(&self) -> usize;

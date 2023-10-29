@@ -3,12 +3,17 @@ use core::str::FromStr;
 use crate::error::Error;
 
 /// File format
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum Format {
+    /// Unknown file format
     Unknown,
+    /// ELF
     ELF,
+    /// PE
     PE,
+    /// MachO
     MachO,
+    /// Raw executable bytes (no file format)
     Raw,
 }
 

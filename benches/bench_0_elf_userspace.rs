@@ -9,12 +9,12 @@ fn elf_userspace_bench(c: &mut Criterion) {
     let bins = vec![bin];
     c.bench_function("readelf_search", |b| {
         b.iter(|| {
-            xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::DEFAULT).unwrap()
+            xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::default()).unwrap()
         })
     });
     c.bench_function("gdb_search", |b| {
         b.iter(|| {
-            xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::DEFAULT).unwrap()
+            xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::default()).unwrap()
         })
     });
 }

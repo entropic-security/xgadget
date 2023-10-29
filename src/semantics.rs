@@ -1,3 +1,5 @@
+//! Determine attack-relevant instruction semantics
+
 use crate::binary;
 
 // Constructs for attacker control -------------------------------------------------------------------------------------

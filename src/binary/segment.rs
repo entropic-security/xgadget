@@ -1,9 +1,11 @@
 use rayon::prelude::*;
 
 /// A single executable segment
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Segment {
+    /// Segment start address
     pub addr: u64,
+    /// Segment contents
     pub bytes: Vec<u8>,
 }
 

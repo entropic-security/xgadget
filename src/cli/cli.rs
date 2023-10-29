@@ -1,14 +1,21 @@
-use std::{fmt, fs, time};
+use std::{cell::OnceCell, fmt, fs, sync::Mutex, time};
 
 use clap::Parser;
 use colored::Colorize;
 use goblin::Object;
 use num_format::{Locale, ToFormattedString};
+use rustc_hash::FxHashSet as HashSet;
 
 use super::checksec_fmt::CustomCheckSecResultsDisplay;
 use super::imports;
 
 use crate::str_fmt::*;
+
+// External init -------------------------------------------------------------------------------------------------------
+
+// `CLIOpts` shouldn't re-{read,parse} binaries from `self.bin_paths` to `Display` this info
+pub(crate) static ARCHS_PROCESSED: Mutex<OnceCell<HashSet<xgadget::Arch>>> =
+    Mutex::new(OnceCell::new());
 
 // Arg parse -----------------------------------------------------------------------------------------------------------
 
@@ -25,6 +32,7 @@ enum SummaryItemType {
     about = ABOUT_STR.as_str(),
     term_width = 150,
     styles = CMD_COLOR.clone(),
+    next_line_help = false,
 )]
 pub(crate) struct CLIOpts {
     #[arg(help = HELP_BIN_PATHS.as_str(), required = true, num_args = 1.., value_name = "FILE(S)")]
@@ -91,7 +99,7 @@ pub(crate) struct CLIOpts {
     #[arg(help = HELP_BAD_BYTES.as_str(), short, long, num_args = 1.., value_name = "BYTE(S)")]
     pub(crate) bad_bytes: Vec<String>,
 
-    #[arg(help = HELP_USER_REGEX.as_str(), short = 'f', long = "regex_filter", value_name = "EXPR")]
+    #[arg(help = HELP_USER_REGEX.as_str(), short = 'f', long = "regex-filter", value_name = "EXPR")]
     pub(crate) usr_regex: Option<String>,
 
     #[arg(help = HELP_CHECKSEC.as_str(), short, long, conflicts_with_all = &[
@@ -120,7 +128,7 @@ pub(crate) struct CLIOpts {
 impl CLIOpts {
     // User flags -> Search config bitfield
     pub(crate) fn get_search_config(&self) -> xgadget::SearchConfig {
-        let mut search_config = xgadget::SearchConfig::DEFAULT;
+        let mut search_config = xgadget::SearchConfig::default();
 
         // Add to default
         if self.partial_match {
@@ -175,17 +183,27 @@ impl CLIOpts {
     }
 
     // Helper for running checksec on requested binaries
-    pub(crate) fn run_checksec(&self) {
-        for path in &self.bin_paths {
-            println!(
-                "\n{}:",
-                self.fmt_summary_item(path.to_string(), SummaryItemType::Data)
-            );
-            let buf = fs::read(path).unwrap();
-            println!(
-                "{}",
-                CustomCheckSecResultsDisplay::new(&buf, path, self.no_color)
-            );
+    pub(crate) fn run_checksec(&self, bins: &[xgadget::Binary]) {
+        for bin in bins {
+            if let Some((path, Some(path_str))) = bin.path().map(|p| (p, p.as_os_str().to_str())) {
+                println!(
+                    "\n{}\n\t{}:",
+                    self.fmt_summary_item(path.display().to_string(), SummaryItemType::Data),
+                    bin,
+                );
+                let buf = fs::read(path).unwrap();
+                println!(
+                    "{}",
+                    CustomCheckSecResultsDisplay::new(&buf, path_str, self.no_color)
+                );
+
+                debug_assert!(self
+                    .bin_paths
+                    .iter()
+                    .map(|p| std::path::PathBuf::from(p))
+                    .collect::<Vec<_>>()
+                    .contains(&std::path::PathBuf::from(path)));
+            }
         }
     }
 
@@ -275,9 +293,21 @@ impl fmt::Display for CLIOpts {
         let pipe_sep = self.fmt_summary_item("|".to_string(), SummaryItemType::Separator);
         write!(
             f,
-            "{} {} search: {} {pipe_sep} x_match: {} {pipe_sep} max_len: {} {pipe_sep} syntax: {} {pipe_sep} regex_filter: {} {}",
+            "{} {} arch: {} {pipe_sep} search: {} {pipe_sep} x_match: {} {pipe_sep} max_len: {} {pipe_sep} syntax: {} {pipe_sep} regex_filter: {} {}",
             { self.fmt_summary_item("CONFIG".to_string(), SummaryItemType::Header) },
             self.fmt_summary_item("[".to_string(), SummaryItemType::Separator),
+            {
+                match ARCHS_PROCESSED.lock().unwrap().get() {
+                    Some(arches) => {
+                        let arch_list = arches.iter()
+                            .map(|a| format!("{}", a))
+                            .collect::<Vec<_>>()
+                            .join(&self.fmt_summary_item(",".to_string(), SummaryItemType::Separator));
+                        self.fmt_summary_item(arch_list, SummaryItemType::Data)
+                    },
+                    None => self.fmt_summary_item("undetermined".to_string(), SummaryItemType::Data),
+                }
+            },
             {
                 let mut search_mode = String::from("ROP-JOP-SYS (default)");
                 if self.rop {

@@ -1,3 +1,5 @@
+//! Fast Exploit Similarity Score (FESS)
+
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::binary;
@@ -165,7 +167,7 @@ macro_rules! build_row {
     }};
 }
 
-// TODO: remove Box<dyn Error>
+/// Generate Fast Exploit Similarity Score (FESS) table
 #[cfg(feature = "cli-bin")]
 pub fn gen_fess_tbl(
     bins: &[binary::Binary],

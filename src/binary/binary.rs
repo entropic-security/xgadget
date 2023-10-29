@@ -1,6 +1,6 @@
 use std::fmt;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use colored::Colorize;
 use rustc_hash::FxHashSet as HashSet;
@@ -17,6 +17,7 @@ use crate::error::Error;
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Binary {
     name: String,
+    path: Option<PathBuf>,
     format: Format,
     arch: Arch,
     entry: u64,
@@ -30,7 +31,7 @@ impl Binary {
 
     /// Byte slice -> Binary
     pub fn from_bytes(name: &str, bytes: &[u8]) -> Result<Binary, Error> {
-        Binary::priv_from_buf(name, bytes)
+        Binary::priv_from_buf(name, None, bytes)
     }
 
     /// Path str -> Binary
@@ -44,12 +45,17 @@ impl Binary {
 
         let bytes = fs::read(path.as_ref())?;
 
-        Binary::priv_from_buf(name, &bytes)
+        Binary::priv_from_buf(name, Some(path.as_ref()), &bytes)
     }
 
     /// Get name
     pub fn name(&self) -> &str {
         self.name.as_str()
+    }
+
+    /// Get path
+    pub fn path(&self) -> Option<&Path> {
+        self.path.as_ref().map(|p| p.as_path())
     }
 
     /// Get format
@@ -94,26 +100,13 @@ impl Binary {
 
     // Binary Private API ----------------------------------------------------------------------------------------------
 
-    // Construction helper
-    fn priv_new() -> Binary {
-        Binary {
-            name: String::from("None"),
-            format: Format::Unknown,
-            arch: Arch::Unknown,
-            entry: 0,
-            param_regs: None,
-            segments: HashSet::default(),
-            color_display: true,
-        }
-    }
-
     // Bytes -> Binary
-    fn priv_from_buf(name: &str, bytes: &[u8]) -> Result<Binary, Error> {
+    fn priv_from_buf(name: &str, path: Option<&Path>, bytes: &[u8]) -> Result<Binary, Error> {
         match goblin::Object::parse(bytes) {
             Ok(obj) => match obj {
-                goblin::Object::Elf(elf) => Binary::from_elf(name, bytes, &elf),
-                goblin::Object::PE(pe) => Binary::from_pe(name, bytes, &pe),
-                goblin::Object::Mach(mach) => Binary::from_mach(name, bytes, &mach),
+                goblin::Object::Elf(elf) => Binary::from_elf(name, path, bytes, &elf),
+                goblin::Object::PE(pe) => Binary::from_pe(name, path, bytes, &pe),
+                goblin::Object::Mach(mach) => Binary::from_mach(name, path, bytes, &mach),
                 goblin::Object::Unknown(_) => Ok(Binary::from_raw(name, bytes)),
                 _ => Err(Error::UnsupportedFileFormat),
             },
@@ -122,10 +115,16 @@ impl Binary {
     }
 
     // ELF file -> Binary
-    fn from_elf(name: &str, bytes: &[u8], elf: &goblin::elf::Elf) -> Result<Binary, Error> {
-        let mut bin = Binary::priv_new();
+    fn from_elf(
+        name: &str,
+        path: Option<&Path>,
+        bytes: &[u8],
+        elf: &goblin::elf::Elf,
+    ) -> Result<Binary, Error> {
+        let mut bin = Binary::default();
 
         bin.name = name.to_string();
+        bin.path = path.map(|p| PathBuf::from(p));
         bin.entry = elf.entry;
         bin.format = Format::ELF;
 
@@ -163,10 +162,16 @@ impl Binary {
     }
 
     // PE file -> Binary
-    fn from_pe(name: &str, bytes: &[u8], pe: &goblin::pe::PE) -> Result<Binary, Error> {
-        let mut bin = Binary::priv_new();
+    fn from_pe(
+        name: &str,
+        path: Option<&Path>,
+        bytes: &[u8],
+        pe: &goblin::pe::PE,
+    ) -> Result<Binary, Error> {
+        let mut bin = Binary::default();
 
         bin.name = name.to_string();
+        bin.path = path.map(|p| PathBuf::from(p));
         bin.entry = pe.entry as u64;
         bin.format = Format::PE;
 
@@ -202,8 +207,13 @@ impl Binary {
     }
 
     // Mach-O file -> Binary
-    fn from_mach(name: &str, bytes: &[u8], mach: &goblin::mach::Mach) -> Result<Binary, Error> {
-        let mut bin = Binary::priv_new();
+    fn from_mach(
+        name: &str,
+        path: Option<&Path>,
+        bytes: &[u8],
+        mach: &goblin::mach::Mach,
+    ) -> Result<Binary, Error> {
+        let mut bin = Binary::default();
 
         // Handle Mach-O and Multi-Architecture variants
         let temp_macho: goblin::mach::MachO;
@@ -216,6 +226,7 @@ impl Binary {
         };
 
         bin.name = name.to_string();
+        bin.path = path.map(|p| PathBuf::from(p));
         bin.entry = macho.entry;
         bin.format = Format::MachO;
 
@@ -257,10 +268,9 @@ impl Binary {
 
     // Raw bytes -> Binary, Unknown arch to be updated by caller
     fn from_raw(name: &str, bytes: &[u8]) -> Binary {
-        let mut bin = Binary::priv_new();
+        let mut bin = Binary::default();
 
         bin.name = name.to_string();
-        bin.entry = 0;
         bin.format = Format::Raw;
 
         bin.segments.insert(Segment::new(0, bytes[..].to_vec()));
@@ -286,6 +296,21 @@ impl Binary {
 
         for s in sub_segs {
             self.segments.remove(&s);
+        }
+    }
+}
+
+impl Default for Binary {
+    fn default() -> Self {
+        Binary {
+            name: String::from("unknown"),
+            path: None,
+            format: Format::Unknown,
+            arch: Arch::Unknown,
+            entry: 0,
+            param_regs: None,
+            segments: HashSet::default(),
+            color_display: true,
         }
     }
 }
@@ -316,7 +341,7 @@ impl fmt::Display for Binary {
 
         write!(
             f,
-            "{}{}{}{} {}{}{}{} {} entry{} {}{}{} executable bytes{}segments",
+            "{}{}{}{} {}{}{}{} {} entry{} {}{}{} exec bytes{}segments",
             single_quote,
             {
                 match self.color_display {

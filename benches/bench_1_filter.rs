@@ -60,12 +60,12 @@ fn pivot_bench(c: &mut Criterion) {
     let readelf_bin = xgadget::Binary::from_path("/usr/bin/readelf").unwrap();
     let bins = vec![readelf_bin];
     let readelf_gadgets =
-        xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
+        xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::default()).unwrap();
 
     let gdb_bin = xgadget::Binary::from_path("/usr/bin/gdb").unwrap();
     let bins = vec![gdb_bin];
     let gdb_gadgets =
-        xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
+        xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::default()).unwrap();
 
     c.bench_function("readelf_pivot_filter_seq_fast", |b| {
         b.iter(|| filter_stack_pivot_seq_fast(&readelf_gadgets))
@@ -87,12 +87,12 @@ fn reg_pop_only_bench(c: &mut Criterion) {
     let readelf_bin = xgadget::Binary::from_path("/usr/bin/readelf").unwrap();
     let bins = vec![readelf_bin];
     let readelf_gadgets =
-        xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
+        xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::default()).unwrap();
 
     let gdb_bin = xgadget::Binary::from_path("/usr/bin/gdb").unwrap();
     let bins = vec![gdb_bin];
     let gdb_gadgets =
-        xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
+        xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::default()).unwrap();
 
     c.bench_function("readelf_reg_pop_only_filter_par", |b| {
         b.iter(|| xgadget::filter_reg_pop_only(readelf_gadgets.clone()))

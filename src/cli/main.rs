@@ -5,6 +5,7 @@ use color_eyre::eyre::Result;
 use colored::Colorize;
 use rayon::prelude::*;
 use regex::Regex;
+use rustc_hash::FxHashSet as HashSet;
 
 // Internal deps -------------------------------------------------------------------------------------------------------
 
@@ -12,7 +13,7 @@ mod str_fmt;
 use str_fmt::str_to_reg;
 
 mod cli;
-use cli::CLIOpts;
+use cli::{CLIOpts, ARCHS_PROCESSED};
 
 mod checksec_fmt;
 
@@ -28,14 +29,13 @@ fn main() -> Result<()> {
     let mut filter_matches = 0;
     let filter_regex = cli.usr_regex.clone().map(|r| Regex::new(&r).unwrap());
 
-    // Checksec requested ----------------------------------------------------------------------------------------------
-
-    if cli.check_sec {
-        cli.run_checksec();
-        std::process::exit(0);
-    }
-
     // Process 1+ files ------------------------------------------------------------------------------------------------
+
+    assert!(
+        cli.arch != xgadget::Arch::Unknown,
+        "Please set \'--arch\' to \'x8086\' (16-bit), \'x86\' (32-bit), or \'x64\' (64-bit). \
+        \'unknown\' is for library use only."
+    );
 
     // File paths -> Binaries
     let bins: Vec<xgadget::Binary> = cli
@@ -44,16 +44,24 @@ fn main() -> Result<()> {
         .map(|path| xgadget::Binary::from_path(path).unwrap())
         .map(|mut binary| {
             if binary.arch() == xgadget::Arch::Unknown {
-                binary.set_arch(cli.arch);
+                binary.set_arch(cli.arch); // Set user value if cannot auto-determine
                 assert!(
                     binary.arch() != xgadget::Arch::Unknown,
-                    "Please set \'--arch\' to \'x8086\' (16-bit), \'x86\' (32-bit), or \'x64\' (64-bit)"
+                    "Please set \'--arch\' to \'x8086\' (16-bit), \'x86\' (32-bit), or \'x64\' (64-bit). \
+                    It couldn't be determined automatically."
                 );
             }
             binary.set_color_display(!cli.no_color);
             binary
         })
         .collect();
+
+    // Checksec requested ----------------------------------------------------------------------------------------------
+
+    if cli.check_sec {
+        cli.run_checksec(&bins);
+        std::process::exit(0);
+    }
 
     // Imports requested -----------------------------------------------------------------------------------------------
 
@@ -223,6 +231,11 @@ fn main() -> Result<()> {
         Some(_) => filter_matches,
         None => printable_gadgets.len(),
     };
+
+    ARCHS_PROCESSED
+        .lock()
+        .unwrap()
+        .get_or_init(|| bins.iter().map(|b| b.arch()).collect::<HashSet<_>>());
 
     println!(
         "\n{}\n{}",

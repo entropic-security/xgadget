@@ -19,7 +19,7 @@ fn elf_kernel_bench(c: &mut Criterion) {
 
     c.bench_function("10_kernel_search_full_match", |b| {
         b.iter(|| {
-            xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::DEFAULT).unwrap()
+            xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::default()).unwrap()
         })
     });
 
@@ -28,7 +28,7 @@ fn elf_kernel_bench(c: &mut Criterion) {
             xgadget::find_gadgets(
                 &bins,
                 MAX_GADGET_LEN,
-                xgadget::SearchConfig::DEFAULT | xgadget::SearchConfig::PART,
+                xgadget::SearchConfig::default() | xgadget::SearchConfig::PART,
             )
             .unwrap()
         })

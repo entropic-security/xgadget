@@ -234,7 +234,7 @@ pub fn cli_help_fmt(help_desc: &str, has_default: bool, fess_entry: bool) -> Str
             // Arg-like tokens
             "x8086" | "x86" | "x64" | "LEN" => token.bold().bright_blue(),
             // Flag-like tokens
-            "ROP" | "JOP" | "SYS" | "SYSCALL" | "AT&T" => token.green(),
+            "ROP" | "JOP" | "SYS" | "SYSCALL" | "AT&T" | "checksec" => token.green(),
             // Select mnemonics
             "jmp" | "call" | "ret" | "pop" => token.cyan(),
             // FESS feature advertisement
@@ -293,7 +293,7 @@ pub fn cli_help_fmt(help_desc: &str, has_default: bool, fess_entry: bool) -> Str
 mod tests {
     use super::*;
     use xgadget::ICED_X86_REG_TOTAL;
-    use xgadget::ICED_X86_REG_TOTAL_VALID;
+    use xgadget::ICED_X86_REG_TOTAL_UNIQUE;
 
     #[test]
     fn test_reg_strs() {
@@ -317,10 +317,10 @@ mod tests {
         }
 
         assert_eq!(count, ICED_X86_REG_TOTAL);
-        assert_eq!(valid_count, ICED_X86_REG_TOTAL_VALID);
+        assert_eq!(valid_count, ICED_X86_REG_TOTAL_UNIQUE);
         assert_eq!(
             STR_REG_MAP.len(),
-            ICED_X86_REG_TOTAL_VALID + usize::from(SECONDARY_KEY_CNT.load(Ordering::SeqCst))
+            ICED_X86_REG_TOTAL_UNIQUE + usize::from(SECONDARY_KEY_CNT.load(Ordering::SeqCst))
         );
     }
 }

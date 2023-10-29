@@ -1,13 +1,14 @@
 # xgadget
 
 [![crates.io](https://img.shields.io/crates/v/xgadget.svg)](https://crates.io/crates/xgadget)
+[![docs.rs](https://docs.rs/xgadget/badge.svg)](https://docs.rs/xgadget/)
 [![GitHub Actions](https://github.com/entropic-security/xgadget/workflows/test/badge.svg)](https://github.com/entropic-security/xgadget/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://github.com/entropic-security/xgadget/blob/master/LICENSE)
 
-Fast, parallel, cross-variant ROP/JOP gadget search for x86 (32-bit) and x64 (64-bit) binaries.
+Fast, parallel, cross-{patch,compiler}-variant ROP/JOP gadget search for x86 (32-bit) and x64 (64-bit) binaries.
 Uses the [iced-x86 disassembler library](https://github.com/icedland/iced).
 
-**Current state:** decent test coverage, but still in beta. Issues/PRs welcome :)
+This crate can be used a **library** (7 dependencies, all Rust) or a **CLI binary** (Windows/Linux/MacOS).
 
 ### Quickstart
 
@@ -15,59 +16,67 @@ Install the CLI tool and show its help menu:
 
 ```bash
 cargo install xgadget --features cli-bin    # Build on host (pre-req: https://www.rust-lang.org/tools/install)
-xgadget --help                              # List available commandline options
+xgadget --help                              # List available command line options
 ```
+
 ### About
 
 `xgadget` is a tool for Return-Oriented Programming (ROP) and Jump-Oriented Programming (JOP) exploit development.
 It's a fast, multi-threaded alternative to awesome tools like [`ROPGadget`](https://github.com/JonathanSalwan/ROPgadget), [`Ropper`](https://github.com/sashs/Ropper), and [`rp`](https://github.com/0vercl0k/rp).
 
-Though not yet as mature as some of its contemporaries, it contains unique and experimental functionality.
-To the best of our knowledge, `xgadget` is the first gadget search tool to have these features:
+The goal is supporting practical usage while simultaneously exploring unique and experimental features.
+To the best of our knowledge, `xgadget` is the first gadget search tool to be:
 
-* Finds gadgets that control (overwrite) specific registers - not just operands of a `pop` instruction or matches for a given regex
+* **Register-sensitive:** Finds gadgets that control (overwrite) specific registers - not just operands of a `pop` instruction or matches for a given regex
+
     * Use the `--reg-ctrl <optional_register_name>` flag
-* JOP search uses instruction semantics - not hardcoded regex for individual encodings
+
+* **JOP-efficient**: JOP search uses instruction semantics - not hardcoded regex for individual encodings
+
     * Optionally filter to JOP "dispatcher" gadgets with flag `--dispatcher`
-* Finds gadgets that work across multiple variants of a binary (e.g. different program or compiler versions)
-    * **Full-match** - Same instruction sequence, same program counter: gadget fully re-usable.
-        * E.g. `pop rsp; add [rax-0x77], cl; ret ------------------------------------- [ 0xc748d ]`
+
+* **Cross-variant:** Finds gadgets that work across multiple variants of a binary (e.g. different program or compiler versions)
+
+    * **Full-match** - Same instruction sequence, same program counter: gadget fully re-usable:
+        * Gadget: `pop rsp; add [rax-0x77], cl; ret`
+        * Address (in all binaries): `0xc748d`
+
     * **Partial-match** - Same instruction sequence, different program counter: gadget logic portable.
-        * E.g. `pop rsp; add [rax-0x77], cl; ret; --- [ 'bin_v1.1': 0xc748d, 'bin_v1.2': 0xc9106 ]`
+        * Gadget: `pop rsp; add [rax-0x77], cl; ret`
+        * Address in `bin_v1.1`: `0xc748d`
+        * Address in `bin_v1.2`: `0xc9106`
+
     * This is entirely optional, you're free to run this tool on a single binary.
-* The stack pointer is explicitly colored in terminal output, for workflow convenience.
 
 Other features include:
 
-* Both a library API and CLI tool
-* Supports ELF32, ELF64, PE32, PE32+, Mach-O \[1\], and raw files
-* Parallel across available cores \[2\], whether searching a single binary or multiple variants
-* CI/CD for automated integration test and binary releases (Linux, 64-bit) \[3\]
-* Statistical benchmark harness for performance tuning \[4\]
-* 8086/x86/x64 only, uses a speed-optimized disassembly backend \[5\]
+* Supports ELF32, ELF64, PE32, PE32+, Mach-O, and raw files
+* Parallel across available cores, whether searching a single binary or multiple variants
+* Currently 8086/x86/x64 only, uses a speed-optimized, arch-specific disassembler
 
 ### API Usage
 
 Find gadgets:
 
 ```rust,no_run
-use xgadget;
+use xgadget::{Binary, SearchConfig};
 
 let max_gadget_len = 5;
 
 // Search single binary
-let search_config = xgadget::SearchConfig::DEFAULT;
-let bin_1 = xgadget::Binary::from_path("/path/to/bin_v1").unwrap();
-let bins = vec![bin_1];
-let gadgets = xgadget::find_gadgets(&bins, max_gadget_len, search_config).unwrap();
+let bin = &[Binary::from_path("/path/to/bin_v1").unwrap()];
+let gadgets =
+    xgadget::find_gadgets(bin, max_gadget_len, SearchConfig::default()).unwrap();
 let stack_pivot_gadgets = xgadget::filter_stack_pivot(gadgets);
 
 // Search for cross-variant gadgets, including partial matches
-let search_config = xgadget::SearchConfig::DEFAULT | xgadget::SearchConfig::PART;
-let bin_1 = xgadget::Binary::from_path("/path/to/bin_v1").unwrap();
-let bin_2 = xgadget::Binary::from_path("/path/to/bin_v2").unwrap();
-let bins = vec![bin_1, bin_2];
-let cross_gadgets = xgadget::find_gadgets(&bins, max_gadget_len, search_config).unwrap();
+let search_config = SearchConfig::default() | SearchConfig::PART;
+let bins = &[
+    Binary::from_path("/path/to/bin_v1").unwrap(),
+    Binary::from_path("/path/to/bin_v2").unwrap(),
+];
+let cross_gadgets =
+    xgadget::find_gadgets(bins, max_gadget_len, SearchConfig::default()).unwrap();
 let cross_reg_pop_gadgets = xgadget::filter_reg_pop_only(cross_gadgets);
 ```
 
@@ -100,49 +109,43 @@ where
 }
 ```
 
-### CLI Usage
+### CLI Examples
 
-Run `xgadget --help`:
+Run `xgadget --help` to enumerate available commands.
 
-```text
-xgadget v0.7.0
+* **Example:** Search `/usr/bin/sudo` for "pop, pop, {jmp,call}" gadgets up to 10 instructions long, print results using AT&T syntax:
 
-About:  Fast, parallel, cross-variant ROP/JOP gadget search for x86/x64 binaries.
-Cores:  8 logical, 8 physical
-
-USAGE:
-    xgadget [OPTIONS] <FILE(S)>...
-
-ARGS:
-    <FILE(S)>...    1+ binaries to gadget search. If > 1: gadgets common to all
-
-OPTIONS:
-    -a, --arch <ARCH>               For raw (no header) files: specify arch ('x8086', 'x86', or 'x64') [default: x64]
-    -b, --bad-bytes <BYTE(S)>...    Filter to gadgets whose addrs don't contain given bytes [default: all]
-    -c, --check-sec                 Run checksec on the 1+ binaries instead of gadget search
-    -d, --dispatcher                Filter to potential JOP 'dispatcher' gadgets [default: all]
-    -e, --extended-fmt              Print in terminal-wide format [default: only used for partial match search]
-    -f, --regex-filter <EXPR>       Filter to gadgets matching a regular expression
-        --fess                      Compute Fast Exploit Similarity Score (FESS) table for 2+ binaries
-    -h, --help                      Print help information
-        --inc-call                  Include gadgets containing a call [default: don't include]
-        --inc-imm16                 Include '{ret, ret far} imm16' (e.g. add to stack ptr) [default: don't include]
-    -j, --jop                       Search for JOP gadgets only [default: ROP, JOP, and SYSCALL]
-    -l, --max-len <LEN>             Gadgets up to LEN instrs long. If 0: all gadgets, any length [default: 5]
-    -m, --partial-match             Include cross-variant partial matches [default: full matches only]
-    -n, --no-color                  Don't color output [default: color output]
-        --no-deref [<OPT_REG>]      Filter to gadgets that don't deref any regs or a specific reg [default: all]
-    -p, --stack-pivot               Filter to gadgets that write the stack ptr [default: all]
-        --param-ctrl                Filter to gadgets that control function parameters [default: all]
-    -r, --rop                       Search for ROP gadgets only [default: ROP, JOP, and SYSCALL]
-        --reg-ctrl [<OPT_REG>]      Filter to gadgets that control any reg or a specific reg [default: all]
-        --reg-pop                   Filter to 'pop {reg} * 1+, {ret or ctrl-ed jmp/call}' gadgets [default: all]
-    -s, --sys                       Search for SYSCALL gadgets only [default: ROP, JOP, and SYSCALL]
-    -t, --att                       Display gadgets using AT&T syntax [default: Intel syntax]
-    -V, --version                   Print version information
-
+```bash
+xgadget /usr/bin/sudo --jop --reg-pop --att --max-len 10
 ```
 
+* **Example:** Same as above, except using a regex filter to match "pop, pop, {jmp,call}" instruction strings (less precise results here, but regex enables flexible search in general):
+
+```bash
+xgadget /usr/bin/sudo --regex-filter "^(?:pop)(?:.*(?:pop))*.*(?:call|jmp)" --att --max-len 10
+```
+
+TODO: make reg-ctrl and no-deref take lists so that this works
+
+* **Example:** Search for ROP gadgets that control the value of `rdx`, never dereference `rsi` or `rdx`, and occur at addresses that don't contain bytes `0x32` or `0x0d`:
+
+```bash
+xgadget /usr/bin/sudo --rop --reg-ctrl rdi --no-deref rsi rdx --bad-bytes 0x32 0x0d
+```
+
+* **Example:** Examine the exploit mitigations binaries `sudo` and `lighttpd` have been compiled with:
+
+```bash
+xgadget /usr/bin/sudo /usr/sbin/lighttpd --check-sec
+```
+
+* **Example:** List imported symbols for `lighttpd`:
+
+```bash
+xgadget /usr/sbin/lighttpd --imports
+```
+
+<!--- TODO: add back later
 ### CLI Build and Install (Recommended)
 
 Build a dynamically-linked binary from source and install it locally:
@@ -159,6 +162,8 @@ Static binaries for Windows may also be supported in the future.
 
 Unfortunately the statically-linked binary is several times slower on an i7-9700K, likely due to the built-in memory allocator for target `x86_64-unknown-linux-musl`.
 So building a dynamically-linked binary from source with the above `cargo install` command is *highly* recommended for performance (links against your system's allocator).
+
+--->
 
 ### Why No Chain Generation?
 
@@ -224,18 +229,9 @@ In the output table, we see that up to 45.16% of individual ROP gadgets are port
 
 ### Acknowledgements
 
-This project started as an optimized solution to Chapter 8, exercise 3 of "Practical Binary Analysis" by Dennis Andreisse \[6\], and builds on the design outlined therein.
+This project started as an optimized solution to Chapter 8, exercise 3 of ["Practical Binary Analysis" by Dennis Andreisse](https://amzn.to/3wvtCwa) (affiliate link), and builds on the design outlined therein.
 
 ### License and Contributing
 
 Licensed under the [MIT license](https://github.com/entropic-security/xgadget/blob/master/LICENSE).
 [Contributions](https://github.com/entropic-security/xgadget/blob/master/CONTRIBUTING.md) are welcome!
-
-### References
-
-* \[1\] [`goblin` crate by Lzu Tao, m4b, Philip Craig, seu, Will Glynn](https://crates.io/crates/goblin)
-* \[2\] [`rayon` crate by Josh Stone, Niko Matsakis](https://crates.io/crates/rayon)
-* \[3\] [`xgadget/.github/workflows`](https://github.com/entropic-security/xgadget/tree/master/.github/workflows)
-* \[4\] [`criterion` crate by Brook Heisler, Jorge Aparicio](https://crates.io/crates/criterion)
-* \[5\] [`iced-x86` crate by wtfsck](https://crates.io/crates/iced-x86)
-* \[6\] ["Practical Binary Analysis" by Dennis Andreisse](https://practicalbinaryanalysis.com/)

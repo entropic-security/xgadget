@@ -184,7 +184,7 @@ impl<'a> Gadget<'a> {
         }
     }
 
-    // Returns instruction string for regex filtering
+    /// Returns instruction string for regex filtering
     pub fn fmt_for_filter(&self, att_syntax: bool) -> String {
         self.write_instrs_internal(att_syntax)
     }

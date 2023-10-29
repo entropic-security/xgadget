@@ -675,6 +675,154 @@ fn test_reg_equivalence() {
     assert!(no_deref_r8l_filter.lines().count() == no_deref_r8b_filter.lines().count());
 }
 
+#[test]
+#[cfg(target_os = "linux")]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
+fn test_readme_1() {
+    let output_all = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/usr/bin/sudo")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    let output_readme = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/usr/bin/sudo")
+            .arg("--jop")
+            .arg("--reg-pop")
+            .arg("--att")
+            .arg("--max-len")
+            .arg("10")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    println!("ALL: {}", output_all);
+    println!("README_1: {}", output_readme);
+    assert!(!output_readme.is_empty());
+    assert!(output_all.len() >= output_readme.len());
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
+fn test_readme_2() {
+    let output_all = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/usr/bin/sudo")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    let output_readme = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/usr/bin/sudo")
+            .arg("--regex-filter")
+            .arg("^(?:pop)(?:.*(?:pop))*.*(?:call|jmp)")
+            .arg("--att")
+            .arg("--max-len")
+            .arg("10")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    println!("ALL: {}", output_all);
+    println!("README_2: {}", output_readme);
+    assert!(!output_readme.is_empty());
+    assert!(output_all.len() >= output_readme.len());
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
+fn test_readme_3() {
+    let output_all = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/usr/bin/sudo")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    let output_readme = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/usr/bin/sudo")
+            .arg("--rop")
+            .arg("--reg-ctrl")
+            .arg("rdi")
+            .arg("--no-deref")
+            .arg("rsi")
+            .arg("rdx")
+            .arg("--bad-bytes")
+            .arg("0x32")
+            .arg("0x0d")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    println!("ALL: {}", output_all);
+    println!("README_3: {}", output_readme);
+    assert!(!output_readme.is_empty());
+    assert!(output_all.len() >= output_readme.len());
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
+fn test_readme_4() {
+    let output_readme = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/usr/bin/sudo")
+            .arg("/bin/cat") // http may not be installed
+            .arg("--check-sec")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    println!("README_4: {}", output_readme);
+    assert!(!output_readme.is_empty());
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
+fn test_readme_5() {
+    let output_readme = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/bin/cat") // http may not be installed
+            .arg("--imports")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    println!("README_4: {}", output_readme);
+    assert!(!output_readme.is_empty());
+}
+
 /*
 // TODO: can UNIX piping be tested this way?
 #[test]

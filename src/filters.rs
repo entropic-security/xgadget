@@ -1,3 +1,5 @@
+//! Filter gadget lists in parallel
+
 use rayon::prelude::*;
 
 use crate::semantics;

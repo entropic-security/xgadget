@@ -45,8 +45,8 @@ impl fmt::Display for CustomCheckSecResultsDisplay {
             // https://github.com/etke/checksec.rs/blob/0ad2d5fbcd4dd0c3c37e7773301ccb017c2d33c9/src/elf.rs#L149
             CustomCheckSecResults::Elf(elf) => {
                 format!(
-                    "\tCanary: {}\n\tCFI: {}\n\tSafeStack: {}\n\tFortify: {}\n\tFortified: {:2}\n\t\
-                    NX: {}\n\tPIE: {}\n\tRelro: {}\n\tRPATH: {}\n\tRUNPATH: {}",
+                    "\t\tCanary: {}\n\t\tCFI: {}\n\t\tSafeStack: {}\n\t\tFortify: {}\n\t\tFortified: {:2}\n\t\t\
+                    NX: {}\n\t\tPIE: {}\n\t\tRelro: {}\n\t\tRPATH: {}\n\t\tRUNPATH: {}",
                     colorize_bool!(elf.canary),
                     colorize_bool!(elf.clang_cfi),
                     colorize_bool!(elf.clang_safestack),
@@ -63,9 +63,9 @@ impl fmt::Display for CustomCheckSecResultsDisplay {
             // https://github.com/etke/checksec.rs/blob/0ad2d5fbcd4dd0c3c37e7773301ccb017c2d33c9/src/pe.rs#L355
             CustomCheckSecResults::Pe(pe) => {
                 format!(
-                    "\tASLR: {}\n\tAuthenticode: {}\n\tCFG: {}\n\tCLR: {}\n\tDEP: {}\n\t\
-                    Dynamic Base: {}\n\tForce Integrity: {}\n\tGS: {}\n\t\
-                    High Entropy VA: {}\n\tIsolation: {}\n\tRFG: {}\n\tSafeSEH: {}\n\tSEH: {}",
+                    "\t\tASLR: {}\n\t\tAuthenticode: {}\n\t\tCFG: {}\n\t\tCLR: {}\n\t\tDEP: {}\n\t\t\
+                    Dynamic Base: {}\n\t\tForce Integrity: {}\n\t\tGS: {}\n\t\t\
+                    High Entropy VA: {}\n\t\tIsolation: {}\n\t\tRFG: {}\n\t\tSafeSEH: {}\n\t\tSEH: {}",
                     pe.aslr,
                     colorize_bool!(pe.authenticode),
                     colorize_bool!(pe.cfg),
@@ -85,9 +85,9 @@ impl fmt::Display for CustomCheckSecResultsDisplay {
             // https://github.com/etke/checksec.rs/blob/0ad2d5fbcd4dd0c3c37e7773301ccb017c2d33c9/src/macho.rs#L82
             CustomCheckSecResults::MachO(macho) => {
                 format!(
-                    "\tARC: {}\n\tCanary: {}\n\tCode Signature: {}\n\tEncryption: {}\n\t\
-                    Fortify: {}\n\tFortified {:2}\n\tNX Heap: {}\n\t\
-                    NX Stack: {}\n\tPIE: {}\n\tRestrict: {}\n\tRPath: {}",
+                    "\t\tARC: {}\n\t\tCanary: {}\n\t\tCode Signature: {}\n\t\tEncryption: {}\n\t\t\
+                    Fortify: {}\n\t\tFortified {:2}\n\t\tNX Heap: {}\n\t\t\
+                    NX Stack: {}\n\t\tPIE: {}\n\t\tRestrict: {}\n\t\tRPath: {}",
                     colorize_bool!(macho.arc),
                     colorize_bool!(macho.canary),
                     colorize_bool!(macho.code_signature),
@@ -106,10 +106,10 @@ impl fmt::Display for CustomCheckSecResultsDisplay {
         match self.no_color {
             true => write!(
                 f,
-                "\t{}",
+                "\t\t{}",
                 &std::str::from_utf8(&strip_ansi_escapes::strip(results_fmt))
                     .unwrap()
-                    .replace('\n', "\n\t")
+                    .replace('\n', "\n\t\t")
             ),
             false => write!(f, "{}", results_fmt),
         }

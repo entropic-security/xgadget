@@ -10,7 +10,7 @@ use crate::gadget;
 use crate::semantics;
 
 /// Max instruction size in bytes
-pub const MAX_INSTR_BYTE_CNT: usize = 15;
+pub const X86_MAX_INSTR_BYTE_CNT: usize = 15;
 
 // Search Flags --------------------------------------------------------------------------------------------------------
 
@@ -18,13 +18,24 @@ bitflags! {
     /// Bitflag that controls search parameters
     #[derive(Debug, Copy, Clone)]
     pub struct SearchConfig: u32 {
+        /// Include ROP gadgets in search
         const ROP   = 0b0000_0001;
+        /// Include JOP gadgets in search
         const JOP   = 0b0000_0010;
+        /// Include SYSCALL gadgets in search
         const SYS   = 0b0000_0100;
+        /// Include ROP gadgets in search
         const PART  = 0b0000_1000;
+        /// Include ROP gadgets with '{ret, ret far} imm16' (e.g. add to stack ptr) tails
         const IMM16 = 0b0001_0000;
+        /// Include JOP gadgets containing a non-tail call
         const CALL  = 0b0010_0000;
-        const DEFAULT = Self::ROP.bits() | Self::JOP.bits() | Self::SYS.bits();
+    }
+}
+
+impl Default for SearchConfig {
+    fn default() -> Self {
+        Self::ROP | Self::JOP | Self::SYS
     }
 }
 
@@ -163,7 +174,7 @@ impl<'a> DecodeConfig<'a> {
         let mut stop_idx = 0;
 
         // Optional early stop
-        let ret_prefix_size = max_len * MAX_INSTR_BYTE_CNT;
+        let ret_prefix_size = max_len * X86_MAX_INSTR_BYTE_CNT;
         if (max_len != 0) && (flow_op_idx > ret_prefix_size) {
             stop_idx = flow_op_idx - ret_prefix_size;
         }
