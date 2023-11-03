@@ -40,9 +40,9 @@ lazy_static! {
         "{} {}{}\n\n{}\t{}\n{}\t{} logical{} {} physical",
         clap::crate_name!().green(),
         "v".bright_magenta(),
-        cli_help_fmt(clap::crate_version!(), false, false),
+        cli_rule_fmt(clap::crate_version!(), false, false),
         "About:".to_string().cyan(),
-        cli_help_fmt(clap::crate_description!(), false, false),
+        cli_rule_fmt(clap::crate_description!(), false, false),
         "Cores:".to_string().cyan(),
         num_cpus::get().to_string().red(),
         ",".bright_magenta(),
@@ -66,7 +66,7 @@ macro_rules! gen_help_str {
     ($(($static_name:ident, $has_default:expr, $fess_entry:expr, $help_str:literal $(,)?)),* $(,)?) => {
         $(
             lazy_static! {
-                pub static ref $static_name: String = cli_help_fmt(
+                pub static ref $static_name: String = cli_rule_fmt(
                     $help_str,
                     $has_default,
                     $fess_entry,
@@ -76,7 +76,6 @@ macro_rules! gen_help_str {
     }
 }
 
-// TODO: at the UI level, can these be broken up into sub-categories?
 gen_help_str!(
     (
         HELP_BIN_PATHS,
@@ -167,13 +166,13 @@ gen_help_str!(
         HELP_NO_DEREF,
         false,
         false,
-        "Filter to gadgets that don't deref any regs or a specific reg (otherwise: all)",
+        "Filter to gadgets that don't deref any regs (no args) or specific regs (flag args)",
     ),
     (
         HELP_REG_CTRL,
         false,
         false,
-        "Filter to gadgets that control any reg or a specific reg (otherwise: all)",
+        "Filter to gadgets that control any reg (no args) or specific regs (flag args)",
     ),
     (
         HELP_PARAM_CTRL,
@@ -209,7 +208,7 @@ gen_help_str!(
         HELP_IMPORTS,
         false,
         false,
-        "List the imported symbols in the binary",
+        "List imported symbols in 1+ binaries",
     ),
 );
 
@@ -220,12 +219,12 @@ pub fn str_to_reg(rs: &str) -> Option<iced_x86::Register> {
     STR_REG_MAP.get(&rs.to_uppercase()).copied()
 }
 
-/// Apply custom coloring rules to a `clap` help menu item.
-/// Cannot do this for `[default: x64]` postfix - those are clap generated.
-pub fn cli_help_fmt(help_desc: &str, has_default: bool, fess_entry: bool) -> String {
+/// Apply custom coloring rules to a `clap` help menu item or misc summary string.
+/// Cannot do this for help postfix (e.g. `[default: x64]`) - those are clap generated.
+pub fn cli_rule_fmt(help_desc: &str, has_default: bool, fess_entry: bool) -> String {
     use std::io::Write;
-    const PUNCTUATION_SET: &[char; 16] = &[
-        '[', ']', '{', '}', '(', ')', ':', '\'', '.', ',', '+', '*', '/', '\\', '>', '<',
+    const PUNCTUATION_SET: &[char; 17] = &[
+        '[', ']', '{', '}', '(', ')', ':', '\'', '-', '.', ',', '+', '*', '/', '\\', '>', '<',
     ];
 
     let working_buf_to_string = |buf: &[char]| {
@@ -246,8 +245,18 @@ pub fn cli_help_fmt(help_desc: &str, has_default: bool, fess_entry: bool) -> Str
                 true => token.bold().red(),
                 false => token.normal(),
             },
-            // All other words
-            _ => token.normal(),
+            _ => {
+                // Register names
+                if str_to_reg(&token).is_some() {
+                    match token.as_str() {
+                        "rsp" | "esp" | "sp" => token.to_lowercase().red(),
+                        _ => token.to_lowercase().yellow(),
+                    }
+                // All other words
+                } else {
+                    token.normal()
+                }
+            }
         }
     };
 

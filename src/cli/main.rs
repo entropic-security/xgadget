@@ -10,10 +10,10 @@ use rustc_hash::FxHashSet as HashSet;
 // Internal deps -------------------------------------------------------------------------------------------------------
 
 mod str_fmt;
-use str_fmt::str_to_reg;
+use str_fmt::{str_to_reg, STR_REG_MAP};
 
 mod cli;
-use cli::{CLIOpts, ARCHS_PROCESSED};
+use cli::{is_env_resident, CLIOpts, ARCHS_PROCESSED, NO_DEREF_FLAG, REG_CTRL_FLAG};
 
 mod checksec_fmt;
 
@@ -23,6 +23,7 @@ mod imports;
 
 fn main() -> Result<()> {
     color_eyre::install()?;
+    lazy_static::initialize(&STR_REG_MAP);
 
     let cli = CLIOpts::parse();
 
@@ -109,25 +110,31 @@ fn main() -> Result<()> {
         gadgets = xgadget::filter_reg_pop_only(gadgets);
     }
 
-    if let Some(opt_reg) = &cli.reg_ctrl {
-        match opt_reg {
-            Some(reg_str) => {
-                let reg = str_to_reg(reg_str)
-                    .unwrap_or_else(|| panic!("Invalid register: {:?}", reg_str));
-                gadgets = xgadget::filter_regs_overwritten(gadgets, Some(&[reg]))
-            }
-            None => gadgets = xgadget::filter_regs_overwritten(gadgets, None),
+    if is_env_resident(&[REG_CTRL_FLAG]) {
+        let regs = cli
+            .reg_ctrl
+            .iter()
+            .map(|r| str_to_reg(r).expect(&format!("Invalid register: {:?}", r)))
+            .collect::<Vec<_>>();
+
+        if regs.is_empty() {
+            gadgets = xgadget::filter_regs_overwritten(gadgets, None);
+        } else {
+            gadgets = xgadget::filter_regs_overwritten(gadgets, Some(&regs))
         }
     }
 
-    if let Some(opt_reg) = &cli.no_deref {
-        match opt_reg {
-            Some(reg_str) => {
-                let reg = str_to_reg(reg_str)
-                    .unwrap_or_else(|| panic!("Invalid register: {:?}", reg_str));
-                gadgets = xgadget::filter_no_deref(gadgets, Some(&[reg]))
-            }
-            None => gadgets = xgadget::filter_no_deref(gadgets, None),
+    if is_env_resident(&[NO_DEREF_FLAG]) {
+        let regs = cli
+            .no_deref
+            .iter()
+            .map(|r| str_to_reg(r).expect(&format!("Invalid register: {:?}", r)))
+            .collect::<Vec<_>>();
+
+        if regs.is_empty() {
+            gadgets = xgadget::filter_no_deref(gadgets, None);
+        } else {
+            gadgets = xgadget::filter_no_deref(gadgets, Some(&regs))
         }
     }
 

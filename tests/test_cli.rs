@@ -548,7 +548,7 @@ fn test_param_ctrl_filter() {
 #[test]
 #[cfg(target_os = "linux")]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_no_deref_filter() {
+fn test_no_deref_filter_1() {
     let output_no_deref_rax_filter = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
@@ -578,9 +578,67 @@ fn test_no_deref_filter() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
+fn test_no_deref_filter_2() {
+    let mut raw_file = NamedTempFile::new().unwrap();
+    raw_file
+        .write(common::FILTERS_NO_DEREF_AND_REG_CTRL)
+        .unwrap();
+
+    let no_deref_1_reg = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg(raw_file.path())
+            .arg("--no-deref")
+            .arg("rdi")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    let no_deref_2_regs = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg(raw_file.path())
+            .arg("--no-deref")
+            .arg("rdi")
+            .arg("rsi")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    let no_deref_any_regs = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg(raw_file.path())
+            .arg("--no-deref")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    println!("NO_DEREF_1_REG: {}", no_deref_1_reg);
+    println!("NO_DEREF_2_REGS: {}", no_deref_2_regs);
+    println!("NO_DEREF_ANY_REGS: {}", no_deref_any_regs);
+    assert!(no_deref_1_reg.lines().count() >= no_deref_2_regs.lines().count());
+    assert!(no_deref_2_regs.lines().count() >= no_deref_any_regs.lines().count());
+
+    assert!(no_deref_2_regs.contains("pop rsi; pop rdi; ret;"));
+    assert!(no_deref_1_reg.contains("pop rsi; pop rdi; ret;"));
+    assert!(no_deref_any_regs.contains("pop rsi; pop rdi; ret;"));
+
+    assert!(no_deref_1_reg.contains("add r8, [rsi]; add r8, [rdx]; pop rsi; pop rdi; ret;"));
+    assert!(no_deref_2_regs.contains("add r8, [rdx]; pop rsi; pop rdi; ret;"));
+}
+
+#[test]
 #[cfg(target_os = "linux")]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_reg_ctrl_filter() {
+fn test_reg_ctrl_filter_1() {
     let output_reg_ctrl_rax_filter = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
@@ -607,6 +665,70 @@ fn test_reg_ctrl_filter() {
     println!("REG_CTRL_RAX: {}", output_reg_ctrl_rax_filter);
     println!("REG_CTRL_ALL: {}", output_reg_ctrl_all_regs_filter);
     assert!(output_reg_ctrl_all_regs_filter.len() >= output_reg_ctrl_rax_filter.len());
+}
+
+#[test]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
+fn test_reg_ctrl_filter_2() {
+    let mut raw_file = NamedTempFile::new().unwrap();
+    raw_file
+        .write(common::FILTERS_NO_DEREF_AND_REG_CTRL)
+        .unwrap();
+
+    let ctrl_1_reg = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg(raw_file.path())
+            .arg("--reg-ctrl")
+            .arg("rsi")
+            .arg("--max-len")
+            .arg("25")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    let ctrl_2_regs = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg(raw_file.path())
+            .arg("--reg-ctrl")
+            .arg("rsi")
+            .arg("rdi")
+            .arg("--max-len")
+            .arg("25")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    let ctrl_any_regs = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg(raw_file.path())
+            .arg("--reg-ctrl")
+            .arg("--max-len")
+            .arg("25")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    println!("CTRL_1_REG: {}", ctrl_1_reg);
+    println!("CTRL_2_REGS: {}", ctrl_2_regs);
+    println!("CTRL_ANY_REGS: {}", ctrl_any_regs);
+    assert!(ctrl_any_regs.lines().count() >= ctrl_1_reg.lines().count());
+    assert!(ctrl_1_reg.lines().count() >= ctrl_2_regs.lines().count());
+
+    assert!(ctrl_any_regs.contains("pop rsi; pop rdi; ret;"));
+    assert!(ctrl_1_reg.contains("pop rsi; pop rdi; ret;"));
+    assert!(ctrl_2_regs.contains("pop rsi; pop rdi; ret;"));
+
+    assert!(ctrl_any_regs
+        .contains("add r8, [rdi]; add r8, [rsi]; add r8, [rdx]; pop rsi; pop rdi; ret;"));
 }
 
 #[test]

@@ -25,6 +25,9 @@ enum SummaryItemType {
     Separator,
 }
 
+// TODO: at the UI level, can these be broken up into sub-categories for comprehension?
+// https://docs.rs/clap/latest/clap/struct.ArgGroup.html
+
 #[derive(Parser, Debug)]
 #[command(
     name = clap::crate_name!(),
@@ -38,7 +41,7 @@ pub(crate) struct CLIOpts {
     #[arg(help = HELP_BIN_PATHS.as_str(), required = true, num_args = 1.., value_name = "FILE(S)")]
     pub(crate) bin_paths: Vec<String>,
 
-    #[arg(help = HELP_ARCH.as_str(), short, long, default_value = "x64", value_name = "ARCH")]
+    #[arg(help = HELP_ARCH.as_str(), short, long, default_value = "x64", value_name = "ARCH", env = "XGADGET_ARCH")]
     pub(crate) arch: xgadget::Arch,
 
     #[arg(help = HELP_ATT.as_str(), short = 't', long)]
@@ -56,7 +59,8 @@ pub(crate) struct CLIOpts {
         long,
         required = false,
         default_value = "5",
-        value_name = "LEN"
+        value_name = "LEN",
+        env = "XGADGET_LEN"
     )]
     pub(crate) max_len: usize,
 
@@ -87,11 +91,11 @@ pub(crate) struct CLIOpts {
     #[arg(help = HELP_REG_POP.as_str(), long, conflicts_with = "dispatcher")]
     pub(crate) reg_pop: bool,
 
-    #[arg(help = HELP_NO_DEREF.as_str(), long, value_name = "OPT_REG")]
-    pub(crate) no_deref: Option<Option<String>>,
+    #[arg(help = HELP_NO_DEREF.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
+    pub(crate) no_deref: Vec<String>,
 
-    #[arg(help = HELP_REG_CTRL.as_str(), long, value_name = "OPT_REG")]
-    pub(crate) reg_ctrl: Option<Option<String>>,
+    #[arg(help = HELP_REG_CTRL.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
+    pub(crate) reg_ctrl: Vec<String>,
 
     #[arg(help = HELP_PARAM_CTRL.as_str(), long)]
     pub(crate) param_ctrl: bool,
@@ -188,7 +192,7 @@ impl CLIOpts {
             if let Some((path, Some(path_str))) = bin.path().map(|p| (p, p.as_os_str().to_str())) {
                 println!(
                     "\n{}\n\t{}:",
-                    self.fmt_summary_item(path.display().to_string(), SummaryItemType::Data),
+                    self.fmt_summary_item(&path.display().to_string(), SummaryItemType::Data),
                     bin,
                 );
                 let buf = fs::read(path).unwrap();
@@ -248,41 +252,43 @@ impl CLIOpts {
         start_time: time::Instant,
         run_time: time::Duration,
     ) -> String {
-        let pipe_sep = self.fmt_summary_item("|".to_string(), SummaryItemType::Separator);
+        let pipe_sep = self.fmt_summary_item("|", SummaryItemType::Separator);
+        let colon = self.fmt_summary_item(":", SummaryItemType::Separator);
         format!(
-            "{} {} {}: {} {pipe_sep} search_time: {} {pipe_sep} print_time: {} {}",
-            { self.fmt_summary_item("RESULT".to_string(), SummaryItemType::Header) },
-            self.fmt_summary_item("[".to_string(), SummaryItemType::Separator),
+            "{} {} {}{colon} {} {pipe_sep} search_time{colon} \
+            {} {pipe_sep} print_time{colon} {} {}",
+            { self.fmt_summary_item("RESULT", SummaryItemType::Header) },
+            self.fmt_summary_item("[", SummaryItemType::Separator),
             {
                 if bin_cnt > 1 {
-                    "unique_x_variant_gadgets".to_string()
+                    "unique_x_variant_gadgets"
                 } else {
-                    "unique_gadgets".to_string()
+                    "unique_gadgets"
                 }
             },
             self.fmt_summary_item(
-                found_cnt.to_formatted_string(&Locale::en),
+                &found_cnt.to_formatted_string(&Locale::en),
                 SummaryItemType::Data
             ),
-            { self.fmt_summary_item(format!("{:?}", run_time), SummaryItemType::Data) },
+            { self.fmt_summary_item(&format!("{:?}", run_time), SummaryItemType::Data) },
             {
                 self.fmt_summary_item(
-                    format!("{:?}", start_time.elapsed() - run_time),
+                    &format!("{:?}", start_time.elapsed() - run_time),
                     SummaryItemType::Data,
                 )
             },
-            self.fmt_summary_item("]".to_string(), SummaryItemType::Separator),
+            self.fmt_summary_item("]", SummaryItemType::Separator),
         )
     }
 
     // Helper for summary print
-    fn fmt_summary_item(&self, item: String, ty: SummaryItemType) -> colored::ColoredString {
+    fn fmt_summary_item(&self, item: &str, ty: SummaryItemType) -> colored::ColoredString {
         match self.no_color {
             true => item.trim().normal(),
             false => match ty {
-                SummaryItemType::Header => item.trim().red(),
-                SummaryItemType::Data => item.trim().bright_blue(),
-                SummaryItemType::Separator => item.trim().bright_magenta(),
+                SummaryItemType::Header => item.trim().bold().red(),
+                SummaryItemType::Data => item.trim().bold().bright_blue(),
+                SummaryItemType::Separator => item.trim().bold().bright_magenta(),
             },
         }
     }
@@ -290,68 +296,89 @@ impl CLIOpts {
 
 impl fmt::Display for CLIOpts {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let pipe_sep = self.fmt_summary_item("|".to_string(), SummaryItemType::Separator);
+        let pipe_sep = self.fmt_summary_item("|", SummaryItemType::Separator);
+        let comma_sep = self.fmt_summary_item(",", SummaryItemType::Separator);
+        let colon = self.fmt_summary_item(":", SummaryItemType::Separator);
         write!(
             f,
-            "{} {} arch: {} {pipe_sep} search: {} {pipe_sep} x_match: {} {pipe_sep} max_len: {} {pipe_sep} syntax: {} {pipe_sep} regex_filter: {} {}",
-            { self.fmt_summary_item("CONFIG".to_string(), SummaryItemType::Header) },
-            self.fmt_summary_item("[".to_string(), SummaryItemType::Separator),
+            "{} {} arch{colon} {} {pipe_sep} search{colon} {} {pipe_sep} x_match{colon} \
+            {} {pipe_sep} max_len{colon} {} {pipe_sep} syntax{colon} {} {pipe_sep} regex{colon} {} {}",
+            { self.fmt_summary_item("CONFIG", SummaryItemType::Header) },
+            self.fmt_summary_item("[", SummaryItemType::Separator),
             {
                 match ARCHS_PROCESSED.lock().unwrap().get() {
                     Some(arches) => {
                         let arch_list = arches.iter()
                             .map(|a| format!("{}", a))
                             .collect::<Vec<_>>()
-                            .join(&self.fmt_summary_item(",".to_string(), SummaryItemType::Separator));
-                        self.fmt_summary_item(arch_list, SummaryItemType::Data)
+                            .join(&comma_sep);
+
+                        cli_rule_fmt(&arch_list, false, false)
                     },
-                    None => self.fmt_summary_item("undetermined".to_string(), SummaryItemType::Data),
+                    None => self.fmt_summary_item("undetermined", SummaryItemType::Data).to_string(),
                 }
             },
             {
-                let mut search_mode = String::from("ROP-JOP-SYS (default)");
+                let mut search_mode = if !self.rop && !self.jop && !self.sys {
+                    vec!["ROP", "JOP", "SYS"] // Default search config
+                } else {
+                    Vec::new()
+                };
+
                 if self.rop {
-                    search_mode = String::from("ROP-only");
+                    search_mode.push("ROP");
                 };
                 if self.jop {
-                    search_mode = String::from("JOP-only");
+                    search_mode.push("JOP");
                 };
                 if self.sys {
-                    search_mode = String::from("SYS-only");
+                    search_mode.push("SYS");
                 };
                 if self.stack_pivot {
-                    search_mode = String::from("Stack-pivot-only");
+                    search_mode.push("Stack-pivot");
                 };
                 if self.dispatcher {
-                    search_mode = String::from("Dispatcher-only");
+                    search_mode.push("Dispatcher");
                 };
                 if self.reg_pop {
-                    search_mode = String::from("Register-pop-only");
+                    search_mode.push("Reg-pop");
                 };
                 if self.param_ctrl {
-                    search_mode = String::from("Param-ctrl-only");
+                    search_mode.push("Param-ctrl");
                 };
-                if let Some(opt_reg) = &self.reg_ctrl {
-                    match opt_reg {
-                        Some(reg) => {
-                            search_mode = format!("Reg-ctrl-{}-only", reg.to_lowercase());
-                        }
-                        None => {
-                            search_mode = String::from("Reg-ctrl-only");
-                        }
+                if is_env_resident(&[REG_CTRL_FLAG]) {
+                    if !self.reg_ctrl.is_empty() {
+                        // Note: leak on rare case to avoid alloc on common case
+                        search_mode.push(Box::leak(format!(
+                            "Reg-ctrl-{{{}}}",
+                            self.reg_ctrl.iter()
+                                .map(|r| r.to_lowercase())
+                                .collect::<Vec<_>>()
+                                .join(&comma_sep)
+                        ).into_boxed_str()));
+                    } else {
+                        search_mode.push("Reg-ctrl");
                     }
                 };
-                if let Some(opt_reg) = &self.no_deref {
-                    match opt_reg {
-                        Some(reg) => {
-                            search_mode = format!("No-deref-{}-only", reg.to_lowercase());
-                        }
-                        None => {
-                            search_mode = String::from("No-deref-only");
-                        }
+                if is_env_resident(&[NO_DEREF_FLAG]) {
+                    if !self.no_deref.is_empty() {
+                        // Note: leak on rare case to avoid alloc on common case
+                        search_mode.push(Box::leak(format!(
+                            "No-deref-{{{}}}",
+                            self.no_deref.iter()
+                                .map(|r| r.to_lowercase())
+                                .collect::<Vec<_>>()
+                                .join(&comma_sep)
+                        ).into_boxed_str()));
+                    } else {
+                        search_mode.push("No-deref");
                     }
                 };
-                self.fmt_summary_item(search_mode, SummaryItemType::Data)
+                cli_rule_fmt(
+                    &self.fmt_summary_item(&search_mode.join(&comma_sep), SummaryItemType::Data),
+                    false,
+                    false
+                ).bold()
             },
             {
                 let x_match = if self.bin_paths.len() == 1 {
@@ -362,13 +389,13 @@ impl fmt::Display for CLIOpts {
                     "full"
                 };
 
-                self.fmt_summary_item(x_match.to_string(), SummaryItemType::Data)
+                self.fmt_summary_item(x_match, SummaryItemType::Data)
             },
-            { self.fmt_summary_item(format!("{}", self.max_len), SummaryItemType::Data) },
+            { self.fmt_summary_item(&format!("{}", self.max_len), SummaryItemType::Data) },
             {
                 let syntax = if self.att { "AT&T" } else { "Intel" };
 
-                self.fmt_summary_item(syntax.to_string(), SummaryItemType::Data)
+                self.fmt_summary_item(syntax, SummaryItemType::Data)
             },
             {
                 let regex = if self.usr_regex.is_some() {
@@ -377,9 +404,28 @@ impl fmt::Display for CLIOpts {
                     String::from("none")
                 };
 
-                self.fmt_summary_item(regex, SummaryItemType::Data)
+                self.fmt_summary_item(&regex, SummaryItemType::Data)
             },
-            "]".to_string().bright_magenta(),
+            "]".bright_magenta(),
         )
     }
+}
+
+// Misc ----------------------------------------------------------------------------------------------------------------
+
+// XXX: We hardcode these to support modifying runtime behavior on presence or absence
+pub(crate) const REG_CTRL_FLAG: &str = "--reg-ctrl";
+pub(crate) const NO_DEREF_FLAG: &str = "--no-deref";
+
+// Runtime reflection, underpins `--reg-ctrl` and `--no-deref` flag behavior.
+// XXX: more idiomatic alternative with `clap`?
+pub(crate) fn is_env_resident(clap_args: &[&str]) -> bool {
+    std::env::args_os().into_iter().any(|a| {
+        if let Ok(arg_str) = a.into_string() {
+            if clap_args.contains(&arg_str.as_str()) {
+                return true;
+            }
+        }
+        false
+    })
 }

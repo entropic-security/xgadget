@@ -125,8 +125,6 @@ xgadget /usr/bin/sudo --jop --reg-pop --att --max-len 10
 xgadget /usr/bin/sudo --regex-filter "^(?:pop)(?:.*(?:pop))*.*(?:call|jmp)" --att --max-len 10
 ```
 
-TODO: make reg-ctrl and no-deref take lists so that this works
-
 * **Example:** Search for ROP gadgets that control the value of `rdx`, never dereference `rsi` or `rdx`, and occur at addresses that don't contain bytes `0x32` or `0x0d`:
 
 ```bash

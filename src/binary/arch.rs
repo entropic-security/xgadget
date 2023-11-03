@@ -3,6 +3,8 @@ use core::{fmt, str::FromStr};
 use crate::error::Error;
 
 /// Architecture
+// Note: no `#[cfg_attr(feature = "cli-bin", derive(clap::ValueEnum))]` because user should never
+// specify "unknown". Use `FromStr` instead to support both lib and CLI.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum Arch {
     /// Unknown architecture

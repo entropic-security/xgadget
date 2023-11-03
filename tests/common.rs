@@ -135,6 +135,17 @@ pub const FILTERS_X64: &[u8] = &[
     0xc3,                                                   // ret
 ];
 
+#[allow(dead_code)]
+#[rustfmt::skip]
+pub const FILTERS_NO_DEREF_AND_REG_CTRL: &[u8] = &[
+    0x4c, 0x03, 0x07,                                       // add    r8,QWORD PTR [rdi]
+    0x4c, 0x03, 0x06,                                       // add    r8,QWORD PTR [rsi]
+    0x4c, 0x03, 0x02,                                       // add    r8,QWORD PTR [rdx]
+    0x5e,                                                   // pop    rsi
+    0x5f,                                                   // pop    rdi
+    0xc3,                                                   // ret
+];
+
 // http://bodden.de/pubs/fbt+16pshape.pdf
 #[allow(dead_code)]
 #[rustfmt::skip]
