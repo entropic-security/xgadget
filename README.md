@@ -8,7 +8,7 @@
 Fast, parallel, cross-{patch,compiler}-variant ROP/JOP gadget search for x86 (32-bit) and x64 (64-bit) binaries.
 Uses the [iced-x86 disassembler library](https://github.com/icedland/iced).
 
-This crate can be used a **library** (7 dependencies, all Rust) or a **CLI binary** (Windows/Linux/MacOS).
+This crate can be used a **library** (7 well-known dependencies, all Rust) or a **CLI binary** (Windows/Linux/MacOS).
 
 ### Quickstart
 
@@ -19,34 +19,74 @@ cargo install xgadget --features cli-bin    # Build on host (pre-req: https://ww
 xgadget --help                              # List available command line options
 ```
 
+### How do ROP and JOP code reuse attacks work?
+
+* **Return Oriented Programming (ROP)** introduced *code-reuse* attacks, after hardware mitigations (aka NX, DEP) made *code-injection* less probable (no simultaneous `WRITE` and `EXECUTE` memory permissions). An attacker with stack control chains together short, existing sequences of assembly (aka "gadgets") — should a leak enable computing gadget addresses in the face of ASLR. When contiguous ROP gadget addresses are written to a corrupted stack, each gadget's ending `ret` instruction pops the next gadget's address into the CPU's instruction pointer. The result? Turing-complete control over a victim process.
+
+TODO: HAR diag
+
+* **Jump Oriented Programming (JOP)** is a newer code reuse method which, unlike ROP, doesn't rely on stack control. And thus bypasses hardware-assisted shadow-stack implementations and prototype-insensitive control-flow checks (like Intel CET). JOP allows storing a table of gadget addresses in any RW memory location. Instead of piggy-backing on call-return semantics to execute a gadget list, a "dispatch" gadget (e.g. `add rax, 8; jmp [rax]`) controls table indexing. Chaining happens if each gadget ends with a `jmp` back to the dispatcher (instead of a `ret`).
+
+TODO: HAR diag
+
 ### About
 
-`xgadget` is a tool for Return-Oriented Programming (ROP) and Jump-Oriented Programming (JOP) exploit development.
+`xgadget` is a tool for **Return-Oriented Programming (ROP)** and **Jump-Oriented Programming (JOP)** exploit development.
 It's a fast, multi-threaded alternative to awesome tools like [`ROPGadget`](https://github.com/JonathanSalwan/ROPgadget), [`Ropper`](https://github.com/sashs/Ropper), and [`rp`](https://github.com/0vercl0k/rp).
 
 The goal is supporting practical usage while simultaneously exploring unique and experimental features.
 To the best of our knowledge, `xgadget` is the first gadget search tool to be:
 
-* **Register-sensitive:** Finds gadgets that control (overwrite) specific registers - not just operands of a `pop` instruction or matches for a given regex
+* **Register-sensitive:** Finds gadgets based on register usage behavior - not just matches for a given regex
 
-    * Use the `--reg-ctrl <optional_register_name>` flag
+    * Use `--reg-ctrl [<OPT_REG(S)>...]` flag for register overwrites
+
+    * Use `--no-deref [<OPT_REG(S)>...]` flag for no-deference search
 
 * **JOP-efficient**: JOP search uses instruction semantics - not hardcoded regex for individual encodings
 
     * Optionally filter to JOP "dispatcher" gadgets with flag `--dispatcher`
 
-* **Cross-variant:** Finds gadgets that work across multiple variants of a binary (e.g. different program or compiler versions)
+* **Cross-variant:** Finds gadgets that work across multiple variants of a binary (e.g. anti-diversification for different program or compiler versions). Two strategies:
 
-    * **Full-match** - Same instruction sequence, same program counter: gadget fully re-usable:
-        * Gadget: `pop rsp; add [rax-0x77], cl; ret`
-        * Address (in all binaries): `0xc748d`
+1. ***Full-match*** - Same instruction sequence, same program counter: gadget fully re-usable:
+    * Gadget: `pop rdi; ret;`
+    * Address (in all binaries): `0xc748d`
 
-    * **Partial-match** - Same instruction sequence, different program counter: gadget logic portable.
-        * Gadget: `pop rsp; add [rax-0x77], cl; ret`
-        * Address in `bin_v1.1`: `0xc748d`
-        * Address in `bin_v1.2`: `0xc9106`
+<p style="text-align: center;" align="center">
+    <img src="../img/xgadget_all_match.svg" width="70%" alt="full match">
+    <figure style="text-align:center;">
+    </figure>
+</p>
 
-    * This is entirely optional, you're free to run this tool on a single binary.
+<p align="center">
+<i>Cross-variant <b>Full Match</b></i>
+</p>
+
+2. ***Partial-match*** - Same instruction sequence, different program counter: gadget logic portable.
+    * Gadget: `pop rdi; ret;`
+    * Address in `bin_v1.1`: `0xc748d`
+    * Address in `bin_v1.2`: `0xc9106`
+
+<p style="text-align: center;" align="center">
+    <img src="../img/xgadget_addr_match.svg" width="70%" alt="partial match">
+    <figure style="text-align:center;">
+    </figure>
+</p>
+
+<p align="center">
+<i>Cross-variant <b>Partial Match</b></i>
+</p>
+
+* This is entirely optional, you're free to run this tool on a single binary.
+
+<!--
+<br><p style="text-align: center;" align="center"><img src="https://raw.githubusercontent.com/entropic-security/xgadget/main/img/xgadget_all_match.svg" width="333" alt="full match"></p><br>
+-->
+
+<!--
+<br><p style="text-align: center;" align="center"><img src="https://raw.githubusercontent.com/entropic-security/xgadget/main/img/xgadget_addr_match.svg" width="333" alt="full match"></p><br>
+-->
 
 Other features include:
 
@@ -119,13 +159,13 @@ Run `xgadget --help` to enumerate available commands.
 xgadget /usr/bin/sudo --jop --reg-pop --att --max-len 10
 ```
 
-* **Example:** Same as above, except using a regex filter to match "pop, pop, {jmp,call}" instruction strings (less precise results here, but regex enables flexible search in general):
+* **Example:** Same as above, except using a regex filter to match "pop, pop, {jmp,call}" instruction strings (slower/less-accurate here, but regex enables flexible search in general):
 
 ```bash
 xgadget /usr/bin/sudo --regex-filter "^(?:pop)(?:.*(?:pop))*.*(?:call|jmp)" --att --max-len 10
 ```
 
-* **Example:** Search for ROP gadgets that control the value of `rdx`, never dereference `rsi` or `rdx`, and occur at addresses that don't contain bytes `0x32` or `0x0d`:
+* **Example:** Search for ROP gadgets that control the value of `rdi`, never dereference `rsi` or `rdx`, and occur at addresses that don't contain bytes `0x32` or `0x0d`:
 
 ```bash
 xgadget /usr/bin/sudo --rop --reg-ctrl rdi --no-deref rsi rdx --bad-bytes 0x32 0x0d
