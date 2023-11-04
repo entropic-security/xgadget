@@ -97,6 +97,7 @@ fn test_conflicting_flags_imm16_jop() {
 
 #[test]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
+#[cfg(target_os = "linux")]
 fn test_invalid_bad_bytes() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
@@ -114,6 +115,7 @@ fn test_invalid_bad_bytes() {
 
 #[test]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
+#[cfg(target_os = "linux")]
 fn test_invalid_reg_name() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
@@ -906,40 +908,3 @@ fn test_readme_5() {
     println!("README_4: {}", output_readme);
     assert!(!output_readme.is_empty());
 }
-
-/*
-// TODO: can UNIX piping be tested this way?
-#[test]
-#[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_tty_piping() {
-    let mut out_file_color = NamedTempFile::new().unwrap();
-    Command::cargo_bin("xgadget")
-        .unwrap()
-        .arg("/bin/cat")
-        .arg(">")
-        .arg(out_file_color.path())
-        .output()
-        .unwrap();
-
-    let mut out_file_no_color = NamedTempFile::new().unwrap();
-    Command::cargo_bin("xgadget")
-        .unwrap()
-        .arg("/bin/cat")
-        .arg("--no-color")
-        .arg(">")
-        .arg(out_file_no_color.path())
-        .output()
-        .unwrap();
-
-    let mut out_file_color_contents = Vec::new();
-    let out_file_color_bytes = out_file_color.read(&mut out_file_color_contents).unwrap();
-
-    let mut out_file_no_color_contents = Vec::new();
-    let out_file_no_color_bytes = out_file_no_color.read(&mut out_file_no_color_contents).unwrap();
-
-    assert!(out_file_color_bytes > 0);
-    assert!(out_file_no_color_bytes > 0);
-
-    assert!(out_file_color_bytes == out_file_no_color_bytes);
-}
-*/
