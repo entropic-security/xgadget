@@ -7,7 +7,7 @@ use crate::gadget;
 use crate::semantics;
 
 #[cfg(feature = "cli-bin")]
-use std::error::Error;
+use crate::Error;
 
 #[cfg(feature = "cli-bin")]
 use crate::search;
@@ -161,11 +161,12 @@ pub fn gen_fess_tbl(
     bins: &[binary::Binary],
     max_len: usize,
     config: search::SearchConfig,
-) -> Result<TableDisplay, Box<dyn Error>> {
+) -> Result<(TableDisplay, usize), Error> {
     // Collect data
     let mut fess_tbl_data = Vec::new();
     let fess_config = config | search::SearchConfig::PART;
-    let _ = search::find_gadgets_multi_bin(bins, max_len, fess_config, Some(&mut fess_tbl_data))?;
+    let found_count =
+        search::find_gadgets_multi_bin(bins, max_len, fess_config, Some(&mut fess_tbl_data))?.len();
 
     // Build upper left header
     let mut tbl_hdr = vec!["Gadget Type".cell().bold(true)];
@@ -197,5 +198,8 @@ pub fn gen_fess_tbl(
         .title(tbl_hdr)
         .bold(true);
 
-    Ok(tbl.display()?)
+    Ok((
+        tbl.display().map_err(|_| Error::DisplayFailure)?,
+        found_count,
+    ))
 }

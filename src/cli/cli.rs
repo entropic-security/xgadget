@@ -166,15 +166,16 @@ impl CLIOpts {
     }
 
     // Helper for computing FESS on requested binaries
-    pub(crate) fn run_fess(&self, bins: &[xgadget::Binary]) {
+    pub(crate) fn run_fess(&self, bins: &[xgadget::Binary]) -> usize {
         if bins.len() < 2 {
             panic!("\'--fess\' flag requires 2+ binaries!");
         }
 
-        println!(
-            "\n{}",
-            xgadget::fess::gen_fess_tbl(bins, self.max_len, self.get_search_config()).unwrap()
-        );
+        let (tbl, cnt) =
+            xgadget::fess::gen_fess_tbl(bins, self.max_len, self.get_search_config()).unwrap();
+        println!("\n{}", tbl);
+
+        cnt
     }
 
     // Helper for running checksec on requested binaries

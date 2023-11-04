@@ -19,4 +19,8 @@ pub enum Error {
     /// Failed to read binary file
     #[error("failed to read binary file")]
     FileReadError(#[from] std::io::Error),
+    // TODO: have this wrap `tabled` error?
+    /// Display failure
+    #[error("display failure")]
+    DisplayFailure,
 }

@@ -56,6 +56,11 @@ fn main() -> Result<()> {
         })
         .collect();
 
+    ARCHS_PROCESSED
+        .lock()
+        .unwrap()
+        .get_or_init(|| bins.iter().map(|b| b.arch()).collect::<HashSet<_>>());
+
     // Checksec requested ----------------------------------------------------------------------------------------------
 
     if cli.check_sec {
@@ -79,7 +84,14 @@ fn main() -> Result<()> {
     // FESS requested --------------------------------------------------------------------------------------------------
 
     if cli.fess {
-        cli.run_fess(&bins);
+        let start_time = Instant::now();
+        let found_cnt = cli.run_fess(&bins);
+        let run_time = start_time.elapsed();
+        println!(
+            "{}\n{}",
+            cli,
+            cli.fmt_perf_result(bins.len(), found_cnt, start_time, run_time)
+        );
         std::process::exit(0);
     }
 
@@ -220,11 +232,6 @@ fn main() -> Result<()> {
         Some(_) => filter_matches,
         None => printable_gadgets.len(),
     };
-
-    ARCHS_PROCESSED
-        .lock()
-        .unwrap()
-        .get_or_init(|| bins.iter().map(|b| b.arch()).collect::<HashSet<_>>());
 
     println!(
         "\n{}\n{}",
