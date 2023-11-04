@@ -131,7 +131,7 @@ fn test_invalid_reg_name() {
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_raw() {
     let mut raw_file = NamedTempFile::new().unwrap();
-    raw_file.write(common::ADJACENT_JMP_X64).unwrap();
+    raw_file.write_all(common::ADJACENT_JMP_X64).unwrap();
 
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
     xgadget_bin.arg(raw_file.path());
@@ -543,7 +543,7 @@ fn test_no_deref_filter_1() {
 fn test_no_deref_filter_2() {
     let mut raw_file = NamedTempFile::new().unwrap();
     raw_file
-        .write(common::FILTERS_NO_DEREF_AND_REG_CTRL)
+        .write_all(common::FILTERS_NO_DEREF_AND_REG_CTRL)
         .unwrap();
 
     let no_deref_1_reg = String::from_utf8(
@@ -633,7 +633,7 @@ fn test_reg_ctrl_filter_1() {
 fn test_reg_ctrl_filter_2() {
     let mut raw_file = NamedTempFile::new().unwrap();
     raw_file
-        .write(common::FILTERS_NO_DEREF_AND_REG_CTRL)
+        .write_all(common::FILTERS_NO_DEREF_AND_REG_CTRL)
         .unwrap();
 
     let ctrl_1_reg = String::from_utf8(

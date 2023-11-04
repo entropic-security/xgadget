@@ -83,7 +83,7 @@ impl GadgetAnalysis {
         HashSet::from_iter(
             self.regs_dereferenced_read()
                 .into_iter()
-                .chain(self.regs_dereferenced_write().into_iter()),
+                .chain(self.regs_dereferenced_write()),
         )
     }
 

@@ -173,7 +173,7 @@ impl CLIOpts {
 
         let (tbl, cnt) =
             xgadget::fess::gen_fess_tbl(bins, self.max_len, self.get_search_config()).unwrap();
-        println!("\n{}", tbl);
+        println!("\n{}\n", tbl);
 
         cnt
     }
@@ -193,7 +193,7 @@ impl CLIOpts {
                 debug_assert!(self
                     .bin_paths
                     .iter()
-                    .map(|p| std::path::PathBuf::from(p))
+                    .map(std::path::PathBuf::from)
                     .collect::<Vec<_>>()
                     .contains(&std::path::PathBuf::from(path)));
             }
@@ -359,7 +359,7 @@ impl fmt::Display for CLIOpts {
             {
                 let x_match = if self.bin_paths.len() == 1 {
                     "none"
-                } else if self.partial_match {
+                } else if self.partial_match || self.fess {
                     "full-and-partial"
                 } else {
                     "full"
@@ -396,7 +396,7 @@ pub(crate) const NO_DEREF_FLAG: &str = "--no-deref";
 // Runtime reflection, underpins `--reg-ctrl` and `--no-deref` flag behavior.
 // XXX: more idiomatic alternative with `clap`?
 pub(crate) fn is_env_resident(clap_args: &[&str]) -> bool {
-    std::env::args_os().into_iter().any(|a| {
+    std::env::args_os().any(|a| {
         if let Ok(arg_str) = a.into_string() {
             if clap_args.contains(&arg_str.as_str()) {
                 return true;

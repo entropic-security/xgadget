@@ -116,7 +116,7 @@ fn main() -> Result<()> {
         let regs = cli
             .reg_ctrl
             .iter()
-            .map(|r| str_to_reg(r).expect(&format!("Invalid register: {:?}", r)))
+            .map(|r| str_to_reg(r).unwrap_or_else(|| panic!("Invalid register: {:?}", r)))
             .collect::<Vec<_>>();
 
         if regs.is_empty() {
@@ -130,7 +130,7 @@ fn main() -> Result<()> {
         let regs = cli
             .no_deref
             .iter()
-            .map(|r| str_to_reg(r).expect(&format!("Invalid register: {:?}", r)))
+            .map(|r| str_to_reg(r).unwrap_or_else(|| panic!("Invalid register: {:?}", r)))
             .collect::<Vec<_>>();
 
         if regs.is_empty() {

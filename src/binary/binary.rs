@@ -55,7 +55,7 @@ impl Binary {
 
     /// Get path
     pub fn path(&self) -> Option<&Path> {
-        self.path.as_ref().map(|p| p.as_path())
+        self.path.as_deref()
     }
 
     /// Get format
@@ -121,20 +121,19 @@ impl Binary {
         bytes: &[u8],
         elf: &goblin::elf::Elf,
     ) -> Result<Binary, Error> {
-        let mut bin = Binary::default();
-
-        bin.name = name.to_string();
-        bin.path = path.map(|p| PathBuf::from(p));
-        bin.entry = elf.entry;
-        bin.format = Format::ELF;
-
-        // Architecture
-        bin.arch = match elf.header.e_machine {
-            goblin::elf::header::EM_X86_64 => Arch::X64,
-            goblin::elf::header::EM_386 => Arch::X86,
-            _ => {
-                return Err(Error::UnsupportedArch);
-            }
+        let mut bin = Binary {
+            name: name.to_string(),
+            path: path.map(PathBuf::from),
+            entry: elf.entry,
+            format: Format::ELF,
+            arch: match elf.header.e_machine {
+                goblin::elf::header::EM_X86_64 => Arch::X64,
+                goblin::elf::header::EM_386 => Arch::X86,
+                _ => {
+                    return Err(Error::UnsupportedArch);
+                }
+            },
+            ..Default::default()
         };
 
         // Argument registers
@@ -168,20 +167,19 @@ impl Binary {
         bytes: &[u8],
         pe: &goblin::pe::PE,
     ) -> Result<Binary, Error> {
-        let mut bin = Binary::default();
-
-        bin.name = name.to_string();
-        bin.path = path.map(|p| PathBuf::from(p));
-        bin.entry = pe.entry as u64;
-        bin.format = Format::PE;
-
-        // Architecture
-        bin.arch = match pe.header.coff_header.machine {
-            goblin::pe::header::COFF_MACHINE_X86_64 => Arch::X64,
-            goblin::pe::header::COFF_MACHINE_X86 => Arch::X86,
-            _ => {
-                return Err(Error::UnsupportedArch);
-            }
+        let mut bin = Binary {
+            name: name.to_string(),
+            path: path.map(PathBuf::from),
+            entry: pe.entry as u64,
+            format: Format::PE,
+            arch: match pe.header.coff_header.machine {
+                goblin::pe::header::COFF_MACHINE_X86_64 => Arch::X64,
+                goblin::pe::header::COFF_MACHINE_X86 => Arch::X86,
+                _ => {
+                    return Err(Error::UnsupportedArch);
+                }
+            },
+            ..Default::default()
         };
 
         // Argument registers
@@ -226,7 +224,7 @@ impl Binary {
         };
 
         bin.name = name.to_string();
-        bin.path = path.map(|p| PathBuf::from(p));
+        bin.path = path.map(PathBuf::from);
         bin.entry = macho.entry;
         bin.format = Format::MachO;
 
@@ -268,10 +266,11 @@ impl Binary {
 
     // Raw bytes -> Binary, Unknown arch to be updated by caller
     fn from_raw(name: &str, bytes: &[u8]) -> Binary {
-        let mut bin = Binary::default();
-
-        bin.name = name.to_string();
-        bin.format = Format::Raw;
+        let mut bin = Binary {
+            name: name.to_string(),
+            format: Format::Raw,
+            ..Default::default()
+        };
 
         bin.segments.insert(Segment::new(0, bytes[..].to_vec()));
 
@@ -287,8 +286,8 @@ impl Binary {
             let mut local_sub_segs = self
                 .segments
                 .iter()
+                .filter(|&s| (s.addr == seg.addr) && (s.bytes.len() < seg.bytes.len()))
                 .cloned()
-                .filter(|s| (s.addr == seg.addr) && (s.bytes.len() < seg.bytes.len()))
                 .collect();
 
             sub_segs.append(&mut local_sub_segs);

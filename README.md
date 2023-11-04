@@ -242,25 +242,25 @@ To view similarity scores for kernel versions `5.0.1`, `5.0.5`, and `5.0.10` wit
 ```bash
 root@container# cd ./benches/kernels/
 root@container# xgadget vmlinux-5.0.1 vmlinux-5.0.5 vmlinux-5.0.10 --fess
-TARGET 0 - 'vmlinux-5.0.1': ELF-X64, 0x00000001000000 entry, 21065728/2 executable bytes/segments
-TARGET 1 - 'vmlinux-5.0.5': ELF-X64, 0x00000001000000 entry, 21069824/2 executable bytes/segments
-TARGET 2 - 'vmlinux-5.0.10': ELF-X64, 0x00000001000000 entry, 21069824/2 executable bytes/segments
+TARGET 0 - 'vmlinux-5.0.1': ELF-X64, 0x00000001000000 entry, 21065728/2 exec bytes/segments
+TARGET 1 - 'vmlinux-5.0.5': ELF-X64, 0x00000001000000 entry, 21069824/2 exec bytes/segments
+TARGET 2 - 'vmlinux-5.0.10': ELF-X64, 0x00000001000000 entry, 21069824/2 exec bytes/segments
 
-+-------------+----------------------+----------------------+-----------------------+
-| Gadget Type | vmlinux-5.0.1 (base) | vmlinux-5.0.5 (diff) | vmlinux-5.0.10 (diff) |
-+-------------+----------------------+----------------------+-----------------------+
-| ROP (full)  |              175,740 |       11,124 (6.33%) |           699 (0.40%) |
-+-------------+----------------------+----------------------+-----------------------+
-| ROP (part)  |                    - |      85,717 (48.77%) |       79,367 (45.16%) |
-+-------------+----------------------+----------------------+-----------------------+
-| JOP (full)  |               97,239 |        1,093 (1.12%) |           277 (0.28%) |
-+-------------+----------------------+----------------------+-----------------------+
-| JOP (part)  |                    - |      16,792 (17.27%) |       12,635 (12.99%) |
-+-------------+----------------------+----------------------+-----------------------+
-| SYS (full)  |                   81 |          20 (24.69%) |           20 (24.69%) |
-+-------------+----------------------+----------------------+-----------------------+
-| SYS (part)  |                    - |          59 (72.84%) |           58 (71.60%) |
-+-------------+----------------------+----------------------+-----------------------+
+┌─────────────┬──────────────────────┬──────────────────────┬───────────────────────┐
+│ Gadget Type │ vmlinux-5.0.1 (base) │ vmlinux-5.0.5 (diff) │ vmlinux-5.0.10 (diff) │
+├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
+│  ROP (full) │              175,739 │       11,124 (6.33%) │           699 (0.40%) │
+├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
+│  ROP (part) │                    - │      85,717 (48.78%) │       79,367 (45.16%) │
+├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
+│  JOP (full) │               97,239 │        1,093 (1.12%) │           277 (0.28%) │
+├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
+│  JOP (part) │                    - │      16,792 (17.27%) │       12,635 (12.99%) │
+├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
+│  SYS (full) │                   81 │          20 (24.69%) │           20 (24.69%) │
+├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
+│  SYS (part) │                    - │          59 (72.84%) │           58 (71.60%) │
+└─────────────┴──────────────────────┴──────────────────────┴───────────────────────┘
 ```
 
 In the output table, we see that up to 45.16% of individual ROP gadgets are portable across all three versions (counting partial matches).
@@ -268,6 +268,10 @@ In the output table, we see that up to 45.16% of individual ROP gadgets are port
 ### Acknowledgements
 
 This project started as an optimized solution to Chapter 8, exercise 3 of ["Practical Binary Analysis" by Dennis Andreisse](https://amzn.to/3wvtCwa) (affiliate link), and builds on the design outlined therein.
+
+### Related Resource
+
+**Free book about software assurance: [https://highassurance.rs/](https://highassurance.rs/)**
 
 ### License and Contributing
 

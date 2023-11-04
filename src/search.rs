@@ -5,7 +5,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::binary;
 use crate::error::Error;
-use crate::fess::FESSData;
+use crate::fess::FESSColumn;
 use crate::gadget;
 use crate::semantics;
 
@@ -58,7 +58,7 @@ pub(crate) fn find_gadgets_multi_bin<'a>(
     bins: &'a [binary::Binary],
     max_len: usize,
     s_config: SearchConfig,
-    fess_tbl: Option<&mut Vec<FESSData<'a>>>,
+    fess_tbl: Option<&mut Vec<FESSColumn<'a>>>,
 ) -> Result<Vec<gadget::Gadget<'a>>, Error> {
     let bin_cnt = bins.len();
 
@@ -78,13 +78,14 @@ pub(crate) fn find_gadgets_multi_bin<'a>(
         Some((first_result, remaining_results)) => {
             let (first_bin, first_set) = first_result;
             let mut common_gadgets = first_set.clone();
+            let base_count = FESSColumn::get_totals(first_bin, &common_gadgets);
 
             // Compute 1st FESS table column
             if let Some(&mut ref mut fess) = fess_tbl {
-                fess.push(FESSData::from_gadget_list(first_bin, first_set));
+                fess.push(FESSColumn::from_gadget_list(0, None, first_bin, first_set));
             }
 
-            for (next_bin, next_set) in remaining_results {
+            for (idx, (next_bin, next_set)) in remaining_results.iter().enumerate() {
                 // Filter common gadgets (set intersection)
                 common_gadgets.retain(|g| next_set.contains(g));
 
@@ -142,7 +143,12 @@ pub(crate) fn find_gadgets_multi_bin<'a>(
 
                 // Update FESS table
                 if let Some(&mut ref mut fess) = fess_tbl {
-                    fess.push(FESSData::from_gadget_list(next_bin, &common_gadgets));
+                    fess.push(FESSColumn::from_gadget_list(
+                        idx + 1,
+                        Some(base_count),
+                        next_bin,
+                        &common_gadgets,
+                    ));
                 }
             }
 

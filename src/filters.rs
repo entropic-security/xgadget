@@ -173,12 +173,8 @@ where
     gadgets
         .into_par_iter()
         .map(|mut g| {
-            g.full_matches = g
-                .full_matches
-                .iter()
-                .filter(|addr| addr.to_le_bytes().iter().all(|b| !bad_bytes.contains(b)))
-                .copied()
-                .collect();
+            g.full_matches
+                .retain(|addr| addr.to_le_bytes().iter().all(|b| !bad_bytes.contains(b)));
 
             g.partial_matches = g
                 .partial_matches

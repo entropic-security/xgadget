@@ -227,7 +227,7 @@ pub fn cli_rule_fmt(help_desc: &str, has_default: bool, fess_entry: bool) -> Str
     ];
 
     let working_buf_to_string = |buf: &[char]| {
-        let token: String = buf.into_iter().collect();
+        let token: String = buf.iter().collect();
         match token.as_str() {
             // Arg-like tokens
             "x8086" | "x86" | "x64" | "LEN" => token.bold().bright_blue(),
@@ -261,7 +261,7 @@ pub fn cli_rule_fmt(help_desc: &str, has_default: bool, fess_entry: bool) -> Str
 
     let flush_working_buf = |sink: &mut Vec<ColoredString>, buf: &mut Vec<char>| {
         if !buf.is_empty() {
-            sink.push(working_buf_to_string(&buf));
+            sink.push(working_buf_to_string(buf));
             buf.clear();
         }
     };

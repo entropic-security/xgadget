@@ -201,7 +201,7 @@ pub fn get_raw_bin(name: &str, bytes: &[u8]) -> xgadget::Binary {
 }
 
 #[allow(dead_code)]
-pub fn get_gadget_strs(gadgets: &Vec<xgadget::Gadget>, att_syntax: bool) -> Vec<String> {
+pub fn get_gadget_strs(gadgets: &[xgadget::Gadget], att_syntax: bool) -> Vec<String> {
     let mut strs = Vec::new();
     for (mut instr, addrs) in xgadget::fmt_gadget_str_list(gadgets, att_syntax) {
         instr.push(' ');
@@ -221,7 +221,7 @@ pub fn print_gadget_strs(gadget_strs: &[String]) {
 #[allow(dead_code)]
 pub fn gadget_strs_contains_sub_str(gadget_strs: &[String], substring: &str) -> bool {
     for gs in gadget_strs {
-        if std::str::from_utf8(&strip_ansi_escapes::strip(&gs))
+        if std::str::from_utf8(&strip_ansi_escapes::strip(gs))
             .unwrap()
             .contains(substring)
         {

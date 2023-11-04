@@ -9,7 +9,7 @@ use regex::Regex;
 //  - Is faster overall on multi-core systems due to parallel processing
 //  - Includes cost-of-clone in the below benchmark implementations
 pub fn filter_stack_pivot_seq_fast<'a>(
-    gadgets: &Vec<xgadget::Gadget<'a>>,
+    gadgets: &[xgadget::Gadget<'a>],
 ) -> Vec<xgadget::Gadget<'a>> {
     let rsp_write = iced_x86::UsedRegister::new(iced_x86::Register::RSP, iced_x86::OpAccess::Write);
     let esp_write = iced_x86::UsedRegister::new(iced_x86::Register::ESP, iced_x86::OpAccess::Write);
