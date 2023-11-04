@@ -88,62 +88,64 @@ pub(crate) fn find_gadgets_multi_bin<'a>(
                 // Filter common gadgets (set intersection)
                 common_gadgets.retain(|g| next_set.contains(g));
 
-                // TODO: there has to be a cleaner way to implement this! Once drain_filter() on stable?
                 // Update full and partial matches
-                let mut temp_gadgets = HashSet::default();
-                for common_g in common_gadgets {
-                    match next_set.get(&common_g) {
-                        Some(next_set_g) => {
-                            // Full matches
-                            let full_matches: BTreeSet<_> = common_g
-                                .full_matches
-                                .intersection(&next_set_g.full_matches)
-                                .cloned()
-                                .collect();
+                common_gadgets = common_gadgets
+                    .into_iter()
+                    .filter_map(|common_g| {
+                        match next_set.get(&common_g) {
+                            Some(next_set_g) => {
+                                // Full matches
+                                let full_matches: BTreeSet<_> = common_g
+                                    .full_matches
+                                    .intersection(&next_set_g.full_matches)
+                                    .copied()
+                                    .collect();
 
-                            // Short-circuit if no full matches and partial collector if not requested
-                            if (!s_config.intersects(SearchConfig::PART)) && full_matches.is_empty()
-                            {
-                                continue;
-                            }
-
-                            // Cross-variant gadget!
-                            let mut updated_g = gadget::Gadget::new_multi_bin(
-                                common_g.instrs,
-                                full_matches,
-                                bin_cnt,
-                            );
-
-                            // Partial matches (optional)
-                            if s_config.intersects(SearchConfig::PART) {
-                                for addr in &common_g.full_matches {
-                                    updated_g.partial_matches.insert(*addr, vec![first_bin]);
+                                // Short-circuit if no full matches and partial collector if not requested
+                                if (!s_config.intersects(SearchConfig::PART))
+                                    && full_matches.is_empty()
+                                {
+                                    return None;
                                 }
 
-                                for addr in &next_set_g.full_matches {
-                                    match updated_g.partial_matches.get_mut(addr) {
-                                        Some(bin_ref_vec) => bin_ref_vec.push(*next_bin),
-                                        // TODO: Replace with unwrap_none() once on stable
-                                        _ => {
-                                            updated_g.partial_matches.insert(*addr, vec![next_bin]);
+                                // Cross-variant gadget!
+                                let mut updated_g = gadget::Gadget::new_multi_bin(
+                                    common_g.instrs,
+                                    full_matches,
+                                    bin_cnt,
+                                );
+
+                                // Partial matches (optional)
+                                if s_config.intersects(SearchConfig::PART) {
+                                    for addr in &common_g.full_matches {
+                                        updated_g.partial_matches.insert(*addr, vec![first_bin]);
+                                    }
+
+                                    for addr in &next_set_g.full_matches {
+                                        match updated_g.partial_matches.get_mut(addr) {
+                                            Some(bin_ref_vec) => bin_ref_vec.push(*next_bin),
+                                            None => {
+                                                updated_g
+                                                    .partial_matches
+                                                    .insert(*addr, vec![next_bin]);
+                                            }
                                         }
                                     }
                                 }
-                            }
-                            temp_gadgets.insert(updated_g);
-                        }
-                        None => return Err(Error::TemporaryError),
-                    }
-                }
 
-                // Update running common
-                common_gadgets = temp_gadgets;
+                                Some(updated_g)
+                            }
+                            None => unreachable!(),
+                        }
+                    })
+                    .collect();
 
                 // Update FESS table
                 if let Some(&mut ref mut fess) = fess_tbl {
                     fess.push(FESSData::from_gadget_list(next_bin, &common_gadgets));
                 }
             }
+
             Ok(common_gadgets.into_iter().collect())
         }
         _ => Err(Error::NoBinaries),

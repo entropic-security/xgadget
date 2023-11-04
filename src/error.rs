@@ -19,7 +19,4 @@ pub enum Error {
     /// Failed to read binary file
     #[error("failed to read binary file")]
     FileReadError(#[from] std::io::Error),
-    /// TODO: remove this
-    #[error("should be removed")]
-    TemporaryError,
 }
