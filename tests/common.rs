@@ -203,7 +203,7 @@ pub fn get_raw_bin(name: &str, bytes: &[u8]) -> xgadget::Binary {
 #[allow(dead_code)]
 pub fn get_gadget_strs(gadgets: &Vec<xgadget::Gadget>, att_syntax: bool) -> Vec<String> {
     let mut strs = Vec::new();
-    for (mut instr, addrs) in xgadget::fmt_gadget_str_list(gadgets, att_syntax, false) {
+    for (mut instr, addrs) in xgadget::fmt_gadget_str_list(gadgets, att_syntax) {
         instr.push(' ');
         strs.push(format!("{:-<150} {}", instr, addrs));
     }
@@ -211,7 +211,7 @@ pub fn get_gadget_strs(gadgets: &Vec<xgadget::Gadget>, att_syntax: bool) -> Vec<
 }
 
 #[allow(dead_code)]
-pub fn print_gadget_strs(gadget_strs: &Vec<String>) {
+pub fn print_gadget_strs(gadget_strs: &[String]) {
     println!("Found {} gadgets\n", gadget_strs.len());
     for s in gadget_strs {
         println!("{}", s);
@@ -219,9 +219,12 @@ pub fn print_gadget_strs(gadget_strs: &Vec<String>) {
 }
 
 #[allow(dead_code)]
-pub fn gadget_strs_contains_sub_str(gadget_strs: &Vec<String>, substring: &str) -> bool {
+pub fn gadget_strs_contains_sub_str(gadget_strs: &[String], substring: &str) -> bool {
     for gs in gadget_strs {
-        if gs.contains(substring) {
+        if std::str::from_utf8(&strip_ansi_escapes::strip(&gs))
+            .unwrap()
+            .contains(substring)
+        {
             return true;
         }
     }

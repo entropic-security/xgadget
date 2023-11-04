@@ -1,5 +1,4 @@
 use std::io::Write;
-//use std::io::Read;
 
 use assert_cmd::Command;
 use predicates::prelude::*;
@@ -135,7 +134,7 @@ fn test_raw() {
     raw_file.write(common::ADJACENT_JMP_X64).unwrap();
 
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
-    xgadget_bin.arg(raw_file.path()).arg("-n");
+    xgadget_bin.arg(raw_file.path());
 
     xgadget_bin
         .assert()
@@ -315,44 +314,6 @@ fn test_max_len() {
     .unwrap();
 
     assert!(output_100_len.len() >= output_def_len.len());
-}
-
-#[test]
-#[cfg(target_os = "linux")]
-#[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_color_filter_line_count() {
-    let output_color = String::from_utf8(
-        Command::cargo_bin("xgadget")
-            .unwrap()
-            .arg("/bin/cat")
-            .arg("-f")
-            .arg(format!("mov {}", REG_NAME))
-            .output()
-            .unwrap()
-            .stdout,
-    )
-    .unwrap();
-
-    println!("OUTPUT_COLOR: {}", output_color);
-    let output_color_line_cnt = output_color.lines().count();
-
-    let output_no_color = String::from_utf8(
-        Command::cargo_bin("xgadget")
-            .unwrap()
-            .arg("/bin/cat")
-            .arg("-n")
-            .arg("-f")
-            .arg(format!("mov {}", REG_NAME))
-            .output()
-            .unwrap()
-            .stdout,
-    )
-    .unwrap();
-
-    println!("OUTPUT_NO_COLOR: {}", output_no_color);
-    let output_no_color_line_cnt = output_no_color.lines().count();
-
-    assert!(output_color_line_cnt == output_no_color_line_cnt);
 }
 
 #[test]
@@ -727,6 +688,7 @@ fn test_reg_ctrl_filter_2() {
     assert!(ctrl_1_reg.contains("pop rsi; pop rdi; ret;"));
     assert!(ctrl_2_regs.contains("pop rsi; pop rdi; ret;"));
 
+    // Note: not unique to this result
     assert!(ctrl_any_regs
         .contains("add r8, [rdi]; add r8, [rsi]; add r8, [rdx]; pop rsi; pop rdi; ret;"));
 }

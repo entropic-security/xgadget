@@ -52,7 +52,6 @@ fn main() -> Result<()> {
                     It couldn't be determined automatically."
                 );
             }
-            binary.set_color_display(!cli.no_color);
             binary
         })
         .collect();
@@ -74,16 +73,7 @@ fn main() -> Result<()> {
     // Print targets ---------------------------------------------------------------------------------------------------
 
     for (i, bin) in bins.iter().enumerate() {
-        println!(
-            "TARGET {} - {} ",
-            {
-                match cli.no_color {
-                    true => format!("{}", i).normal(),
-                    false => format!("{}", i).red(),
-                }
-            },
-            bin
-        );
+        println!("TARGET {} - {} ", format!("{}", i).red(), bin);
     }
 
     // FESS requested --------------------------------------------------------------------------------------------------
@@ -195,7 +185,7 @@ fn main() -> Result<()> {
 
     let gadget_strs: Vec<String> = printable_gadgets
         .par_iter()
-        .filter_map(|g| g.fmt(cli.att, !cli.no_color))
+        .filter_map(|g| g.fmt(cli.att))
         .map(|(instrs, addrs)| {
             // If partial match or extended format flag, addr(s) right of instr(s), else addr left of instr(s)
             match cli.extended_fmt || cli.partial_match {
@@ -205,13 +195,8 @@ fn main() -> Result<()> {
                         true => {
                             let padding = (0..(term_width - content_len))
                                 .map(|_| "-")
-                                .collect::<String>();
-
-                            let padding = match cli.no_color {
-                                true => padding,
-                                false => format!("{}", padding.bright_magenta()),
-                            };
-
+                                .collect::<String>()
+                                .bright_magenta();
                             format!("{}{} [ {} ]", instrs, padding, addrs)
                         }
                         false => {
@@ -219,10 +204,7 @@ fn main() -> Result<()> {
                         }
                     }
                 }
-                false => match cli.no_color {
-                    true => format!("{}: {}", addrs, instrs),
-                    false => format!("{}{} {}", addrs, ":".bright_magenta(), instrs),
-                },
+                false => format!("{}{} {}", addrs, ":".bright_magenta(), instrs),
             }
         })
         .collect();

@@ -60,7 +60,7 @@ fn collect_strs_seq(gadgets: &[xgadget::Gadget], extended: bool) -> Vec<String> 
     let term_width = 150;
     gadgets
         .iter()
-        .filter_map(|g| g.fmt(att, color))
+        .filter_map(|g| g.fmt(att))
         .map(|(instrs, addrs)| match extended {
             true => {
                 let content_len = instrs.len() + addrs.len();

@@ -95,7 +95,6 @@ gen_help_str!(
         false,
         "Display gadgets using AT&T syntax (otherwise Intel syntax)",
     ),
-    (HELP_NO_COLOR, false, false, "Don't color output"),
     (
         HELP_EXTENDED_FMT,
         false,

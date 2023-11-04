@@ -88,7 +88,7 @@ impl<'a> FESSData<'a> {
 // So table output does slightly different coloring than rest of xgadget
 #[cfg(feature = "cli-bin")]
 macro_rules! build_row {
-    ($hdr:literal, $tbl:ident, $data:ident, $color:ident) => {{
+    ($hdr:literal, $tbl:ident, $data:ident) => {{
         // Select row color
         let row_color = if $hdr.contains("ROP") && $hdr.contains("full") {
             Color::Green
@@ -118,11 +118,7 @@ macro_rules! build_row {
         };
 
         // Compute row data
-        let mut val = if $color {
-            vec![$hdr.cell().foreground_color(Some(row_color))]
-        } else {
-            vec![$hdr.cell()]
-        };
+        let mut val = vec![$hdr.cell().foreground_color(Some(row_color))];
 
         val.append(
             &mut $tbl
@@ -131,13 +127,9 @@ macro_rules! build_row {
                 .map(|(i, fd)| {
                     // No partial matches in first column
                     if (i == 0) && (fd.$data == 0) {
-                        if $color {
-                            "-".cell()
-                                .justify(Justify::Right)
-                                .foreground_color(Some(row_color))
-                        } else {
-                            "-".cell().justify(Justify::Right)
-                        }
+                        "-".cell()
+                            .justify(Justify::Right)
+                            .foreground_color(Some(row_color))
                     // Append percentage diff (non-first columns)
                     } else {
                         let curr_cnt = fd.$data;
@@ -151,13 +143,9 @@ macro_rules! build_row {
                             )
                         };
 
-                        if $color {
-                            data.cell()
-                                .justify(Justify::Right)
-                                .foreground_color(Some(row_color))
-                        } else {
-                            data.cell().justify(Justify::Right)
-                        }
+                        data.cell()
+                            .justify(Justify::Right)
+                            .foreground_color(Some(row_color))
                     }
                 })
                 .collect::<Vec<CellStruct>>(),
@@ -173,7 +161,6 @@ pub fn gen_fess_tbl(
     bins: &[binary::Binary],
     max_len: usize,
     config: search::SearchConfig,
-    color: bool,
 ) -> Result<TableDisplay, Box<dyn Error>> {
     // Collect data
     let mut fess_tbl_data = Vec::new();
@@ -197,12 +184,12 @@ pub fn gen_fess_tbl(
     );
 
     // Build rows
-    let rop_full = build_row!("ROP (full)", fess_tbl_data, rop_full_cnt, color);
-    let rop_part = build_row!("ROP (part)", fess_tbl_data, rop_part_cnt, color);
-    let jop_full = build_row!("JOP (full)", fess_tbl_data, jop_full_cnt, color);
-    let jop_part = build_row!("JOP (part)", fess_tbl_data, jop_part_cnt, color);
-    let sys_full = build_row!("SYS (full)", fess_tbl_data, sys_full_cnt, color);
-    let sys_part = build_row!("SYS (part)", fess_tbl_data, sys_part_cnt, color);
+    let rop_full = build_row!("ROP (full)", fess_tbl_data, rop_full_cnt);
+    let rop_part = build_row!("ROP (part)", fess_tbl_data, rop_part_cnt);
+    let jop_full = build_row!("JOP (full)", fess_tbl_data, jop_full_cnt);
+    let jop_part = build_row!("JOP (part)", fess_tbl_data, jop_part_cnt);
+    let sys_full = build_row!("SYS (full)", fess_tbl_data, sys_full_cnt);
+    let sys_part = build_row!("SYS (part)", fess_tbl_data, sys_part_cnt);
 
     // Build table
     let tbl = vec![rop_full, rop_part, jop_full, jop_part, sys_full, sys_part]

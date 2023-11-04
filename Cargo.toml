@@ -44,19 +44,19 @@ checksec = { version = "0.0.9", features = [
 checksec_goblin = { package = "goblin", version = "0.5", optional = true }
 memmap = { version = "0.7", optional = true }
 num-format = { version = "0.4", optional = true }
-strip-ansi-escapes = { version = "0.2", optional = true }
 cli-table = { version = "0.4", optional = true }
 color-eyre = { version = "0.6", default-features = false, optional = true }
 
 [dev-dependencies]
-pprof = { version = "0.8", features = ["flamegraph"] }
-criterion = "0.3"
-rand = "0.8"
-dirs = "4"
-predicates = "2"
 assert_cmd = "2"
-tempfile = "3"
+criterion = "0.3"
+dirs = "4"
+pprof = { version = "0.8", features = ["flamegraph"] }
+predicates = "2"
+rand = "0.8"
 regex = "1"
+strip-ansi-escapes = "0.2"
+tempfile = "3"
 
 [features]
 cli-bin = [
@@ -69,7 +69,6 @@ cli-bin = [
     "checksec_goblin",
     "memmap",
     "num-format",
-    "strip-ansi-escapes",
     "cli-table",
     "color-eyre",
 ]

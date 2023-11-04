@@ -6,7 +6,7 @@ use goblin::Object;
 use num_format::{Locale, ToFormattedString};
 use rustc_hash::FxHashSet as HashSet;
 
-use super::checksec_fmt::CustomCheckSecResultsDisplay;
+use super::checksec_fmt::CustomCheckSecResults;
 use super::imports;
 
 use crate::str_fmt::*;
@@ -46,9 +46,6 @@ pub(crate) struct CLIOpts {
 
     #[arg(help = HELP_ATT.as_str(), short = 't', long)]
     pub(crate) att: bool,
-
-    #[arg(help = HELP_NO_COLOR.as_str(), short, long)]
-    pub(crate) no_color: bool,
 
     #[arg(help = HELP_EXTENDED_FMT.as_str(), short, long)]
     pub(crate) extended_fmt: bool,
@@ -171,18 +168,12 @@ impl CLIOpts {
     // Helper for computing FESS on requested binaries
     pub(crate) fn run_fess(&self, bins: &[xgadget::Binary]) {
         if bins.len() < 2 {
-            panic!("--fess flag requires 2+ binaries!");
+            panic!("\'--fess\' flag requires 2+ binaries!");
         }
 
         println!(
             "\n{}",
-            xgadget::fess::gen_fess_tbl(
-                bins,
-                self.max_len,
-                self.get_search_config(),
-                !self.no_color
-            )
-            .unwrap()
+            xgadget::fess::gen_fess_tbl(bins, self.max_len, self.get_search_config()).unwrap()
         );
     }
 
@@ -196,10 +187,7 @@ impl CLIOpts {
                     bin,
                 );
                 let buf = fs::read(path).unwrap();
-                println!(
-                    "{}",
-                    CustomCheckSecResultsDisplay::new(&buf, path_str, self.no_color)
-                );
+                println!("{}", CustomCheckSecResults::new(&buf, path_str));
 
                 debug_assert!(self
                     .bin_paths
@@ -214,30 +202,20 @@ impl CLIOpts {
     // Helper for printing imports from requested binaries
     pub(crate) fn run_imports(&self, bins: &[xgadget::Binary]) {
         for (idx, path) in self.bin_paths.iter().enumerate() {
-            println!(
-                "\nTARGET {} - {} \n",
-                {
-                    match self.no_color {
-                        true => format!("{}", idx).normal(),
-                        false => format!("{}", idx).red(),
-                    }
-                },
-                bins[idx]
-            );
+            println!("\nTARGET {} - {} \n", format!("{}", idx).red(), bins[idx]);
 
             // Binaries get reparsed here. This could be eliminated by adding symbol data
             // to the Binary struct
             let buf = fs::read(path).unwrap();
             match Object::parse(&buf).unwrap() {
-                Object::Elf(elf) => imports::dump_elf_imports(&elf, self.no_color),
-                Object::PE(pe) => imports::dump_pe_imports(&pe, self.no_color),
+                // TODO: update imports to remove no-color
+                Object::Elf(elf) => imports::dump_elf_imports(&elf),
+                Object::PE(pe) => imports::dump_pe_imports(&pe),
                 Object::Mach(mach) => match mach {
-                    goblin::mach::Mach::Binary(macho) => {
-                        imports::dump_macho_imports(&macho, self.no_color)
-                    }
+                    goblin::mach::Mach::Binary(macho) => imports::dump_macho_imports(&macho),
                     goblin::mach::Mach::Fat(fat) => {
                         let macho = xgadget::get_supported_macho(&fat).unwrap();
-                        imports::dump_macho_imports(&macho, self.no_color)
+                        imports::dump_macho_imports(&macho)
                     }
                 },
                 _ => panic!("Only ELF, PE, and Mach-O binaries currently supported!"),
@@ -283,13 +261,10 @@ impl CLIOpts {
 
     // Helper for summary print
     fn fmt_summary_item(&self, item: &str, ty: SummaryItemType) -> colored::ColoredString {
-        match self.no_color {
-            true => item.trim().normal(),
-            false => match ty {
-                SummaryItemType::Header => item.trim().bold().red(),
-                SummaryItemType::Data => item.trim().bold().bright_blue(),
-                SummaryItemType::Separator => item.trim().bold().bright_magenta(),
-            },
+        match ty {
+            SummaryItemType::Header => item.trim().bold().red(),
+            SummaryItemType::Data => item.trim().bold().bright_blue(),
+            SummaryItemType::Separator => item.trim().bold().bright_magenta(),
         }
     }
 }

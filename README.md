@@ -94,6 +94,40 @@ Other features include:
 * Parallel across available cores, whether searching a single binary or multiple variants
 * Currently 8086/x86/x64 only, uses a speed-optimized, arch-specific disassembler
 
+### CLI Examples
+
+Run `xgadget --help` to enumerate available commands.
+
+* **Example:** Search `/usr/bin/sudo` for "pop, pop, {jmp,call}" gadgets up to 10 instructions long, print results using AT&T syntax:
+
+```bash
+xgadget /usr/bin/sudo --jop --reg-pop --att --max-len 10
+```
+
+* **Example:** Same as above, except using a regex filter to match "pop, pop, {jmp,call}" instruction strings (slower/less-accurate here, but regex enables flexible search in general):
+
+```bash
+xgadget /usr/bin/sudo --regex-filter "^(?:pop)(?:.*(?:pop))*.*(?:call|jmp)" --att --max-len 10
+```
+
+* **Example:** Search for ROP gadgets that control the value of `rdi`, never dereference `rsi` or `rdx`, and occur at addresses that don't contain bytes `0x32` or `0x0d`:
+
+```bash
+xgadget /usr/bin/sudo --rop --reg-ctrl rdi --no-deref rsi rdx --bad-bytes 0x32 0x0d
+```
+
+* **Example:** Examine the exploit mitigations binaries `sudo` and `lighttpd` have been compiled with:
+
+```bash
+xgadget /usr/bin/sudo /usr/sbin/lighttpd --check-sec
+```
+
+* **Example:** List imported symbols for `lighttpd`:
+
+```bash
+xgadget /usr/sbin/lighttpd --imports
+```
+
 ### API Usage
 
 Find gadgets:
@@ -147,40 +181,6 @@ where
         })
         .collect()
 }
-```
-
-### CLI Examples
-
-Run `xgadget --help` to enumerate available commands.
-
-* **Example:** Search `/usr/bin/sudo` for "pop, pop, {jmp,call}" gadgets up to 10 instructions long, print results using AT&T syntax:
-
-```bash
-xgadget /usr/bin/sudo --jop --reg-pop --att --max-len 10
-```
-
-* **Example:** Same as above, except using a regex filter to match "pop, pop, {jmp,call}" instruction strings (slower/less-accurate here, but regex enables flexible search in general):
-
-```bash
-xgadget /usr/bin/sudo --regex-filter "^(?:pop)(?:.*(?:pop))*.*(?:call|jmp)" --att --max-len 10
-```
-
-* **Example:** Search for ROP gadgets that control the value of `rdi`, never dereference `rsi` or `rdx`, and occur at addresses that don't contain bytes `0x32` or `0x0d`:
-
-```bash
-xgadget /usr/bin/sudo --rop --reg-ctrl rdi --no-deref rsi rdx --bad-bytes 0x32 0x0d
-```
-
-* **Example:** Examine the exploit mitigations binaries `sudo` and `lighttpd` have been compiled with:
-
-```bash
-xgadget /usr/bin/sudo /usr/sbin/lighttpd --check-sec
-```
-
-* **Example:** List imported symbols for `lighttpd`:
-
-```bash
-xgadget /usr/sbin/lighttpd --imports
 ```
 
 <!--- TODO: add back later
