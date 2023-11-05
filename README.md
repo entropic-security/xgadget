@@ -3,12 +3,12 @@
 [![crates.io](https://img.shields.io/crates/v/xgadget.svg)](https://crates.io/crates/xgadget)
 [![docs.rs](https://docs.rs/xgadget/badge.svg)](https://docs.rs/xgadget/)
 [![GitHub Actions](https://github.com/entropic-security/xgadget/workflows/test/badge.svg)](https://github.com/entropic-security/xgadget/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://github.com/entropic-security/xgadget/blob/master/LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://github.com/entropic-security/xgadget/blob/main/LICENSE)
 
 Fast, parallel, cross-{patch,compiler}-variant ROP/JOP gadget search for x86 (32-bit) and x64 (64-bit) binaries.
 Uses the [iced-x86 disassembler library](https://github.com/icedland/iced).
 
-This crate can be used a **library** (7 well-known dependencies, all Rust) or a **CLI binary** (Windows/Linux/MacOS).
+This crate can be used as a **CLI binary** (Windows/Linux/MacOS) or a **library** (7 well-known dependencies, all Rust).
 
 ### Quickstart
 
@@ -21,13 +21,29 @@ xgadget --help                              # List available command line option
 
 ### How do ROP and JOP code reuse attacks work?
 
-* **Return Oriented Programming (ROP)** introduced *code-reuse* attacks, after hardware mitigations (aka NX, DEP) made *code-injection* less probable (no simultaneous `WRITE` and `EXECUTE` memory permissions). An attacker with stack control chains together short, existing sequences of assembly (aka "gadgets") — should a leak enable computing gadget addresses in the face of ASLR. When contiguous ROP gadget addresses are written to a corrupted stack, each gadget's ending `ret` instruction pops the next gadget's address into the CPU's instruction pointer. The result? Turing-complete control over a victim process.
+* **Return Oriented Programming (ROP)** introduced *code-reuse* attacks, after hardware mitigations (aka NX, DEP) made *code-injection* less probable (no simultaneous `WRITE` and `EXECUTE` memory permissions). An attacker with stack control chains together short, existing sequences of assembly (aka "gadgets") - should a leak enable computing gadget addresses in the face of ASLR. When contiguous ROP gadget addresses are written to a corrupted stack, each gadget's ending `ret` instruction pops the next gadget's address into the CPU's instruction pointer. The result? Turing-complete control over a victim process.
 
-TODO: HAR diag
+<p style="text-align: center;" align="center">
+    <img src="https://raw.githubusercontent.com/tnballo/high-assurance-rust/main/src/chp4/exploit_rop_model.svg" width="60%" alt="rop model">
+    <figure style="text-align:center;">
+    </figure>
+</p>
 
-* **Jump Oriented Programming (JOP)** is a newer code reuse method which, unlike ROP, doesn't rely on stack control. And thus bypasses hardware-assisted shadow-stack implementations and prototype-insensitive control-flow checks (like Intel CET). JOP allows storing a table of gadget addresses in any RW memory location. Instead of piggy-backing on call-return semantics to execute a gadget list, a "dispatch" gadget (e.g. `add rax, 8; jmp [rax]`) controls table indexing. Chaining happens if each gadget ends with a `jmp` back to the dispatcher (instead of a `ret`).
+<p align="center">
+<i><b>ROP</b> Attack Model (recreated from:<a href="https://www.comp.nus.edu.sg/~liangzk/papers/asiaccs11.pdf"> Bletsch et. al.</a>)</i>
+</p>
 
-TODO: HAR diag
+* **Jump Oriented Programming (JOP)** is a newer code reuse method which, unlike ROP, doesn't rely on stack control. And thus bypasses hardware-assisted shadow-stack implementations and prototype-insensitive indirect branch checks (e.g. Intel CET). JOP allows storing a table of gadget addresses in any `READ`/`WRITE` memory location. Instead of piggy-backing on call-return semantics to execute a gadget list, a "dispatch" gadget (e.g. `add rax, 8; jmp [rax]`) controls table indexing. Chaining happens if each gadget ends with a `jmp` back to the dispatcher (instead of a `ret`).
+
+<p style="text-align: center;" align="center">
+    <img src="https://raw.githubusercontent.com/tnballo/high-assurance-rust/main/src/chp4/exploit_jop_model.svg" width="100%" alt="jop model">
+    <figure style="text-align:center;">
+    </figure>
+</p>
+
+<p align="center">
+<i><b>JOP</b> Attack Model (recreated from:<a href="https://www.comp.nus.edu.sg/~liangzk/papers/asiaccs11.pdf"> Bletsch et. al.</a>)</i>
+</p>
 
 ### About
 
@@ -49,12 +65,12 @@ To the best of our knowledge, `xgadget` is the first gadget search tool to be:
 
 * **Cross-variant:** Finds gadgets that work across multiple variants of a binary (e.g. anti-diversification for different program or compiler versions). Two strategies:
 
-1. ***Full-match*** - Same instruction sequence, same program counter: gadget fully re-usable:
+1. ***Full-match*** - Same instruction sequence, same program counter: gadget fully re-usable. Example:
     * Gadget: `pop rdi; ret;`
     * Address (in all binaries): `0xc748d`
 
 <p style="text-align: center;" align="center">
-    <img src="../img/xgadget_all_match.svg" width="70%" alt="full match">
+    <img src="https://raw.githubusercontent.com/entropic-security/xgadget/main/img/xgadget_all_match.svg" width="70%" alt="full match">
     <figure style="text-align:center;">
     </figure>
 </p>
@@ -63,13 +79,13 @@ To the best of our knowledge, `xgadget` is the first gadget search tool to be:
 <i>Cross-variant <b>Full Match</b></i>
 </p>
 
-2. ***Partial-match*** - Same instruction sequence, different program counter: gadget logic portable.
+2. ***Partial-match*** - Same instruction sequence, different program counter: gadget logic portable. Example:
     * Gadget: `pop rdi; ret;`
     * Address in `bin_v1.1`: `0xc748d`
     * Address in `bin_v1.2`: `0xc9106`
 
 <p style="text-align: center;" align="center">
-    <img src="../img/xgadget_addr_match.svg" width="70%" alt="partial match">
+    <img src="https://raw.githubusercontent.com/entropic-security/xgadget/main/img/xgadget_addr_match.svg" width="70%" alt="partial match">
     <figure style="text-align:center;">
     </figure>
 </p>
@@ -79,14 +95,6 @@ To the best of our knowledge, `xgadget` is the first gadget search tool to be:
 </p>
 
 * This is entirely optional, you're free to run this tool on a single binary.
-
-<!--
-<br><p style="text-align: center;" align="center"><img src="https://raw.githubusercontent.com/entropic-security/xgadget/main/img/xgadget_all_match.svg" width="333" alt="full match"></p><br>
--->
-
-<!--
-<br><p style="text-align: center;" align="center"><img src="https://raw.githubusercontent.com/entropic-security/xgadget/main/img/xgadget_addr_match.svg" width="333" alt="full match"></p><br>
--->
 
 Other features include:
 
@@ -194,7 +202,7 @@ cargo install xgadget --features cli-bin    # Build on host (pre-req: https://ww
 
 ### CLI Binary Releases for Linux
 
-Commits to this repo's `master` branch automatically run integration tests and build a statically-linked binary for 64-bit Linux.
+Commits to this repo's `main` branch automatically run integration tests and build a statically-linked binary for 64-bit Linux.
 You can [download it here](https://github.com/entropic-security/xgadget/releases) to try out the CLI immediately, instead of building from source.
 Static binaries for Windows may also be supported in the future.
 
@@ -275,5 +283,5 @@ This project started as an optimized solution to Chapter 8, exercise 3 of ["Prac
 
 ### License and Contributing
 
-Licensed under the [MIT license](https://github.com/entropic-security/xgadget/blob/master/LICENSE).
-[Contributions](https://github.com/entropic-security/xgadget/blob/master/CONTRIBUTING.md) are welcome!
+Licensed under the [MIT license](https://github.com/entropic-security/xgadget/blob/main/LICENSE).
+[Contributions](https://github.com/entropic-security/xgadget/blob/main/CONTRIBUTING.md) are welcome!

@@ -15,6 +15,8 @@ use crate::search;
 #[cfg(feature = "cli-bin")]
 use tabled::{Table, Tabled};
 
+// TODO: ensure this can be compiled for docs without CLI feature enabled
+
 // Crate-internal API --------------------------------------------------------------------------------------------------
 
 // Used for percentage diff cell formatting
@@ -28,32 +30,53 @@ pub(crate) struct GadgetTotals {
     sys_part_cnt: usize,
 }
 
-#[derive(Tabled, Default)]
-pub(crate) struct FESSColumn<'a> {
+#[derive(Default)]
+#[cfg_attr(feature = "cli-bin", derive(Tabled))]
+pub(crate) struct FESSColumn {
     #[cfg(feature = "cli-bin")]
     #[tabled(display_with("Self::display_bin_name", self))]
-    bin_name: &'a str,
+    bin_name: String,
+    #[cfg(feature = "cli-bin")]
     #[tabled(skip)]
     idx: usize,
+    #[cfg(feature = "cli-bin")]
     #[tabled(skip)]
     base: Option<GadgetTotals>,
-    #[tabled(display_with("Self::display_cell_data", self, 0))]
+    #[cfg_attr(
+        feature = "cli-bin",
+        tabled(display_with("Self::display_cell_data", self, 0))
+    )]
     rop_full_cnt: usize,
-    #[tabled(display_with("Self::display_cell_data", self, 1))]
+    #[cfg_attr(
+        feature = "cli-bin",
+        tabled(display_with("Self::display_cell_data", self, 1))
+    )]
     rop_part_cnt: usize,
-    #[tabled(display_with("Self::display_cell_data", self, 2))]
+    #[cfg_attr(
+        feature = "cli-bin",
+        tabled(display_with("Self::display_cell_data", self, 2))
+    )]
     jop_full_cnt: usize,
-    #[tabled(display_with("Self::display_cell_data", self, 3))]
+    #[cfg_attr(
+        feature = "cli-bin",
+        tabled(display_with("Self::display_cell_data", self, 3))
+    )]
     jop_part_cnt: usize,
-    #[tabled(display_with("Self::display_cell_data", self, 4))]
+    #[cfg_attr(
+        feature = "cli-bin",
+        tabled(display_with("Self::display_cell_data", self, 4))
+    )]
     sys_full_cnt: usize,
-    #[tabled(display_with("Self::display_cell_data", self, 5))]
+    #[cfg_attr(
+        feature = "cli-bin",
+        tabled(display_with("Self::display_cell_data", self, 5))
+    )]
     sys_part_cnt: usize,
 }
 
-impl<'a> FESSColumn<'a> {
+impl FESSColumn {
     pub(crate) fn get_totals(
-        bin: &'a binary::Binary,
+        bin: &binary::Binary,
         gadget_set: &HashSet<gadget::Gadget>,
     ) -> GadgetTotals {
         let mut totals = GadgetTotals::default();
@@ -91,15 +114,18 @@ impl<'a> FESSColumn<'a> {
     }
 
     pub(crate) fn from_gadget_list(
-        idx: usize,
-        base_count: Option<GadgetTotals>,
-        bin: &'a binary::Binary,
+        _idx: usize,
+        _base_count: Option<GadgetTotals>,
+        bin: &binary::Binary,
         gadget_set: &HashSet<gadget::Gadget>,
     ) -> Self {
-        let mut fess_data = FESSColumn::<'_> {
-            bin_name: bin.name(),
-            base: base_count,
-            idx,
+        let mut fess_data = FESSColumn {
+            #[cfg(feature = "cli-bin")]
+            bin_name: bin.name().to_string(),
+            #[cfg(feature = "cli-bin")]
+            base: _base_count,
+            #[cfg(feature = "cli-bin")]
+            idx: _idx,
             ..Default::default()
         };
 
@@ -122,6 +148,7 @@ impl<'a> FESSColumn<'a> {
         fess_data
     }
 
+    #[cfg(feature = "cli-bin")]
     fn display_bin_name(&self) -> String {
         format!(
             "{} ({})",
@@ -133,6 +160,7 @@ impl<'a> FESSColumn<'a> {
         )
     }
 
+    #[cfg(feature = "cli-bin")]
     fn display_cell_data(&self, cell_switch: usize) -> String {
         use num_format::{Locale, ToFormattedString};
 

@@ -1,6 +1,8 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use regex::Regex;
 
+// TODO: Now that the filtering one clones - the baseline should also clone?
+
 // Stack Pivot Filter (sequential baseline) ----------------------------------------------------------------------------
 
 // This implementation has faster per-gadget processing because it doesn't do a full gadget analysis.

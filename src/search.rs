@@ -58,7 +58,7 @@ pub(crate) fn find_gadgets_multi_bin<'a>(
     bins: &'a [binary::Binary],
     max_len: usize,
     s_config: SearchConfig,
-    fess_tbl: Option<&mut Vec<FESSColumn<'a>>>,
+    fess_tbl: Option<&mut Vec<FESSColumn>>,
 ) -> Result<Vec<gadget::Gadget<'a>>, Error> {
     let bin_cnt = bins.len();
 

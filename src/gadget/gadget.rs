@@ -15,6 +15,7 @@ use crate::binary;
 // Gadget --------------------------------------------------------------------------------------------------------------
 
 /// Gadget instructions (data) coupled with occurrence addresses for full and partial matches (metadata).
+///
 /// Gadgets sortable by lowest occurrence address.
 /// Hash and equality consider only gadget instructions, not occurrence addresses (fast de-duplication via sets).
 #[derive(Clone, Debug)]

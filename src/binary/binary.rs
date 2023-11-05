@@ -23,7 +23,6 @@ pub struct Binary {
     entry: u64,
     param_regs: Option<&'static [iced_x86::Register]>,
     segments: HashSet<Segment>,
-    color_display: bool,
 }
 
 impl Binary {
@@ -91,11 +90,6 @@ impl Binary {
     /// Binary -> bitness
     pub fn bits(&self) -> u32 {
         self.arch.bits()
-    }
-
-    /// Enable/disable colored `Display`
-    pub fn set_color_display(&mut self, enable: bool) {
-        self.color_display = enable;
     }
 
     // Binary Private API ----------------------------------------------------------------------------------------------
@@ -309,7 +303,6 @@ impl Default for Binary {
             entry: 0,
             param_regs: None,
             segments: HashSet::default(),
-            color_display: true,
         }
     }
 }
@@ -317,13 +310,7 @@ impl Default for Binary {
 // Summary print
 impl fmt::Display for Binary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let color_punctuation = |s: &str| {
-            if self.color_display {
-                s.bright_magenta()
-            } else {
-                s.normal()
-            }
-        };
+        let color_punctuation = |s: &str| s.bright_magenta();
 
         let seg_cnt = self.segments.len();
 
@@ -342,48 +329,18 @@ impl fmt::Display for Binary {
             f,
             "{}{}{}{} {}{}{}{} {} entry{} {}{}{} exec bytes{}segments",
             single_quote,
-            {
-                match self.color_display {
-                    true => self.name.cyan(),
-                    false => self.name.normal(),
-                }
-            },
+            self.name.cyan(),
             single_quote,
             colon,
-            {
-                match self.color_display {
-                    true => format!("{:?}", self.format).yellow(),
-                    false => format!("{:?}", self.format).normal(),
-                }
-            },
+            format!("{:?}", self.format).yellow(),
             dash,
-            {
-                match self.color_display {
-                    true => format!("{:?}", self.arch).yellow(),
-                    false => format!("{:?}", self.arch).normal(),
-                }
-            },
+            format!("{:?}", self.arch).yellow(),
             comma,
-            {
-                match self.color_display {
-                    true => format!("{:#016x}", self.entry).green(),
-                    false => format!("{:#016x}", self.entry).normal(),
-                }
-            },
+            format!("{:#016x}", self.entry).green(),
             comma,
-            {
-                match self.color_display {
-                    true => format!("{}", bytes).bright_blue(),
-                    false => format!("{}", bytes).normal(),
-                }
-            },
+            format!("{}", bytes).bright_blue(),
             forward_slash,
-            {
-                match self.color_display {
-                    true => format!("{}", seg_cnt).bright_blue(),
-                    false => format!("{}", seg_cnt).normal(),
-                }
-            },
+            format!("{}", seg_cnt).bright_blue(),
             forward_slash,
         )
     }
