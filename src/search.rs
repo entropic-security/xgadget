@@ -1,30 +1,41 @@
 use std::collections::BTreeSet;
-use std::error::Error;
 
 use rayon::prelude::*;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::binary;
-use crate::fess::FESSData;
+use crate::error::Error;
+use crate::fess::FESSColumn;
 use crate::gadget;
 use crate::semantics;
 
 /// Max instruction size in bytes
-pub const MAX_INSTR_BYTE_CNT: usize = 15;
+pub const X86_MAX_INSTR_BYTE_CNT: usize = 15;
 
 // Search Flags --------------------------------------------------------------------------------------------------------
 
 bitflags! {
     /// Bitflag that controls search parameters
+    #[derive(Debug, Copy, Clone)]
     pub struct SearchConfig: u32 {
-        const UNSET = 0b0000_0000;
+        /// Include ROP gadgets in search
         const ROP   = 0b0000_0001;
+        /// Include JOP gadgets in search
         const JOP   = 0b0000_0010;
+        /// Include SYSCALL gadgets in search
         const SYS   = 0b0000_0100;
+        /// Include ROP gadgets in search
         const PART  = 0b0000_1000;
+        /// Include ROP gadgets with '{ret, ret far} imm16' (e.g. add to stack ptr) tails
         const IMM16 = 0b0001_0000;
+        /// Include JOP gadgets containing a non-tail call
         const CALL  = 0b0010_0000;
-        const DEFAULT = Self::ROP.bits | Self::JOP.bits | Self::SYS.bits;
+    }
+}
+
+impl Default for SearchConfig {
+    fn default() -> Self {
+        Self::ROP | Self::JOP | Self::SYS
     }
 }
 
@@ -35,7 +46,7 @@ pub fn find_gadgets(
     bins: &[binary::Binary],
     max_len: usize,
     s_config: SearchConfig,
-) -> Result<Vec<gadget::Gadget>, Box<dyn Error>> {
+) -> Result<Vec<gadget::Gadget>, Error> {
     find_gadgets_multi_bin(bins, max_len, s_config, None)
 }
 
@@ -47,8 +58,8 @@ pub(crate) fn find_gadgets_multi_bin<'a>(
     bins: &'a [binary::Binary],
     max_len: usize,
     s_config: SearchConfig,
-    fess_tbl: Option<&mut Vec<FESSData<'a>>>,
-) -> Result<Vec<gadget::Gadget<'a>>, Box<dyn Error>> {
+    fess_tbl: Option<&mut Vec<FESSColumn>>,
+) -> Result<Vec<gadget::Gadget<'a>>, Error> {
     let bin_cnt = bins.len();
 
     // Process binaries in parallel
@@ -67,75 +78,83 @@ pub(crate) fn find_gadgets_multi_bin<'a>(
         Some((first_result, remaining_results)) => {
             let (first_bin, first_set) = first_result;
             let mut common_gadgets = first_set.clone();
+            let base_count = FESSColumn::get_totals(first_bin, &common_gadgets);
 
             // Compute 1st FESS table column
             if let Some(&mut ref mut fess) = fess_tbl {
-                fess.push(FESSData::from_gadget_list(first_bin, first_set));
+                fess.push(FESSColumn::from_gadget_list(0, None, first_bin, first_set));
             }
 
-            for (next_bin, next_set) in remaining_results {
+            for (idx, (next_bin, next_set)) in remaining_results.iter().enumerate() {
                 // Filter common gadgets (set intersection)
                 common_gadgets.retain(|g| next_set.contains(g));
 
-                // TODO: there has to be a cleaner way to implement this! Once drain_filter() on stable?
                 // Update full and partial matches
-                let mut temp_gadgets = HashSet::default();
-                for common_g in common_gadgets {
-                    match next_set.get(&common_g) {
-                        Some(next_set_g) => {
-                            // Full matches
-                            let full_matches: BTreeSet<_> = common_g
-                                .full_matches
-                                .intersection(&next_set_g.full_matches)
-                                .cloned()
-                                .collect();
+                common_gadgets = common_gadgets
+                    .into_iter()
+                    .filter_map(|common_g| {
+                        match next_set.get(&common_g) {
+                            Some(next_set_g) => {
+                                // Full matches
+                                let full_matches: BTreeSet<_> = common_g
+                                    .full_matches
+                                    .intersection(&next_set_g.full_matches)
+                                    .copied()
+                                    .collect();
 
-                            // Short-circuit if no full matches and partial collector if not requested
-                            if (!s_config.intersects(SearchConfig::PART)) && full_matches.is_empty()
-                            {
-                                continue;
-                            }
-
-                            // Cross-variant gadget!
-                            let mut updated_g = gadget::Gadget::new_multi_bin(
-                                common_g.instrs,
-                                full_matches,
-                                bin_cnt,
-                            );
-
-                            // Partial matches (optional)
-                            if s_config.intersects(SearchConfig::PART) {
-                                for addr in &common_g.full_matches {
-                                    updated_g.partial_matches.insert(*addr, vec![first_bin]);
+                                // Short-circuit if no full matches and partial collector if not requested
+                                if (!s_config.intersects(SearchConfig::PART))
+                                    && full_matches.is_empty()
+                                {
+                                    return None;
                                 }
 
-                                for addr in &next_set_g.full_matches {
-                                    match updated_g.partial_matches.get_mut(addr) {
-                                        Some(bin_ref_vec) => bin_ref_vec.push(*next_bin),
-                                        // TODO: Replace with unwrap_none() once on stable
-                                        _ => {
-                                            updated_g.partial_matches.insert(*addr, vec![next_bin]);
+                                // Cross-variant gadget!
+                                let mut updated_g = gadget::Gadget::new_multi_bin(
+                                    common_g.instrs,
+                                    full_matches,
+                                    bin_cnt,
+                                );
+
+                                // Partial matches (optional)
+                                if s_config.intersects(SearchConfig::PART) {
+                                    for addr in &common_g.full_matches {
+                                        updated_g.partial_matches.insert(*addr, vec![first_bin]);
+                                    }
+
+                                    for addr in &next_set_g.full_matches {
+                                        match updated_g.partial_matches.get_mut(addr) {
+                                            Some(bin_ref_vec) => bin_ref_vec.push(*next_bin),
+                                            None => {
+                                                updated_g
+                                                    .partial_matches
+                                                    .insert(*addr, vec![next_bin]);
+                                            }
                                         }
                                     }
                                 }
-                            }
-                            temp_gadgets.insert(updated_g);
-                        }
-                        None => return Err("Fatal gadget comparison logic bug!".into()),
-                    }
-                }
 
-                // Update running common
-                common_gadgets = temp_gadgets;
+                                Some(updated_g)
+                            }
+                            None => unreachable!(),
+                        }
+                    })
+                    .collect();
 
                 // Update FESS table
                 if let Some(&mut ref mut fess) = fess_tbl {
-                    fess.push(FESSData::from_gadget_list(next_bin, &common_gadgets));
+                    fess.push(FESSColumn::from_gadget_list(
+                        idx + 1,
+                        Some(base_count),
+                        next_bin,
+                        &common_gadgets,
+                    ));
                 }
             }
+
             Ok(common_gadgets.into_iter().collect())
         }
-        _ => Err("No binaries to search!".into()),
+        _ => Err(Error::NoBinaries),
     }
 }
 
@@ -163,7 +182,7 @@ impl<'a> DecodeConfig<'a> {
         let mut stop_idx = 0;
 
         // Optional early stop
-        let ret_prefix_size = max_len * MAX_INSTR_BYTE_CNT;
+        let ret_prefix_size = max_len * X86_MAX_INSTR_BYTE_CNT;
         if (max_len != 0) && (flow_op_idx > ret_prefix_size) {
             stop_idx = flow_op_idx - ret_prefix_size;
         }

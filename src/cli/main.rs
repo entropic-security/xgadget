@@ -1,55 +1,72 @@
 use std::time::Instant;
 
 use clap::Parser;
+use color_eyre::eyre::Result;
 use colored::Colorize;
-use num_format::{Locale, ToFormattedString};
 use rayon::prelude::*;
 use regex::Regex;
+use rustc_hash::FxHashSet as HashSet;
 
-mod reg_str;
-use reg_str::str_to_reg;
+// Internal deps -------------------------------------------------------------------------------------------------------
+
+mod str_fmt;
+use str_fmt::{str_to_reg, STR_REG_MAP};
 
 mod cli;
-use cli::CLIOpts;
+use cli::{is_env_resident, CLIOpts, ARCHS_PROCESSED, NO_DEREF_FLAG, REG_CTRL_FLAG};
 
 mod checksec_fmt;
 
 mod imports;
 
-#[macro_use]
-extern crate lazy_static;
+// Driver --------------------------------------------------------------------------------------------------------------
 
-fn main() {
+fn main() -> Result<()> {
+    color_eyre::install()?;
+    lazy_static::initialize(&STR_REG_MAP);
+
     let cli = CLIOpts::parse();
 
     let mut filter_matches = 0;
     let filter_regex = cli.usr_regex.clone().map(|r| Regex::new(&r).unwrap());
 
-    // Checksec requested ----------------------------------------------------------------------------------------------
-
-    if cli.check_sec {
-        cli.run_checksec();
-        std::process::exit(0);
-    }
     // Process 1+ files ------------------------------------------------------------------------------------------------
+
+    assert!(
+        cli.arch != xgadget::Arch::Unknown,
+        "Please set \'--arch\' to \'x8086\' (16-bit), \'x86\' (32-bit), or \'x64\' (64-bit). \
+        \'unknown\' is for library use only."
+    );
 
     // File paths -> Binaries
     let bins: Vec<xgadget::Binary> = cli
         .bin_paths
         .par_iter()
-        .map(|path| xgadget::Binary::from_path_str(path).unwrap())
+        .map(|path| xgadget::Binary::from_path(path).unwrap())
         .map(|mut binary| {
             if binary.arch() == xgadget::Arch::Unknown {
-                binary.set_arch(cli.arch);
+                binary.set_arch(cli.arch); // Set user value if cannot auto-determine
                 assert!(
                     binary.arch() != xgadget::Arch::Unknown,
-                    "Please set \'--arch\' to \'x8086\' (16-bit), \'x86\' (32-bit), or \'x64\' (64-bit)"
+                    "Please set \'--arch\' to \'x8086\' (16-bit), \'x86\' (32-bit), or \'x64\' (64-bit). \
+                    It couldn't be determined automatically."
                 );
             }
-            binary.set_color_display(!cli.no_color);
             binary
         })
         .collect();
+
+    ARCHS_PROCESSED
+        .lock()
+        .unwrap()
+        .get_or_init(|| bins.iter().map(|b| b.arch()).collect::<HashSet<_>>());
+
+    // Checksec requested ----------------------------------------------------------------------------------------------
+
+    if cli.check_sec {
+        cli.run_checksec(&bins);
+        std::process::exit(0);
+    }
 
     // Imports requested -----------------------------------------------------------------------------------------------
 
@@ -58,25 +75,23 @@ fn main() {
         std::process::exit(0);
     }
 
-    // Print targets ____-----------------------------------------------------------------------------------------------
+    // Print targets ---------------------------------------------------------------------------------------------------
 
     for (i, bin) in bins.iter().enumerate() {
-        println!(
-            "TARGET {} - {} ",
-            {
-                match cli.no_color {
-                    true => format!("{}", i).normal(),
-                    false => format!("{}", i).red(),
-                }
-            },
-            bin
-        );
+        println!("TARGET {} - {} ", format!("{}", i).red(), bin);
     }
 
     // FESS requested --------------------------------------------------------------------------------------------------
 
     if cli.fess {
-        cli.run_fess(&bins);
+        let start_time = Instant::now();
+        let found_cnt = cli.run_fess(&bins);
+        let run_time = start_time.elapsed();
+        println!(
+            "{}\n{}",
+            cli,
+            cli.fmt_perf_result(bins.len(), found_cnt, start_time, run_time)
+        );
         std::process::exit(0);
     }
 
@@ -86,42 +101,48 @@ fn main() {
     let mut gadgets = xgadget::find_gadgets(&bins, cli.max_len, cli.get_search_config()).unwrap();
 
     if cli.stack_pivot {
-        gadgets = xgadget::filter_stack_pivot(&gadgets);
+        gadgets = xgadget::filter_stack_pivot(gadgets);
     }
 
     if cli.dispatcher {
-        gadgets = xgadget::filter_dispatcher(&gadgets);
+        gadgets = xgadget::filter_dispatcher(gadgets);
     }
 
     if cli.reg_pop {
-        gadgets = xgadget::filter_reg_pop_only(&gadgets);
+        gadgets = xgadget::filter_reg_pop_only(gadgets);
     }
 
-    if let Some(opt_reg) = &cli.reg_ctrl {
-        match opt_reg {
-            Some(reg_str) => {
-                let reg = str_to_reg(reg_str)
-                    .unwrap_or_else(|| panic!("Invalid register: {:?}", reg_str));
-                gadgets = xgadget::filter_regs_overwritten(&gadgets, Some(&[reg]))
-            }
-            None => gadgets = xgadget::filter_regs_overwritten(&gadgets, None),
+    if is_env_resident(&[REG_CTRL_FLAG]) {
+        let regs = cli
+            .reg_ctrl
+            .iter()
+            .map(|r| str_to_reg(r).unwrap_or_else(|| panic!("Invalid register: {:?}", r)))
+            .collect::<Vec<_>>();
+
+        if regs.is_empty() {
+            gadgets = xgadget::filter_regs_overwritten(gadgets, None);
+        } else {
+            gadgets = xgadget::filter_regs_overwritten(gadgets, Some(&regs))
         }
     }
 
-    if let Some(opt_reg) = &cli.no_deref {
-        match opt_reg {
-            Some(reg_str) => {
-                let reg = str_to_reg(reg_str)
-                    .unwrap_or_else(|| panic!("Invalid register: {:?}", reg_str));
-                gadgets = xgadget::filter_no_deref(&gadgets, Some(&[reg]))
-            }
-            None => gadgets = xgadget::filter_no_deref(&gadgets, None),
+    if is_env_resident(&[NO_DEREF_FLAG]) {
+        let regs = cli
+            .no_deref
+            .iter()
+            .map(|r| str_to_reg(r).unwrap_or_else(|| panic!("Invalid register: {:?}", r)))
+            .collect::<Vec<_>>();
+
+        if regs.is_empty() {
+            gadgets = xgadget::filter_no_deref(gadgets, None);
+        } else {
+            gadgets = xgadget::filter_no_deref(gadgets, Some(&regs))
         }
     }
 
     if cli.param_ctrl {
         let param_regs = xgadget::get_all_param_regs(&bins);
-        gadgets = xgadget::filter_set_params(&gadgets, &param_regs);
+        gadgets = xgadget::filter_set_params(gadgets, &param_regs);
     }
 
     if !cli.bad_bytes.is_empty() {
@@ -132,7 +153,7 @@ fn main() {
             .map(|s| u8::from_str_radix(s, 16).unwrap())
             .collect::<Vec<u8>>();
 
-        gadgets = xgadget::filter_bad_addr_bytes(&gadgets, bytes.as_slice());
+        gadgets = xgadget::filter_bad_addr_bytes(gadgets, bytes.as_slice());
     }
 
     let run_time = start_time.elapsed();
@@ -176,7 +197,7 @@ fn main() {
 
     let gadget_strs: Vec<String> = printable_gadgets
         .par_iter()
-        .filter_map(|g| g.fmt(cli.att, !cli.no_color))
+        .filter_map(|g| g.fmt(cli.att))
         .map(|(instrs, addrs)| {
             // If partial match or extended format flag, addr(s) right of instr(s), else addr left of instr(s)
             match cli.extended_fmt || cli.partial_match {
@@ -186,13 +207,8 @@ fn main() {
                         true => {
                             let padding = (0..(term_width - content_len))
                                 .map(|_| "-")
-                                .collect::<String>();
-
-                            let padding = match cli.no_color {
-                                true => padding,
-                                false => format!("{}", padding.bright_magenta()),
-                            };
-
+                                .collect::<String>()
+                                .bright_magenta();
                             format!("{}{} [ {} ]", instrs, padding, addrs)
                         }
                         false => {
@@ -200,10 +216,7 @@ fn main() {
                         }
                     }
                 }
-                false => match cli.no_color {
-                    true => format!("{}: {}", addrs, instrs),
-                    false => format!("{}{} {}", addrs, ":".bright_magenta(), instrs),
-                },
+                false => format!("{}{} {}", addrs, ":".bright_magenta(), instrs),
             }
         })
         .collect();
@@ -215,26 +228,16 @@ fn main() {
 
     // Print Summary ---------------------------------------------------------------------------------------------------
 
-    println!("\n{}", cli);
-    println!(
-        "{} [ {}: {} | search_time: {} | print_time: {} ]",
-        { cli.fmt_summary_item("RESULT".to_string(), true) },
-        {
-            if bins.len() > 1 {
-                "unique_x_variant_gadgets".to_string()
-            } else {
-                "unique_gadgets".to_string()
-            }
-        },
-        {
-            let found_cnt = match filter_regex {
-                Some(_) => filter_matches.to_formatted_string(&Locale::en),
-                None => printable_gadgets.len().to_formatted_string(&Locale::en),
-            };
+    let found_cnt = match filter_regex {
+        Some(_) => filter_matches,
+        None => printable_gadgets.len(),
+    };
 
-            cli.fmt_summary_item(found_cnt, false)
-        },
-        { cli.fmt_summary_item(format!("{:?}", run_time), false) },
-        { cli.fmt_summary_item(format!("{:?}", start_time.elapsed() - run_time), false) }
+    println!(
+        "\n{}\n{}",
+        cli,
+        cli.fmt_perf_result(bins.len(), found_cnt, start_time, run_time)
     );
+
+    Ok(())
 }

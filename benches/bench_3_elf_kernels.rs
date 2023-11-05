@@ -14,12 +14,12 @@ fn elf_kernel_bench(c: &mut Criterion) {
     let bins: Vec<_> = files
         .into_iter()
         .map(|file| file.unwrap().path())
-        .map(|path| xgadget::Binary::from_path_str(path.to_str().unwrap()).unwrap())
+        .map(|path| xgadget::Binary::from_path(path.to_str().unwrap()).unwrap())
         .collect();
 
     c.bench_function("10_kernel_search_full_match", |b| {
         b.iter(|| {
-            xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::DEFAULT).unwrap()
+            xgadget::find_gadgets(&bins, MAX_GADGET_LEN, xgadget::SearchConfig::default()).unwrap()
         })
     });
 
@@ -28,7 +28,7 @@ fn elf_kernel_bench(c: &mut Criterion) {
             xgadget::find_gadgets(
                 &bins,
                 MAX_GADGET_LEN,
-                xgadget::SearchConfig::DEFAULT | xgadget::SearchConfig::PART,
+                xgadget::SearchConfig::default() | xgadget::SearchConfig::PART,
             )
             .unwrap()
         })

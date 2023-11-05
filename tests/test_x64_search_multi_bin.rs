@@ -10,7 +10,7 @@ fn test_x64_cross_variant_full_matches() {
     );
     let bins = vec![bin_ret_jmp, bin_ret_call];
     let gadgets =
-        xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
+        xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::default()).unwrap();
     let gadget_strs = common::get_gadget_strs(&gadgets, false);
     common::print_gadget_strs(&gadget_strs);
 
@@ -154,8 +154,8 @@ fn test_x64_cross_variant_full_and_partial_matches_1() {
         common::X_RET_AFTER_JNE_AND_ADJACENT_CALL_MIX_MATCH_X64,
     );
 
-    let full_match_only_config = xgadget::SearchConfig::DEFAULT;
-    let full_part_match_config = xgadget::SearchConfig::DEFAULT | xgadget::SearchConfig::PART;
+    let full_match_only_config = xgadget::SearchConfig::default();
+    let full_part_match_config = xgadget::SearchConfig::default() | xgadget::SearchConfig::PART;
     assert!(full_part_match_config.intersects(xgadget::SearchConfig::PART));
 
     // mix vs. ret_jmp
@@ -167,7 +167,7 @@ fn test_x64_cross_variant_full_and_partial_matches_1() {
     println!("\n{:#^1$}\n", " Mix vs. ret_jump (FULL) ", 175);
     common::print_gadget_strs(&gadget_strs_full_match);
 
-    // Positive
+    // Positive --------------------------------------------------------------------------------------------------------
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs_full_match,
         "jmp qword ptr [rcx];"
@@ -197,7 +197,7 @@ fn test_x64_cross_variant_full_and_partial_matches_1() {
     println!("\n{:#^1$}\n", " Mix vs. ret_jump (PARTIAL) ", 175);
     common::print_gadget_strs(&gadget_strs_part_match);
 
-    // Positive
+    // Positive --------------------------------------------------------------------------------------------------------
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs_full_match,
         "jmp qword ptr [rcx];"
@@ -231,8 +231,8 @@ fn test_x64_cross_variant_full_and_partial_matches_2() {
         common::X_RET_AFTER_JNE_AND_ADJACENT_CALL_MIX_MATCH_X64,
     );
 
-    let full_match_only_config = xgadget::SearchConfig::DEFAULT;
-    let full_part_match_config = xgadget::SearchConfig::DEFAULT | xgadget::SearchConfig::PART;
+    let full_match_only_config = xgadget::SearchConfig::default();
+    let full_part_match_config = xgadget::SearchConfig::default() | xgadget::SearchConfig::PART;
     assert!(full_part_match_config.intersects(xgadget::SearchConfig::PART));
 
     // mix vs. ret_call
@@ -244,7 +244,7 @@ fn test_x64_cross_variant_full_and_partial_matches_2() {
     println!("\n{:#^1$}\n", " Mix vs. ret_call (FULL) ", 175);
     common::print_gadget_strs(&gadget_strs_full_match);
 
-    // Positive
+    // Positive --------------------------------------------------------------------------------------------------------
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs_full_match,
         "lea rbx, [rip+0x5dde1]; call rbx;"
@@ -278,7 +278,7 @@ fn test_x64_cross_variant_full_and_partial_matches_2() {
     println!("\n{:#^1$}\n", " Mix vs. ret_call (PARTIAL) ", 175);
     common::print_gadget_strs(&gadget_strs_part_match);
 
-    // Positive
+    // Positive --------------------------------------------------------------------------------------------------------
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs_full_match,
         "lea rbx, [rip+0x5dde1]; call rbx;"
@@ -318,8 +318,8 @@ fn test_x64_cross_variant_full_and_partial_matches_3() {
         common::X_RET_AFTER_JNE_AND_ADJACENT_CALL_MIX_MATCH_X64,
     );
 
-    let full_match_only_config = xgadget::SearchConfig::DEFAULT;
-    let full_part_match_config = xgadget::SearchConfig::DEFAULT | xgadget::SearchConfig::PART;
+    let full_match_only_config = xgadget::SearchConfig::default();
+    let full_part_match_config = xgadget::SearchConfig::default() | xgadget::SearchConfig::PART;
     assert!(full_part_match_config.intersects(xgadget::SearchConfig::PART));
 
     // mix vs. ret_call vs. ret_jmp
@@ -331,7 +331,7 @@ fn test_x64_cross_variant_full_and_partial_matches_3() {
     println!("\n{:#^1$}\n", " Mix vs. ret_call vs. ret_jmp (FULL) ", 175);
     common::print_gadget_strs(&gadget_strs_full_match);
 
-    // Positive
+    // Positive --------------------------------------------------------------------------------------------------------
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs_full_match,
         "ret far;"
@@ -349,7 +349,7 @@ fn test_x64_cross_variant_full_and_partial_matches_3() {
     );
     common::print_gadget_strs(&gadget_strs_part_match);
 
-    // Positive
+    // Positive --------------------------------------------------------------------------------------------------------
     assert!(common::gadget_strs_contains_sub_str(
         &gadget_strs_part_match,
         "pop r14; pop r15; ret;"

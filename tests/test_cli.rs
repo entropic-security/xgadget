@@ -1,5 +1,4 @@
 use std::io::Write;
-//use std::io::Read;
 
 use assert_cmd::Command;
 use predicates::prelude::*;
@@ -26,7 +25,7 @@ fn test_no_arg_err() {
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "The following required arguments were not provided:",
+            "the following required arguments were not provided:",
         ));
 }
 
@@ -56,7 +55,7 @@ fn test_conflicting_flags_rop_jop() {
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "The argument '--rop' cannot be used with '--jop'",
+            "the argument '--rop' cannot be used with '--jop'",
         ));
 }
 
@@ -74,7 +73,7 @@ fn test_conflicting_flags_dispatcher_stack_set_reg() {
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "The argument '--reg-pop' cannot be used with '--dispatcher'",
+            "the argument '--reg-pop' cannot be used with '--dispatcher'",
         ));
 }
 
@@ -92,12 +91,13 @@ fn test_conflicting_flags_imm16_jop() {
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "The argument '--inc-imm16' cannot be used with '--jop'",
+            "the argument '--inc-imm16' cannot be used with '--jop'",
         ));
 }
 
 #[test]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
+#[cfg(target_os = "linux")]
 fn test_invalid_bad_bytes() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
@@ -115,6 +115,7 @@ fn test_invalid_bad_bytes() {
 
 #[test]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
+#[cfg(target_os = "linux")]
 fn test_invalid_reg_name() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
@@ -123,7 +124,7 @@ fn test_invalid_reg_name() {
     xgadget_bin
         .assert()
         .failure()
-        .stderr(predicate::str::contains("'Invalid register: \"r42\"'"));
+        .stderr(predicate::str::contains("Invalid register: \"r42\""));
 }
 
 // Non-exhaustive Success Cases ----------------------------------------------------------------------------------------
@@ -132,10 +133,10 @@ fn test_invalid_reg_name() {
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_raw() {
     let mut raw_file = NamedTempFile::new().unwrap();
-    raw_file.write(common::ADJACENT_JMP_X64).unwrap();
+    raw_file.write_all(common::ADJACENT_JMP_X64).unwrap();
 
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
-    xgadget_bin.arg(raw_file.path()).arg("-n");
+    xgadget_bin.arg(raw_file.path());
 
     xgadget_bin
         .assert()
@@ -315,44 +316,6 @@ fn test_max_len() {
     .unwrap();
 
     assert!(output_100_len.len() >= output_def_len.len());
-}
-
-#[test]
-#[cfg(target_os = "linux")]
-#[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_color_filter_line_count() {
-    let output_color = String::from_utf8(
-        Command::cargo_bin("xgadget")
-            .unwrap()
-            .arg("/bin/cat")
-            .arg("-f")
-            .arg(format!("mov {}", REG_NAME))
-            .output()
-            .unwrap()
-            .stdout,
-    )
-    .unwrap();
-
-    println!("OUTPUT_COLOR: {}", output_color);
-    let output_color_line_cnt = output_color.lines().count();
-
-    let output_no_color = String::from_utf8(
-        Command::cargo_bin("xgadget")
-            .unwrap()
-            .arg("/bin/cat")
-            .arg("-n")
-            .arg("-f")
-            .arg(format!("mov {}", REG_NAME))
-            .output()
-            .unwrap()
-            .stdout,
-    )
-    .unwrap();
-
-    println!("OUTPUT_NO_COLOR: {}", output_no_color);
-    let output_no_color_line_cnt = output_no_color.lines().count();
-
-    assert!(output_color_line_cnt == output_no_color_line_cnt);
 }
 
 #[test]
@@ -548,7 +511,7 @@ fn test_param_ctrl_filter() {
 #[test]
 #[cfg(target_os = "linux")]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_no_deref_filter() {
+fn test_no_deref_filter_1() {
     let output_no_deref_rax_filter = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
@@ -578,9 +541,67 @@ fn test_no_deref_filter() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
+fn test_no_deref_filter_2() {
+    let mut raw_file = NamedTempFile::new().unwrap();
+    raw_file
+        .write_all(common::FILTERS_NO_DEREF_AND_REG_CTRL)
+        .unwrap();
+
+    let no_deref_1_reg = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg(raw_file.path())
+            .arg("--no-deref")
+            .arg("rdi")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    let no_deref_2_regs = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg(raw_file.path())
+            .arg("--no-deref")
+            .arg("rdi")
+            .arg("rsi")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    let no_deref_any_regs = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg(raw_file.path())
+            .arg("--no-deref")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    println!("NO_DEREF_1_REG: {}", no_deref_1_reg);
+    println!("NO_DEREF_2_REGS: {}", no_deref_2_regs);
+    println!("NO_DEREF_ANY_REGS: {}", no_deref_any_regs);
+    assert!(no_deref_1_reg.lines().count() >= no_deref_2_regs.lines().count());
+    assert!(no_deref_2_regs.lines().count() >= no_deref_any_regs.lines().count());
+
+    assert!(no_deref_2_regs.contains("pop rsi; pop rdi; ret;"));
+    assert!(no_deref_1_reg.contains("pop rsi; pop rdi; ret;"));
+    assert!(no_deref_any_regs.contains("pop rsi; pop rdi; ret;"));
+
+    assert!(no_deref_1_reg.contains("add r8, [rsi]; add r8, [rdx]; pop rsi; pop rdi; ret;"));
+    assert!(no_deref_2_regs.contains("add r8, [rdx]; pop rsi; pop rdi; ret;"));
+}
+
+#[test]
 #[cfg(target_os = "linux")]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_reg_ctrl_filter() {
+fn test_reg_ctrl_filter_1() {
     let output_reg_ctrl_rax_filter = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
@@ -607,6 +628,71 @@ fn test_reg_ctrl_filter() {
     println!("REG_CTRL_RAX: {}", output_reg_ctrl_rax_filter);
     println!("REG_CTRL_ALL: {}", output_reg_ctrl_all_regs_filter);
     assert!(output_reg_ctrl_all_regs_filter.len() >= output_reg_ctrl_rax_filter.len());
+}
+
+#[test]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
+fn test_reg_ctrl_filter_2() {
+    let mut raw_file = NamedTempFile::new().unwrap();
+    raw_file
+        .write_all(common::FILTERS_NO_DEREF_AND_REG_CTRL)
+        .unwrap();
+
+    let ctrl_1_reg = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg(raw_file.path())
+            .arg("--reg-ctrl")
+            .arg("rsi")
+            .arg("--max-len")
+            .arg("25")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    let ctrl_2_regs = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg(raw_file.path())
+            .arg("--reg-ctrl")
+            .arg("rsi")
+            .arg("rdi")
+            .arg("--max-len")
+            .arg("25")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    let ctrl_any_regs = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg(raw_file.path())
+            .arg("--reg-ctrl")
+            .arg("--max-len")
+            .arg("25")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    println!("CTRL_1_REG: {}", ctrl_1_reg);
+    println!("CTRL_2_REGS: {}", ctrl_2_regs);
+    println!("CTRL_ANY_REGS: {}", ctrl_any_regs);
+    assert!(ctrl_any_regs.lines().count() >= ctrl_1_reg.lines().count());
+    assert!(ctrl_1_reg.lines().count() >= ctrl_2_regs.lines().count());
+
+    assert!(ctrl_any_regs.contains("pop rsi; pop rdi; ret;"));
+    assert!(ctrl_1_reg.contains("pop rsi; pop rdi; ret;"));
+    assert!(ctrl_2_regs.contains("pop rsi; pop rdi; ret;"));
+
+    // Note: not unique to this result
+    assert!(ctrl_any_regs
+        .contains("add r8, [rdi]; add r8, [rsi]; add r8, [rdx]; pop rsi; pop rdi; ret;"));
 }
 
 #[test]
@@ -675,39 +761,150 @@ fn test_reg_equivalence() {
     assert!(no_deref_r8l_filter.lines().count() == no_deref_r8b_filter.lines().count());
 }
 
-/*
-// TODO: can UNIX piping be tested this way?
 #[test]
+#[cfg(target_os = "linux")]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_tty_piping() {
-    let mut out_file_color = NamedTempFile::new().unwrap();
-    Command::cargo_bin("xgadget")
-        .unwrap()
-        .arg("/bin/cat")
-        .arg(">")
-        .arg(out_file_color.path())
-        .output()
-        .unwrap();
+fn test_readme_1() {
+    let output_all = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/usr/bin/sudo")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
 
-    let mut out_file_no_color = NamedTempFile::new().unwrap();
-    Command::cargo_bin("xgadget")
-        .unwrap()
-        .arg("/bin/cat")
-        .arg("--no-color")
-        .arg(">")
-        .arg(out_file_no_color.path())
-        .output()
-        .unwrap();
+    let output_readme = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/usr/bin/sudo")
+            .arg("--jop")
+            .arg("--reg-pop")
+            .arg("--att")
+            .arg("--max-len")
+            .arg("10")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
 
-    let mut out_file_color_contents = Vec::new();
-    let out_file_color_bytes = out_file_color.read(&mut out_file_color_contents).unwrap();
-
-    let mut out_file_no_color_contents = Vec::new();
-    let out_file_no_color_bytes = out_file_no_color.read(&mut out_file_no_color_contents).unwrap();
-
-    assert!(out_file_color_bytes > 0);
-    assert!(out_file_no_color_bytes > 0);
-
-    assert!(out_file_color_bytes == out_file_no_color_bytes);
+    println!("ALL: {}", output_all);
+    println!("README_1: {}", output_readme);
+    assert!(!output_readme.is_empty());
+    assert!(output_all.len() >= output_readme.len());
 }
-*/
+
+#[test]
+#[cfg(target_os = "linux")]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
+fn test_readme_2() {
+    let output_all = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/usr/bin/sudo")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    let output_readme = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/usr/bin/sudo")
+            .arg("--regex-filter")
+            .arg("^(?:pop)(?:.*(?:pop))*.*(?:call|jmp)")
+            .arg("--att")
+            .arg("--max-len")
+            .arg("10")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    println!("ALL: {}", output_all);
+    println!("README_2: {}", output_readme);
+    assert!(!output_readme.is_empty());
+    assert!(output_all.len() >= output_readme.len());
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
+fn test_readme_3() {
+    let output_all = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/usr/bin/sudo")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    let output_readme = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/usr/bin/sudo")
+            .arg("--rop")
+            .arg("--reg-ctrl")
+            .arg("rdi")
+            .arg("--no-deref")
+            .arg("rsi")
+            .arg("rdx")
+            .arg("--bad-bytes")
+            .arg("0x32")
+            .arg("0x0d")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    println!("ALL: {}", output_all);
+    println!("README_3: {}", output_readme);
+    assert!(!output_readme.is_empty());
+    assert!(output_all.len() >= output_readme.len());
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
+fn test_readme_4() {
+    let output_readme = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/usr/bin/sudo")
+            .arg("/bin/cat") // http may not be installed
+            .arg("--check-sec")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    println!("README_4: {}", output_readme);
+    assert!(!output_readme.is_empty());
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
+fn test_readme_5() {
+    let output_readme = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/bin/cat") // http may not be installed
+            .arg("--imports")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    println!("README_4: {}", output_readme);
+    assert!(!output_readme.is_empty());
+}

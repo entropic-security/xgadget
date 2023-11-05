@@ -9,7 +9,7 @@ Please read through this document before submitting pull requests to ensure an e
 
 Contributions via pull requests are much appreciated. Before submitting a pull request, please ensure that:
 
-1. You are working against the latest source on the `master` branch.
+1. You are working against the latest source on the `main` branch.
 2. You check existing open, and recently merged, pull requests to make sure someone else hasn't addressed the problem already.
 3. You open an issue to discuss any significant work - we would hate for your time to be wasted.
 
@@ -34,5 +34,5 @@ However, you're free to suggest your own features and ideas - we'd love to discu
 
 ## Licensing
 
-See the [LICENSE](https://github.com/entropic-security/xgadget/blob/master/LICENSE) file for this project's licensing.
+See the [LICENSE](https://github.com/entropic-security/xgadget/blob/main/LICENSE) file for this project's licensing.
 All contributions to this project will, by default, use this license.

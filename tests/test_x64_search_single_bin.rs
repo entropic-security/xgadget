@@ -5,7 +5,7 @@ fn test_x64_ret_after_jne() {
     let bin_ret_post_jmp = common::get_raw_bin("bin_ret_post_jmp", common::RET_AFTER_JNE_X64);
     let bins = vec![bin_ret_post_jmp];
     let gadgets =
-        xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
+        xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::default()).unwrap();
     let gadget_strs = common::get_gadget_strs(&gadgets, false);
     common::print_gadget_strs(&gadget_strs);
 
@@ -54,7 +54,7 @@ fn test_x64_adjacent_ret() {
     let gadgets = xgadget::find_gadgets(
         &bins,
         common::MAX_LEN,
-        xgadget::SearchConfig::DEFAULT | xgadget::SearchConfig::IMM16,
+        xgadget::SearchConfig::default() | xgadget::SearchConfig::IMM16,
     )
     .unwrap();
     let gadget_strs = common::get_gadget_strs(&gadgets, false);
@@ -97,7 +97,7 @@ fn test_x64_adjacent_call() {
     let gadgets = xgadget::find_gadgets(
         &bins,
         common::MAX_LEN,
-        xgadget::SearchConfig::DEFAULT | xgadget::SearchConfig::IMM16,
+        xgadget::SearchConfig::default() | xgadget::SearchConfig::IMM16,
     )
     .unwrap();
     let gadget_strs = common::get_gadget_strs(&gadgets, false);
@@ -162,7 +162,7 @@ fn test_x64_adjacent_jmp() {
     let bin_jmp = common::get_raw_bin("bin_jmp", common::ADJACENT_JMP_X64);
     let bins = vec![bin_jmp];
     let gadgets =
-        xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
+        xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::default()).unwrap();
     let gadget_strs = common::get_gadget_strs(&gadgets, false);
     common::print_gadget_strs(&gadget_strs);
 
@@ -217,7 +217,7 @@ fn test_jmp_rip() {
     let bin_misc_2 = common::get_raw_bin("misc_2", common::MISC_2);
     let bins = vec![bin_misc_2];
     let gadgets =
-        xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::DEFAULT).unwrap();
+        xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::default()).unwrap();
 
     assert!(gadgets.is_empty());
 }

@@ -1,143 +1,127 @@
-use std::fmt;
-use std::fmt::Debug;
-use std::fs;
+use std::{cell::OnceCell, fmt, fs, sync::Mutex, time};
 
-use checksec::{elf, macho, pe};
 use clap::Parser;
 use colored::Colorize;
 use goblin::Object;
+use num_format::{Locale, ToFormattedString};
+use rustc_hash::FxHashSet as HashSet;
 
-use super::checksec_fmt::{
-    CustomElfCheckSecResults, CustomMachOCheckSecResults, CustomPeCheckSecResults,
-};
-
+use super::checksec_fmt::CustomCheckSecResults;
 use super::imports;
 
-lazy_static! {
-    static ref ABOUT_STR: String = format!(
-        "\n{}\t{}\n{}\t{} logical, {} physical",
-        "About:".to_string().bright_magenta(),
-        clap::crate_description!(),
-        "Cores:".to_string().bright_magenta(),
-        num_cpus::get(),
-        num_cpus::get_physical(),
-    );
+use crate::str_fmt::*;
+
+// External init -------------------------------------------------------------------------------------------------------
+
+// `CLIOpts` shouldn't re-{read,parse} binaries from `self.bin_paths` to `Display` this info
+pub(crate) static ARCHS_PROCESSED: Mutex<OnceCell<HashSet<xgadget::Arch>>> =
+    Mutex::new(OnceCell::new());
+
+// Arg parse -----------------------------------------------------------------------------------------------------------
+
+enum SummaryItemType {
+    Header,
+    Data,
+    Separator,
 }
 
-lazy_static! {
-    static ref VERSION_STR: String = format!("v{}", clap::crate_version!());
-}
+// TODO: at the UI level, can these be broken up into sub-categories for comprehension?
+// https://docs.rs/clap/latest/clap/struct.ArgGroup.html
 
 #[derive(Parser, Debug)]
-#[clap(name = "xgadget", version = VERSION_STR.as_str(), about = ABOUT_STR.as_str(), term_width = 150)]
+#[command(
+    name = clap::crate_name!(),
+    version = VERSION_STR.as_str(),
+    about = ABOUT_STR.as_str(),
+    term_width = 150,
+    styles = CMD_COLOR.clone(),
+    next_line_help = false,
+)]
 pub(crate) struct CLIOpts {
-    /// 1+ binaries to gadget search. If > 1: gadgets common to all
-    #[clap(required = true, min_values = 1, value_name = "FILE(S)")]
+    #[arg(help = HELP_BIN_PATHS.as_str(), required = true, num_args = 1.., value_name = "FILE(S)")]
     pub(crate) bin_paths: Vec<String>,
 
-    /// For raw (no header) files: specify arch ('x8086', 'x86', or 'x64')
-    #[clap(short, long, default_value = "x64", value_name = "ARCH")]
+    #[arg(help = HELP_ARCH.as_str(), short, long, default_value = "x64", value_name = "ARCH", env = "XGADGET_ARCH")]
     pub(crate) arch: xgadget::Arch,
 
-    /// Display gadgets using AT&T syntax [default: Intel syntax]
-    #[clap(short = 't', long)]
+    #[arg(help = HELP_ATT.as_str(), short = 't', long)]
     pub(crate) att: bool,
 
-    /// Don't color output [default: color output]
-    #[clap(short, long)]
-    pub(crate) no_color: bool,
-
-    /// Print in terminal-wide format [default: only used for partial match search]
-    #[clap(short, long)]
+    #[arg(help = HELP_EXTENDED_FMT.as_str(), short, long)]
     pub(crate) extended_fmt: bool,
 
-    /// Gadgets up to LEN instrs long. If 0: all gadgets, any length
-    #[clap(
+    #[arg(
+        help = HELP_MAX_LEN.as_str(),
         short = 'l',
         long,
         required = false,
         default_value = "5",
-        value_name = "LEN"
+        value_name = "LEN",
+        env = "XGADGET_LEN"
     )]
     pub(crate) max_len: usize,
 
-    /// Search for ROP gadgets only [default: ROP, JOP, and SYSCALL]
-    #[clap(short, long)]
+    #[arg(help = HELP_ROP.as_str(), short, long)]
     pub(crate) rop: bool,
 
-    /// Search for JOP gadgets only [default: ROP, JOP, and SYSCALL]
-    #[clap(short, long, conflicts_with = "rop")]
+    #[arg(help = HELP_JOP.as_str(), short, long, conflicts_with = "rop")]
     pub(crate) jop: bool,
 
-    /// Search for SYSCALL gadgets only [default: ROP, JOP, and SYSCALL]
-    #[clap(short, long, conflicts_with = "jop")]
+    #[arg(help = HELP_SYS.as_str(), short, long, conflicts_with = "jop")]
     pub(crate) sys: bool,
 
-    /// Include '{ret, ret far} imm16' (e.g. add to stack ptr) [default: don't include]
-    #[clap(long, conflicts_with = "jop")]
+    #[arg(help = HELP_INC_IMM16.as_str(), long, conflicts_with = "jop")]
     pub(crate) inc_imm16: bool,
 
-    /// Include gadgets containing a call [default: don't include]
-    #[clap(long)]
+    #[arg(help = HELP_CALL.as_str(), long)]
     pub(crate) inc_call: bool,
 
-    /// Include cross-variant partial matches [default: full matches only]
-    #[clap(short = 'm', long)]
+    #[arg(help = HELP_PARTIAL_MACH.as_str(), short = 'm', long)]
     pub(crate) partial_match: bool,
 
-    /// Filter to gadgets that write the stack ptr [default: all]
-    #[clap(short = 'p', long)]
+    #[arg(help = HELP_STACK_PIVOT.as_str(), short = 'p', long)]
     pub(crate) stack_pivot: bool,
 
-    /// Filter to potential JOP 'dispatcher' gadgets [default: all]
-    #[clap(short, long, conflicts_with_all = &["rop", "stack-pivot"])]
+    #[arg(help = HELP_DISPATCHER.as_str(), short, long, conflicts_with_all = &["rop", "stack_pivot"])]
     pub(crate) dispatcher: bool,
 
-    /// Filter to 'pop {reg} * 1+, {ret or ctrl-ed jmp/call}' gadgets [default: all]
-    #[clap(long, conflicts_with = "dispatcher")]
+    #[arg(help = HELP_REG_POP.as_str(), long, conflicts_with = "dispatcher")]
     pub(crate) reg_pop: bool,
 
-    /// Filter to gadgets that don't deref any regs or a specific reg [default: all]
-    #[clap(long, value_name = "OPT_REG")]
-    pub(crate) no_deref: Option<Option<String>>,
+    #[arg(help = HELP_NO_DEREF.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
+    pub(crate) no_deref: Vec<String>,
 
-    /// Filter to gadgets that control any reg or a specific reg [default: all]
-    #[clap(long, value_name = "OPT_REG")]
-    pub(crate) reg_ctrl: Option<Option<String>>,
+    #[arg(help = HELP_REG_CTRL.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
+    pub(crate) reg_ctrl: Vec<String>,
 
-    /// Filter to gadgets that control function parameters [default: all]
-    #[clap(long)]
+    #[arg(help = HELP_PARAM_CTRL.as_str(), long)]
     pub(crate) param_ctrl: bool,
 
-    /// Filter to gadgets whose addrs don't contain given bytes [default: all]
-    #[clap(short, long, min_values = 1, value_name = "BYTE(S)")]
+    #[arg(help = HELP_BAD_BYTES.as_str(), short, long, num_args = 1.., value_name = "BYTE(S)")]
     pub(crate) bad_bytes: Vec<String>,
 
-    /// Filter to gadgets matching a regular expression
-    #[clap(short = 'f', long = "regex-filter", value_name = "EXPR")]
+    #[arg(help = HELP_USER_REGEX.as_str(), short = 'f', long = "regex-filter", value_name = "EXPR")]
     pub(crate) usr_regex: Option<String>,
 
-    /// Run checksec on the 1+ binaries instead of gadget search
-    #[clap(short, long, conflicts_with_all = &[
-        "arch", "att", "extended-fmt", "max-len",
-        "rop", "jop", "sys", "inc-imm16", "partial-match",
-        "stack-pivot", "dispatcher", "reg-pop", "usr-regex", "fess", "imports"
+    #[arg(help = HELP_CHECKSEC.as_str(), short, long, conflicts_with_all = &[
+        "arch", "att", "extended_fmt", "max_len",
+        "rop", "jop", "sys", "inc_imm16", "partial_match",
+        "stack_pivot", "dispatcher", "reg_pop", "usr_regex", "fess", "imports"
     ])]
     pub(crate) check_sec: bool,
 
-    /// Compute Fast Exploit Similarity Score (FESS) table for 2+ binaries
-    #[clap(long, conflicts_with_all = &[
-        "arch", "att", "extended-fmt", "max-len",
-        "rop", "jop", "sys", "inc-imm16", "partial-match",
-        "stack-pivot", "dispatcher", "reg-pop", "usr-regex", "check-sec", "imports"
+    // TODO: conflict list gen by removal
+    #[arg(help = HELP_FESS.as_str(), long, conflicts_with_all = &[
+        "arch", "att", "extended_fmt", "max_len",
+        "rop", "jop", "sys", "inc_imm16", "partial_match",
+        "stack_pivot", "dispatcher", "reg_pop", "usr_regex", "check_sec", "imports"
     ])]
     pub(crate) fess: bool,
 
-    /// List the imported symbols in the binary
-    #[clap(long, conflicts_with_all = &[
-        "arch", "att", "extended-fmt", "max-len",
-        "rop", "jop", "sys", "inc-imm16", "partial-match",
-        "stack-pivot", "dispatcher", "reg-pop", "usr-regex", "check-sec", "fess"
+    #[arg(help = HELP_IMPORTS.as_str(), long, conflicts_with_all = &[
+        "arch", "att", "extended_fmt", "max_len",
+        "rop", "jop", "sys", "inc_imm16", "partial_match",
+        "stack_pivot", "dispatcher", "reg_pop", "usr_regex", "check_sec", "fess"
     ])]
     pub(crate) imports: bool,
 }
@@ -145,7 +129,7 @@ pub(crate) struct CLIOpts {
 impl CLIOpts {
     // User flags -> Search config bitfield
     pub(crate) fn get_search_config(&self) -> xgadget::SearchConfig {
-        let mut search_config = xgadget::SearchConfig::DEFAULT;
+        let mut search_config = xgadget::SearchConfig::default();
 
         // Add to default
         if self.partial_match {
@@ -181,193 +165,213 @@ impl CLIOpts {
         search_config
     }
 
-    // Helper for summary print
-    pub(crate) fn fmt_summary_item(&self, item: String, is_hdr: bool) -> colored::ColoredString {
-        let hdr = |s: String| {
-            if self.no_color {
-                s.trim().normal()
-            } else {
-                s.trim().bright_magenta()
-            }
-        };
-
-        let param = |s: String| {
-            if self.no_color {
-                s.trim().normal()
-            } else {
-                s.trim().bright_blue()
-            }
-        };
-
-        match is_hdr {
-            true => hdr(item),
-            false => param(item),
-        }
-    }
-
     // Helper for computing FESS on requested binaries
-    pub(crate) fn run_fess(&self, bins: &[xgadget::binary::Binary]) {
+    pub(crate) fn run_fess(&self, bins: &[xgadget::Binary]) -> usize {
         if bins.len() < 2 {
-            panic!("--fess flag requires 2+ binaries!");
+            panic!("\'--fess\' flag requires 2+ binaries!");
         }
 
-        println!(
-            "\n{}",
-            xgadget::fess::gen_fess_tbl(
-                bins,
-                self.max_len,
-                self.get_search_config(),
-                !self.no_color
-            )
-            .unwrap()
-        );
+        let (tbl, cnt) =
+            xgadget::fess::gen_fess_tbl(bins, self.max_len, self.get_search_config()).unwrap();
+        println!("\n{}\n", tbl);
+
+        cnt
     }
 
     // Helper for running checksec on requested binaries
-    pub(crate) fn run_checksec(&self) {
-        for path in &self.bin_paths {
-            println!("\n{}:", self.fmt_summary_item(path.to_string(), false));
-            let buf = fs::read(path).unwrap();
-            match Object::parse(&buf).unwrap() {
-                Object::Elf(elf) => {
-                    println!(
-                        "{}",
-                        CustomElfCheckSecResults {
-                            results: elf::CheckSecResults::parse(&elf),
-                            no_color: self.no_color,
-                        }
-                    );
-                }
-                Object::PE(pe) => {
-                    let mm_buf =
-                        unsafe { memmap::Mmap::map(&fs::File::open(path).unwrap()).unwrap() };
-                    println!(
-                        "{}",
-                        CustomPeCheckSecResults {
-                            results: pe::CheckSecResults::parse(&pe, &mm_buf),
-                            no_color: self.no_color,
-                        }
-                    );
-                }
-                Object::Mach(mach) => match mach {
-                    goblin::mach::Mach::Binary(macho) => {
-                        println!(
-                            "{}",
-                            CustomMachOCheckSecResults {
-                                results: macho::CheckSecResults::parse(&macho),
-                                no_color: self.no_color,
-                            }
-                        );
-                    }
-                    _ => panic!("Checksec supports only single-arch Mach-O!"),
-                },
-                _ => panic!("Only ELF, PE, and Mach-O checksec currently supported!"),
+    pub(crate) fn run_checksec(&self, bins: &[xgadget::Binary]) {
+        for bin in bins {
+            if let Some((path, Some(path_str))) = bin.path().map(|p| (p, p.as_os_str().to_str())) {
+                println!(
+                    "\n{}\n\t{}:",
+                    self.fmt_summary_item(&path.display().to_string(), SummaryItemType::Data),
+                    bin,
+                );
+                let buf = fs::read(path).unwrap();
+                println!("{}", CustomCheckSecResults::new(&buf, path_str));
+
+                debug_assert!(self
+                    .bin_paths
+                    .iter()
+                    .map(std::path::PathBuf::from)
+                    .collect::<Vec<_>>()
+                    .contains(&std::path::PathBuf::from(path)));
             }
         }
     }
 
     // Helper for printing imports from requested binaries
-    pub(crate) fn run_imports(&self, bins: &[xgadget::binary::Binary]) {
+    pub(crate) fn run_imports(&self, bins: &[xgadget::Binary]) {
         for (idx, path) in self.bin_paths.iter().enumerate() {
-            println!(
-                "\nTARGET {} - {} \n",
-                {
-                    match self.no_color {
-                        true => format!("{}", idx).normal(),
-                        false => format!("{}", idx).red(),
-                    }
-                },
-                bins[idx]
-            );
+            println!("\nTARGET {} - {} \n", format!("{}", idx).red(), bins[idx]);
 
             // Binaries get reparsed here. This could be eliminated by adding symbol data
             // to the Binary struct
             let buf = fs::read(path).unwrap();
             match Object::parse(&buf).unwrap() {
-                Object::Elf(elf) => imports::dump_elf_imports(&elf, self.no_color),
-                Object::PE(pe) => imports::dump_pe_imports(&pe, self.no_color),
+                // TODO: update imports to remove no-color
+                Object::Elf(elf) => imports::dump_elf_imports(&elf),
+                Object::PE(pe) => imports::dump_pe_imports(&pe),
                 Object::Mach(mach) => match mach {
-                    goblin::mach::Mach::Binary(macho) => {
-                        imports::dump_macho_imports(&macho, self.no_color)
-                    }
+                    goblin::mach::Mach::Binary(macho) => imports::dump_macho_imports(&macho),
                     goblin::mach::Mach::Fat(fat) => {
-                        let macho = xgadget::binary::get_supported_macho(&fat).unwrap();
-                        imports::dump_macho_imports(&macho, self.no_color)
+                        let macho = xgadget::get_supported_macho(&fat).unwrap();
+                        imports::dump_macho_imports(&macho)
                     }
                 },
                 _ => panic!("Only ELF, PE, and Mach-O binaries currently supported!"),
             }
         }
     }
+
+    pub(crate) fn fmt_perf_result(
+        &self,
+        bin_cnt: usize,
+        found_cnt: usize,
+        start_time: time::Instant,
+        run_time: time::Duration,
+    ) -> String {
+        let pipe_sep = self.fmt_summary_item("|", SummaryItemType::Separator);
+        let colon = self.fmt_summary_item(":", SummaryItemType::Separator);
+        format!(
+            "{} {} {}{colon} {} {pipe_sep} search_time{colon} \
+            {} {pipe_sep} print_time{colon} {} {}",
+            { self.fmt_summary_item("RESULT", SummaryItemType::Header) },
+            self.fmt_summary_item("[", SummaryItemType::Separator),
+            {
+                if bin_cnt > 1 {
+                    "unique_x_variant_gadgets"
+                } else {
+                    "unique_gadgets"
+                }
+            },
+            self.fmt_summary_item(
+                &found_cnt.to_formatted_string(&Locale::en),
+                SummaryItemType::Data
+            ),
+            { self.fmt_summary_item(&format!("{:?}", run_time), SummaryItemType::Data) },
+            {
+                self.fmt_summary_item(
+                    &format!("{:?}", start_time.elapsed() - run_time),
+                    SummaryItemType::Data,
+                )
+            },
+            self.fmt_summary_item("]", SummaryItemType::Separator),
+        )
+    }
+
+    // Helper for summary print
+    fn fmt_summary_item(&self, item: &str, ty: SummaryItemType) -> colored::ColoredString {
+        match ty {
+            SummaryItemType::Header => item.trim().bold().red(),
+            SummaryItemType::Data => item.trim().bold().bright_blue(),
+            SummaryItemType::Separator => item.trim().bold().bright_magenta(),
+        }
+    }
 }
 
 impl fmt::Display for CLIOpts {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let pipe_sep = self.fmt_summary_item("|", SummaryItemType::Separator);
+        let comma_sep = self.fmt_summary_item(",", SummaryItemType::Separator);
+        let colon = self.fmt_summary_item(":", SummaryItemType::Separator);
         write!(
             f,
-            "{} [ search: {} | x_match: {} | max_len: {} | syntax: {} | regex_filter: {} ]",
-            { self.fmt_summary_item("CONFIG".to_string(), true) },
+            "{} {} arch{colon} {} {pipe_sep} search{colon} {} {pipe_sep} x_match{colon} \
+            {} {pipe_sep} max_len{colon} {} {pipe_sep} syntax{colon} {} {pipe_sep} regex{colon} {} {}",
+            { self.fmt_summary_item("CONFIG", SummaryItemType::Header) },
+            self.fmt_summary_item("[", SummaryItemType::Separator),
             {
-                let mut search_mode = String::from("ROP-JOP-SYS (default)");
+                match ARCHS_PROCESSED.lock().unwrap().get() {
+                    Some(arches) => {
+                        let arch_list = arches.iter()
+                            .map(|a| format!("{}", a))
+                            .collect::<Vec<_>>()
+                            .join(&comma_sep);
+
+                        cli_rule_fmt(&arch_list, false, false)
+                    },
+                    None => self.fmt_summary_item("undetermined", SummaryItemType::Data).to_string(),
+                }
+            },
+            {
+                let mut search_mode = if !self.rop && !self.jop && !self.sys {
+                    vec!["ROP", "JOP", "SYS"] // Default search config
+                } else {
+                    Vec::new()
+                };
+
                 if self.rop {
-                    search_mode = String::from("ROP-only");
+                    search_mode.push("ROP");
                 };
                 if self.jop {
-                    search_mode = String::from("JOP-only");
+                    search_mode.push("JOP");
                 };
                 if self.sys {
-                    search_mode = String::from("SYS-only");
+                    search_mode.push("SYS");
                 };
                 if self.stack_pivot {
-                    search_mode = String::from("Stack-pivot-only");
+                    search_mode.push("Stack-pivot");
                 };
                 if self.dispatcher {
-                    search_mode = String::from("Dispatcher-only");
+                    search_mode.push("Dispatcher");
                 };
                 if self.reg_pop {
-                    search_mode = String::from("Register-pop-only");
+                    search_mode.push("Reg-pop");
                 };
                 if self.param_ctrl {
-                    search_mode = String::from("Param-ctrl-only");
+                    search_mode.push("Param-ctrl");
                 };
-                if let Some(opt_reg) = &self.reg_ctrl {
-                    match opt_reg {
-                        Some(reg) => {
-                            search_mode = format!("Reg-ctrl-{}-only", reg.to_lowercase());
-                        }
-                        None => {
-                            search_mode = String::from("Reg-ctrl-only");
-                        }
+                if is_env_resident(&[REG_CTRL_FLAG]) {
+                    if !self.reg_ctrl.is_empty() {
+                        // Note: leak on rare case to avoid alloc on common case
+                        search_mode.push(Box::leak(format!(
+                            "Reg-ctrl-{{{}}}",
+                            self.reg_ctrl.iter()
+                                .map(|r| r.to_lowercase())
+                                .collect::<Vec<_>>()
+                                .join(&comma_sep)
+                        ).into_boxed_str()));
+                    } else {
+                        search_mode.push("Reg-ctrl");
                     }
                 };
-                if let Some(opt_reg) = &self.no_deref {
-                    match opt_reg {
-                        Some(reg) => {
-                            search_mode = format!("No-deref-{}-only", reg.to_lowercase());
-                        }
-                        None => {
-                            search_mode = String::from("No-deref-only");
-                        }
+                if is_env_resident(&[NO_DEREF_FLAG]) {
+                    if !self.no_deref.is_empty() {
+                        // Note: leak on rare case to avoid alloc on common case
+                        search_mode.push(Box::leak(format!(
+                            "No-deref-{{{}}}",
+                            self.no_deref.iter()
+                                .map(|r| r.to_lowercase())
+                                .collect::<Vec<_>>()
+                                .join(&comma_sep)
+                        ).into_boxed_str()));
+                    } else {
+                        search_mode.push("No-deref");
                     }
                 };
-                self.fmt_summary_item(search_mode, false)
+                cli_rule_fmt(
+                    &self.fmt_summary_item(&search_mode.join(&comma_sep), SummaryItemType::Data),
+                    false,
+                    false
+                ).bold()
             },
             {
                 let x_match = if self.bin_paths.len() == 1 {
                     "none"
-                } else if self.partial_match {
+                } else if self.partial_match || self.fess {
                     "full-and-partial"
                 } else {
                     "full"
                 };
 
-                self.fmt_summary_item(x_match.to_string(), false)
+                self.fmt_summary_item(x_match, SummaryItemType::Data)
             },
-            { self.fmt_summary_item(format!("{}", self.max_len), false) },
+            { self.fmt_summary_item(&format!("{}", self.max_len), SummaryItemType::Data) },
             {
                 let syntax = if self.att { "AT&T" } else { "Intel" };
 
-                self.fmt_summary_item(syntax.to_string(), false)
+                self.fmt_summary_item(syntax, SummaryItemType::Data)
             },
             {
                 let regex = if self.usr_regex.is_some() {
@@ -376,8 +380,28 @@ impl fmt::Display for CLIOpts {
                     String::from("none")
                 };
 
-                self.fmt_summary_item(regex, false)
+                self.fmt_summary_item(&regex, SummaryItemType::Data)
             },
+            "]".bright_magenta(),
         )
     }
+}
+
+// Misc ----------------------------------------------------------------------------------------------------------------
+
+// XXX: We hardcode these to support modifying runtime behavior on presence or absence
+pub(crate) const REG_CTRL_FLAG: &str = "--reg-ctrl";
+pub(crate) const NO_DEREF_FLAG: &str = "--no-deref";
+
+// Runtime reflection, underpins `--reg-ctrl` and `--no-deref` flag behavior.
+// XXX: more idiomatic alternative with `clap`?
+pub(crate) fn is_env_resident(clap_args: &[&str]) -> bool {
+    std::env::args_os().any(|a| {
+        if let Ok(arg_str) = a.into_string() {
+            if clap_args.contains(&arg_str.as_str()) {
+                return true;
+            }
+        }
+        false
+    })
 }

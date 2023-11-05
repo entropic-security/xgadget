@@ -10,7 +10,7 @@ use crate::gadget;
 
 // Public Types and Traits ---------------------------------------------------------------------------------------------
 
-/// Implementors track count of visible terminal characters for `Display`'s `fmt` function (for colored strings).
+/// Track count of visible terminal characters for `Display`'s `fmt` function (for colored strings).
 pub trait DisplayLen: Display {
     /// Get the count of visible terminal characters for `Display`'s `fmt` function
     fn len(&self) -> usize;
@@ -43,17 +43,13 @@ impl Display for DisplayString {
 // Public API ----------------------------------------------------------------------------------------------------------
 
 /// Format list of gadgets in parallel, return alphabetically sorted `String`s
-pub fn fmt_gadget_str_list(
-    gadgets: &[gadget::Gadget],
-    att_syntax: bool,
-    color: bool,
-) -> Vec<(String, String)> {
+pub fn fmt_gadget_str_list(gadgets: &[gadget::Gadget], att_syntax: bool) -> Vec<(String, String)> {
     let mut instr_addr_str_tuples = gadgets
         .par_iter()
         .map(|g| {
-            let output_instrs = g.fmt_instrs(att_syntax, color);
+            let output_instrs = g.fmt_instrs(att_syntax);
             let output_addrs = g
-                .fmt_best_match_addrs(color)
+                .fmt_best_match_addrs()
                 .unwrap_or_else(|| Box::new(DisplayString(String::new())));
 
             (format!("{}", output_instrs), format!("{}", output_addrs))

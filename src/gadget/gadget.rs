@@ -15,6 +15,7 @@ use crate::binary;
 // Gadget --------------------------------------------------------------------------------------------------------------
 
 /// Gadget instructions (data) coupled with occurrence addresses for full and partial matches (metadata).
+///
 /// Gadgets sortable by lowest occurrence address.
 /// Hash and equality consider only gadget instructions, not occurrence addresses (fast de-duplication via sets).
 #[derive(Clone, Debug)]
@@ -105,86 +106,54 @@ impl<'a> Gadget<'a> {
     }
 
     /// String format gadget instructions
-    pub fn fmt_instrs(&self, att_syntax: bool, color: bool) -> Box<dyn DisplayLen + Send> {
-        match color {
-            true => {
-                let mut formatter = fmt::get_formatter(att_syntax);
-                let mut output = fmt::GadgetFormatterOutput::new();
-                for instr in &self.instrs {
-                    formatter.format(instr, &mut output);
-                    output.write("; ", iced_x86::FormatterTextKind::Punctuation);
-                }
-                Box::new(output)
-            }
-            false => Box::new(fmt::DisplayString(self.write_instrs_internal(att_syntax))),
+    pub fn fmt_instrs(&self, att_syntax: bool) -> Box<dyn DisplayLen + Send> {
+        let mut formatter = fmt::get_formatter(att_syntax);
+        let mut output = fmt::GadgetFormatterOutput::new();
+        for instr in &self.instrs {
+            formatter.format(instr, &mut output);
+            output.write("; ", iced_x86::FormatterTextKind::Punctuation);
         }
+        Box::new(output)
     }
 
     /// String format first full match address, if any
-    pub fn fmt_first_full_match_addr(&self, color: bool) -> Option<Box<dyn DisplayLen + Send>> {
+    pub fn fmt_first_full_match_addr(&self) -> Option<Box<dyn DisplayLen + Send>> {
         match &self.first_full_match() {
-            Some(addr) => match color {
-                true => {
-                    let mut output = fmt::GadgetFormatterOutput::new();
-                    output.write(
-                        &format!("{:#016x}", addr),
-                        iced_x86::FormatterTextKind::LabelAddress,
-                    );
-                    Some(Box::new(output))
-                }
-                false => {
-                    let mut output = String::new();
-                    output.write(
-                        &format!("{:#016x}", addr),
-                        iced_x86::FormatterTextKind::LabelAddress,
-                    );
-                    Some(Box::new(fmt::DisplayString(output)))
-                }
-            },
+            Some(addr) => {
+                let mut output = fmt::GadgetFormatterOutput::new();
+                output.write(
+                    &format!("{:#016x}", addr),
+                    iced_x86::FormatterTextKind::LabelAddress,
+                );
+                Some(Box::new(output))
+            }
             None => None,
         }
     }
 
     /// String format partial match addresses, if any
-    pub fn fmt_partial_match_addrs(&self, color: bool) -> Option<Box<dyn DisplayLen + Send>> {
-        match color {
-            true => {
-                let mut output = fmt::GadgetFormatterOutput::new();
-                let fmted_bin_cnt = Self::fmt_partial_matches_internal(
-                    &mut output,
-                    &mut self.partial_matches.clone(),
-                );
-                match fmted_bin_cnt != self.bin_cnt() {
-                    true => None,
-                    false => Some(Box::new(output)),
-                }
-            }
-            false => {
-                let mut output = String::new();
-                let fmted_bin_cnt = Self::fmt_partial_matches_internal(
-                    &mut output,
-                    &mut self.partial_matches.clone(),
-                );
-                match fmted_bin_cnt != self.bin_cnt() {
-                    true => None,
-                    false => Some(Box::new(fmt::DisplayString(output))),
-                }
-            }
+    pub fn fmt_partial_match_addrs(&self) -> Option<Box<dyn DisplayLen + Send>> {
+        let mut output = fmt::GadgetFormatterOutput::new();
+        let fmted_bin_cnt =
+            Self::fmt_partial_matches_internal(&mut output, &mut self.partial_matches.clone());
+        match fmted_bin_cnt != self.bin_cnt() {
+            true => None,
+            false => Some(Box::new(output)),
         }
     }
 
     /// String format match addresses, prioritizing full matches over partial, if any
-    pub fn fmt_best_match_addrs(&self, color: bool) -> Option<Box<dyn DisplayLen + Send>> {
+    pub fn fmt_best_match_addrs(&self) -> Option<Box<dyn DisplayLen + Send>> {
         match self.first_full_match() {
-            Some(_) => self.fmt_first_full_match_addr(color),
+            Some(_) => self.fmt_first_full_match_addr(),
             None => match self.partial_matches.is_empty() {
-                false => self.fmt_partial_match_addrs(color),
+                false => self.fmt_partial_match_addrs(),
                 true => None,
             },
         }
     }
 
-    // Returns instruction string for regex filtering
+    /// Returns instruction string for regex filtering
     pub fn fmt_for_filter(&self, att_syntax: bool) -> String {
         self.write_instrs_internal(att_syntax)
     }
@@ -194,11 +163,10 @@ impl<'a> Gadget<'a> {
     pub fn fmt(
         &self,
         att_syntax: bool,
-        color: bool,
     ) -> Option<(Box<dyn DisplayLen + Send>, Box<dyn DisplayLen + Send>)> {
-        match self.fmt_best_match_addrs(color) {
+        match self.fmt_best_match_addrs() {
             Some(output_addrs) => {
-                let output_instrs = self.fmt_instrs(att_syntax, color);
+                let output_instrs = self.fmt_instrs(att_syntax);
                 Some((output_instrs, output_addrs))
             }
             None => None,

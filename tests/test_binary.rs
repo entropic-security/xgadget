@@ -3,7 +3,7 @@ mod common;
 #[cfg(target_os = "linux")]
 #[test]
 fn test_elf() {
-    let bin = xgadget::Binary::from_path_str("/bin/cat").unwrap();
+    let bin = xgadget::Binary::from_path("/bin/cat").unwrap();
     assert_eq!(bin.name(), "cat");
     assert_eq!(bin.format(), xgadget::Format::ELF);
 
@@ -17,6 +17,6 @@ fn test_elf() {
 
     // Regardless of version, should find some gadgets
     let bins = vec![bin];
-    let gadgets = xgadget::find_gadgets(&bins, 5, xgadget::SearchConfig::DEFAULT).unwrap();
+    let gadgets = xgadget::find_gadgets(&bins, 5, xgadget::SearchConfig::default()).unwrap();
     assert!(!gadgets.is_empty());
 }

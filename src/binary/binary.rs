@@ -1,7 +1,6 @@
-use std::error::Error;
 use std::fmt;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use colored::Colorize;
 use rustc_hash::FxHashSet as HashSet;
@@ -10,6 +9,7 @@ use super::arch::Arch;
 use super::consts::*;
 use super::file_format::Format;
 use super::segment::Segment;
+use crate::error::Error;
 
 // Binary --------------------------------------------------------------------------------------------------------------
 
@@ -17,34 +17,44 @@ use super::segment::Segment;
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Binary {
     name: String,
+    path: Option<PathBuf>,
     format: Format,
     arch: Arch,
     entry: u64,
     param_regs: Option<&'static [iced_x86::Register]>,
     segments: HashSet<Segment>,
-    color_display: bool,
 }
 
 impl Binary {
     // Binary Public API -----------------------------------------------------------------------------------------------
 
     /// Byte slice -> Binary
-    pub fn from_bytes(name: &str, bytes: &[u8]) -> Result<Binary, Box<dyn Error>> {
-        Binary::priv_from_buf(name, bytes)
+    pub fn from_bytes(name: &str, bytes: &[u8]) -> Result<Binary, Error> {
+        Binary::priv_from_buf(name, None, bytes)
     }
 
     /// Path str -> Binary
-    pub fn from_path_str(path: &str) -> Result<Binary, Box<dyn Error>> {
-        let name = Path::new(path).file_name().ok_or("No filename.")?;
-        let name_str = name.to_str().ok_or("Failed filename decode.")?;
-        let bytes = fs::read(path)?;
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Binary, Error> {
+        let name = path
+            .as_ref()
+            .file_name()
+            .ok_or(Error::NoFileName)?
+            .to_str()
+            .ok_or(Error::NoFileName)?;
 
-        Binary::priv_from_buf(name_str, &bytes)
+        let bytes = fs::read(path.as_ref())?;
+
+        Binary::priv_from_buf(name, Some(path.as_ref()), &bytes)
     }
 
     /// Get name
     pub fn name(&self) -> &str {
         self.name.as_str()
+    }
+
+    /// Get path
+    pub fn path(&self) -> Option<&Path> {
+        self.path.as_deref()
     }
 
     /// Get format
@@ -82,35 +92,17 @@ impl Binary {
         self.arch.bits()
     }
 
-    /// Enable/disable colored `Display`
-    pub fn set_color_display(&mut self, enable: bool) {
-        self.color_display = enable;
-    }
-
     // Binary Private API ----------------------------------------------------------------------------------------------
 
-    // Construction helper
-    fn priv_new() -> Binary {
-        Binary {
-            name: String::from("None"),
-            format: Format::Unknown,
-            arch: Arch::Unknown,
-            entry: 0,
-            param_regs: None,
-            segments: HashSet::default(),
-            color_display: true,
-        }
-    }
-
     // Bytes -> Binary
-    fn priv_from_buf(name: &str, bytes: &[u8]) -> Result<Binary, Box<dyn Error>> {
+    fn priv_from_buf(name: &str, path: Option<&Path>, bytes: &[u8]) -> Result<Binary, Error> {
         match goblin::Object::parse(bytes) {
             Ok(obj) => match obj {
+                goblin::Object::Elf(elf) => Binary::from_elf(name, path, bytes, &elf),
+                goblin::Object::PE(pe) => Binary::from_pe(name, path, bytes, &pe),
+                goblin::Object::Mach(mach) => Binary::from_mach(name, path, bytes, &mach),
                 goblin::Object::Unknown(_) => Ok(Binary::from_raw(name, bytes)),
-                goblin::Object::Elf(elf) => Binary::from_elf(name, bytes, &elf),
-                goblin::Object::PE(pe) => Binary::from_pe(name, bytes, &pe),
-                goblin::Object::Mach(mach) => Binary::from_mach(name, bytes, &mach),
-                _ => Err("Unsupported file format!".into()),
+                _ => Err(Error::UnsupportedFileFormat),
             },
             _ => Ok(Binary::from_raw(name, bytes)),
         }
@@ -119,22 +111,23 @@ impl Binary {
     // ELF file -> Binary
     fn from_elf(
         name: &str,
+        path: Option<&Path>,
         bytes: &[u8],
         elf: &goblin::elf::Elf,
-    ) -> Result<Binary, Box<dyn Error>> {
-        let mut bin = Binary::priv_new();
-
-        bin.name = name.to_string();
-        bin.entry = elf.entry;
-        bin.format = Format::ELF;
-
-        // Architecture
-        bin.arch = match elf.header.e_machine {
-            goblin::elf::header::EM_X86_64 => Arch::X64,
-            goblin::elf::header::EM_386 => Arch::X86,
-            _ => {
-                return Err("Unsupported architecture!".into());
-            }
+    ) -> Result<Binary, Error> {
+        let mut bin = Binary {
+            name: name.to_string(),
+            path: path.map(PathBuf::from),
+            entry: elf.entry,
+            format: Format::ELF,
+            arch: match elf.header.e_machine {
+                goblin::elf::header::EM_X86_64 => Arch::X64,
+                goblin::elf::header::EM_386 => Arch::X86,
+                _ => {
+                    return Err(Error::UnsupportedArch);
+                }
+            },
+            ..Default::default()
         };
 
         // Argument registers
@@ -162,20 +155,25 @@ impl Binary {
     }
 
     // PE file -> Binary
-    fn from_pe(name: &str, bytes: &[u8], pe: &goblin::pe::PE) -> Result<Binary, Box<dyn Error>> {
-        let mut bin = Binary::priv_new();
-
-        bin.name = name.to_string();
-        bin.entry = pe.entry as u64;
-        bin.format = Format::PE;
-
-        // Architecture
-        bin.arch = match pe.header.coff_header.machine {
-            goblin::pe::header::COFF_MACHINE_X86_64 => Arch::X64,
-            goblin::pe::header::COFF_MACHINE_X86 => Arch::X86,
-            _ => {
-                return Err("Unsupported architecture!".into());
-            }
+    fn from_pe(
+        name: &str,
+        path: Option<&Path>,
+        bytes: &[u8],
+        pe: &goblin::pe::PE,
+    ) -> Result<Binary, Error> {
+        let mut bin = Binary {
+            name: name.to_string(),
+            path: path.map(PathBuf::from),
+            entry: pe.entry as u64,
+            format: Format::PE,
+            arch: match pe.header.coff_header.machine {
+                goblin::pe::header::COFF_MACHINE_X86_64 => Arch::X64,
+                goblin::pe::header::COFF_MACHINE_X86 => Arch::X86,
+                _ => {
+                    return Err(Error::UnsupportedArch);
+                }
+            },
+            ..Default::default()
         };
 
         // Argument registers
@@ -203,10 +201,11 @@ impl Binary {
     // Mach-O file -> Binary
     fn from_mach(
         name: &str,
+        path: Option<&Path>,
         bytes: &[u8],
         mach: &goblin::mach::Mach,
-    ) -> Result<Binary, Box<dyn Error>> {
-        let mut bin = Binary::priv_new();
+    ) -> Result<Binary, Error> {
+        let mut bin = Binary::default();
 
         // Handle Mach-O and Multi-Architecture variants
         let temp_macho: goblin::mach::MachO;
@@ -219,6 +218,7 @@ impl Binary {
         };
 
         bin.name = name.to_string();
+        bin.path = path.map(PathBuf::from);
         bin.entry = macho.entry;
         bin.format = Format::MachO;
 
@@ -227,7 +227,7 @@ impl Binary {
             goblin::mach::constants::cputype::CPU_TYPE_X86_64 => Arch::X64,
             goblin::mach::constants::cputype::CPU_TYPE_I386 => Arch::X86,
             _ => {
-                return Err("Unsupported architecture!".into());
+                return Err(Error::UnsupportedArch);
             }
         };
 
@@ -249,7 +249,7 @@ impl Binary {
             let end_offset = start_offset + section.size as usize;
 
             bin.segments.insert(Segment::new(
-                section.addr as u64,
+                section.addr,
                 bytes[start_offset..end_offset].to_vec(),
             ));
         }
@@ -260,11 +260,11 @@ impl Binary {
 
     // Raw bytes -> Binary, Unknown arch to be updated by caller
     fn from_raw(name: &str, bytes: &[u8]) -> Binary {
-        let mut bin = Binary::priv_new();
-
-        bin.name = name.to_string();
-        bin.entry = 0;
-        bin.format = Format::Raw;
+        let mut bin = Binary {
+            name: name.to_string(),
+            format: Format::Raw,
+            ..Default::default()
+        };
 
         bin.segments.insert(Segment::new(0, bytes[..].to_vec()));
 
@@ -280,8 +280,8 @@ impl Binary {
             let mut local_sub_segs = self
                 .segments
                 .iter()
+                .filter(|&s| (s.addr == seg.addr) && (s.bytes.len() < seg.bytes.len()))
                 .cloned()
-                .filter(|s| (s.addr == seg.addr) && (s.bytes.len() < seg.bytes.len()))
                 .collect();
 
             sub_segs.append(&mut local_sub_segs);
@@ -293,16 +293,24 @@ impl Binary {
     }
 }
 
+impl Default for Binary {
+    fn default() -> Self {
+        Binary {
+            name: String::from("unknown"),
+            path: None,
+            format: Format::Unknown,
+            arch: Arch::Unknown,
+            entry: 0,
+            param_regs: None,
+            segments: HashSet::default(),
+        }
+    }
+}
+
 // Summary print
 impl fmt::Display for Binary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let color_punctuation = |s: &str| {
-            if self.color_display {
-                s.bright_magenta()
-            } else {
-                s.normal()
-            }
-        };
+        let color_punctuation = |s: &str| s.bright_magenta();
 
         let seg_cnt = self.segments.len();
 
@@ -319,50 +327,20 @@ impl fmt::Display for Binary {
 
         write!(
             f,
-            "{}{}{}{} {}{}{}{} {} entry{} {}{}{} executable bytes{}segments",
+            "{}{}{}{} {}{}{}{} {} entry{} {}{}{} exec bytes{}segments",
             single_quote,
-            {
-                match self.color_display {
-                    true => self.name.cyan(),
-                    false => self.name.normal(),
-                }
-            },
+            self.name.cyan(),
             single_quote,
             colon,
-            {
-                match self.color_display {
-                    true => format!("{:?}", self.format).yellow(),
-                    false => format!("{:?}", self.format).normal(),
-                }
-            },
+            format!("{:?}", self.format).yellow(),
             dash,
-            {
-                match self.color_display {
-                    true => format!("{:?}", self.arch).yellow(),
-                    false => format!("{:?}", self.arch).normal(),
-                }
-            },
+            format!("{:?}", self.arch).yellow(),
             comma,
-            {
-                match self.color_display {
-                    true => format!("{:#016x}", self.entry).green(),
-                    false => format!("{:#016x}", self.entry).normal(),
-                }
-            },
+            format!("{:#016x}", self.entry).green(),
             comma,
-            {
-                match self.color_display {
-                    true => format!("{}", bytes).bright_blue(),
-                    false => format!("{}", bytes).normal(),
-                }
-            },
+            format!("{}", bytes).bright_blue(),
             forward_slash,
-            {
-                match self.color_display {
-                    true => format!("{}", seg_cnt).bright_blue(),
-                    false => format!("{}", seg_cnt).normal(),
-                }
-            },
+            format!("{}", seg_cnt).bright_blue(),
             forward_slash,
         )
     }
@@ -385,16 +363,19 @@ pub fn get_all_param_regs(bins: &[Binary]) -> Vec<iced_x86::Register> {
     param_regs.into_iter().collect()
 }
 
+#[doc(hidden)]
 pub fn get_supported_macho<'a>(
     fat: &'a goblin::mach::MultiArch,
-) -> Result<goblin::mach::MachO<'a>, Box<dyn Error>> {
-    let macho = fat
-        .find(|arch| {
-            (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_X86_64)
-                || (arch.as_ref().unwrap().cputype()
-                    == goblin::mach::constants::cputype::CPU_TYPE_I386)
-        })
-        .ok_or("Failed to retrieve supported architecture from MultiArch Mach-O")??;
-
-    Ok(macho)
+) -> Result<goblin::mach::MachO<'a>, Error> {
+    fat.find(|arch| {
+        (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_X86_64)
+            || (arch.as_ref().unwrap().cputype() == goblin::mach::constants::cputype::CPU_TYPE_I386)
+    })
+    .ok_or(Error::UnsupportedArch)?
+    // Don't expose goblin-internal errors
+    .map_err(|_| Error::UnsupportedArch)
+    .and_then(|single_arch| match single_arch {
+        goblin::mach::SingleArch::MachO(macho) => Ok(macho),
+        _ => Err(Error::UnsupportedArch),
+    })
 }
