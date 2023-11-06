@@ -5,7 +5,6 @@ use color_eyre::eyre::Result;
 use colored::Colorize;
 use rayon::prelude::*;
 use regex::Regex;
-use rustc_hash::FxHashSet as HashSet;
 
 // Internal deps -------------------------------------------------------------------------------------------------------
 
@@ -13,7 +12,7 @@ mod str_fmt;
 use str_fmt::{str_to_reg, STR_REG_MAP};
 
 mod cli;
-use cli::{is_env_resident, CLIOpts, ARCHS_PROCESSED, NO_DEREF_FLAG, REG_CTRL_FLAG};
+use cli::{is_env_resident, CLIOpts, NO_DEREF_FLAG, REG_CTRL_FLAG};
 
 mod checksec_fmt;
 
@@ -25,7 +24,7 @@ fn main() -> Result<()> {
     color_eyre::install()?;
     lazy_static::initialize(&STR_REG_MAP);
 
-    let cli = CLIOpts::parse();
+    let mut cli = CLIOpts::parse();
 
     let mut filter_matches = 0;
     let filter_regex = cli.usr_regex.clone().map(|r| Regex::new(&r).unwrap());
@@ -39,27 +38,7 @@ fn main() -> Result<()> {
     );
 
     // File paths -> Binaries
-    let bins: Vec<xgadget::Binary> = cli
-        .bin_paths
-        .par_iter()
-        .map(|path| xgadget::Binary::from_path(path).unwrap())
-        .map(|mut binary| {
-            if binary.arch() == xgadget::Arch::Unknown {
-                binary.set_arch(cli.arch); // Set user value if cannot auto-determine
-                assert!(
-                    binary.arch() != xgadget::Arch::Unknown,
-                    "Please set \'--arch\' to \'x8086\' (16-bit), \'x86\' (32-bit), or \'x64\' (64-bit). \
-                    It couldn't be determined automatically."
-                );
-            }
-            binary
-        })
-        .collect();
-
-    ARCHS_PROCESSED
-        .lock()
-        .unwrap()
-        .get_or_init(|| bins.iter().map(|b| b.arch()).collect::<HashSet<_>>());
+    let bins = cli.parse_binaries();
 
     // Checksec requested ----------------------------------------------------------------------------------------------
 

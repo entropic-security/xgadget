@@ -1,21 +1,16 @@
-use std::{cell::OnceCell, fmt, fs, sync::Mutex, time};
+use std::{fmt, fs, time};
 
 use clap::Parser;
 use colored::Colorize;
 use goblin::Object;
 use num_format::{Locale, ToFormattedString};
+use rayon::prelude::*;
 use rustc_hash::FxHashSet as HashSet;
 
 use super::checksec_fmt::CustomCheckSecResults;
 use super::imports;
 
 use crate::str_fmt::*;
-
-// External init -------------------------------------------------------------------------------------------------------
-
-// `CLIOpts` shouldn't re-{read,parse} binaries from `self.bin_paths` to `Display` this info
-pub(crate) static ARCHS_PROCESSED: Mutex<OnceCell<HashSet<xgadget::Arch>>> =
-    Mutex::new(OnceCell::new());
 
 // Arg parse -----------------------------------------------------------------------------------------------------------
 
@@ -38,6 +33,14 @@ enum SummaryItemType {
     next_line_help = false,
 )]
 pub(crate) struct CLIOpts {
+    // Internal state --------------------------------------------------------------------------------------------------
+
+    // Set via `Self::parse_binaries`
+    // `CLIOpts` shouldn't re-{read,parse} binaries from `self.bin_paths` to `Display` this info
+    #[arg(skip)]
+    pub(crate) processed_arches: HashSet<xgadget::Arch>,
+
+    // Parsed args -----------------------------------------------------------------------------------------------------
     #[arg(help = HELP_BIN_PATHS.as_str(), required = true, num_args = 1.., value_name = "FILE(S)")]
     pub(crate) bin_paths: Vec<String>,
 
@@ -127,6 +130,30 @@ pub(crate) struct CLIOpts {
 }
 
 impl CLIOpts {
+    // Parse input binaries.
+    // This has the important side-effect of updating data used for `Display`.
+    pub(crate) fn parse_binaries(&mut self) -> Vec<xgadget::Binary> {
+        let bins: Vec<xgadget::Binary> = self.bin_paths
+            .par_iter()
+            .map(|path| xgadget::Binary::from_path(path).unwrap())
+            .map(|mut binary| {
+                if binary.arch() == xgadget::Arch::Unknown {
+                    binary.set_arch(self.arch); // Set user value if cannot auto-determine
+                    assert!(
+                        binary.arch() != xgadget::Arch::Unknown,
+                        "Please set \'--arch\' to \'x8086\' (16-bit), \'x86\' (32-bit), or \'x64\' (64-bit). \
+                        It couldn't be determined automatically."
+                    );
+                }
+                binary
+            })
+            .collect();
+
+        self.processed_arches = bins.iter().map(|b| b.arch()).collect::<HashSet<_>>();
+
+        bins
+    }
+
     // User flags -> Search config bitfield
     pub(crate) fn get_search_config(&self) -> xgadget::SearchConfig {
         let mut search_config = xgadget::SearchConfig::default();
@@ -282,16 +309,16 @@ impl fmt::Display for CLIOpts {
             { self.fmt_summary_item("CONFIG", SummaryItemType::Header) },
             self.fmt_summary_item("[", SummaryItemType::Separator),
             {
-                match ARCHS_PROCESSED.lock().unwrap().get() {
-                    Some(arches) => {
-                        let arch_list = arches.iter()
-                            .map(|a| format!("{}", a))
+                if !self.processed_arches.is_empty() {
+                    cli_rule_fmt(
+                        &self.processed_arches.iter().map(|a| format!("{}", a))
                             .collect::<Vec<_>>()
-                            .join(&comma_sep);
-
-                        cli_rule_fmt(&arch_list, false, false)
-                    },
-                    None => self.fmt_summary_item("undetermined", SummaryItemType::Data).to_string(),
+                            .join(&comma_sep),
+                        false,
+                        false,
+                    )
+                } else {
+                    self.fmt_summary_item("undetermined", SummaryItemType::Data).to_string()
                 }
             },
             {
@@ -387,7 +414,7 @@ impl fmt::Display for CLIOpts {
     }
 }
 
-// Misc ----------------------------------------------------------------------------------------------------------------
+// Dirty Hacks ---------------------------------------------------------------------------------------------------------
 
 // XXX: We hardcode these to support modifying runtime behavior on presence or absence
 pub(crate) const REG_CTRL_FLAG: &str = "--reg-ctrl";
