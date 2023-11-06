@@ -106,13 +106,13 @@ fn test_sys_semantics() {
     assert!(xgadget::is_sys_gadget_tail(&instr));
 
     let instr = common::decode_single_x64_instr(0, &int_0x80);
-    assert!(xgadget::is_legacy_linux_syscall(&instr));
+    assert!(xgadget::is_syscall(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_sys_gadget_tail(&instr));
 
     // Negative --------------------------------------------------------------------------------------------------------
     let instr = common::decode_single_x64_instr(0, &int_0x10);
-    assert!(!xgadget::is_legacy_linux_syscall(&instr));
+    assert!(!xgadget::is_syscall(&instr));
     assert!(!xgadget::is_gadget_tail(&instr));
     assert!(!xgadget::is_sys_gadget_tail(&instr));
 }
@@ -156,28 +156,28 @@ fn test_reg_set_semantics() {
 }
 
 #[test]
-fn test_has_ctrled_ops() {
+fn test_has_reg_ops_only() {
     // Positive --------------------------------------------------------------------------------------------------------
     let jmp_rax: [u8; 2] = [0xff, 0xe0];
     let instr = common::decode_single_x64_instr(0, &jmp_rax);
-    assert!(xgadget::semantics::has_ctrled_ops_only(&instr));
+    assert!(xgadget::semantics::has_reg_ops_only(&instr));
 
     let jmp_rax_deref: [u8; 2] = [0xff, 0x20];
     let instr = common::decode_single_x64_instr(0, &jmp_rax_deref);
-    assert!(xgadget::semantics::has_ctrled_ops_only(&instr));
+    assert!(xgadget::semantics::has_reg_ops_only(&instr));
 
     let jmp_rax_deref_offset: [u8; 3] = [0xff, 0x60, 0x10];
     let instr = common::decode_single_x64_instr(0, &jmp_rax_deref_offset);
-    assert!(xgadget::semantics::has_ctrled_ops_only(&instr));
+    assert!(xgadget::semantics::has_reg_ops_only(&instr));
 
     let mov_rax_rbx: [u8; 3] = [0x48, 0x89, 0xd8];
     let instr = common::decode_single_x64_instr(0, &mov_rax_rbx);
-    assert!(xgadget::semantics::has_ctrled_ops_only(&instr));
+    assert!(xgadget::semantics::has_reg_ops_only(&instr));
 
     // Negative --------------------------------------------------------------------------------------------------------
     let add_rax_0x08: [u8; 4] = [0x48, 0x83, 0xc0, 0x08];
     let instr = common::decode_single_x64_instr(0, &add_rax_0x08);
-    assert!(!xgadget::semantics::has_ctrled_ops_only(&instr));
+    assert!(!xgadget::semantics::has_reg_ops_only(&instr));
 }
 
 #[test]

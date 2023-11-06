@@ -24,7 +24,7 @@ bitflags! {
         const JOP   = 0b0000_0010;
         /// Include SYSCALL gadgets in search
         const SYS   = 0b0000_0100;
-        /// Include ROP gadgets in search
+        /// Include partial (same gadget, different address) cross-variant matches
         const PART  = 0b0000_1000;
         /// Include ROP gadgets with '{ret, ret far} imm16' (e.g. add to stack ptr) tails
         const IMM16 = 0b0001_0000;
@@ -78,7 +78,7 @@ pub(crate) fn find_gadgets_multi_bin<'a>(
         Some((first_result, remaining_results)) => {
             let (first_bin, first_set) = first_result;
             let mut common_gadgets = first_set.clone();
-            let base_count = FESSColumn::get_totals(first_bin, &common_gadgets);
+            let base_count = FESSColumn::get_totals(&common_gadgets);
 
             // Compute 1st FESS table column
             if let Some(&mut ref mut fess) = fess_tbl {
@@ -260,6 +260,8 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<iced_x86::Instruction>,
                 break;
             }
 
+            // TODO: some of these semantics funcs sould be replace with instr flow control
+
             // Early decode stop if control flow doesn't reach gadget tail
             let pc = i.ip();
             if (pc > tail_addr)
@@ -282,16 +284,7 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<iced_x86::Instruction>,
 
         // Find gadgets. Awww yisss.
         if let Some(i) = instrs.last() {
-            // ROP
-            // Note: 1 instr gadget (e.g. "ret;") for 16 byte re-alignment of stack pointer (avoid movaps segfault)
-            if (semantics::is_ret(i))
-
-                // JOP
-                || (semantics::is_jop_gadget_tail(i))
-
-                // SYS
-                || (semantics::is_sys_gadget_tail_bin_sensitive(i, d_config.bin))
-            {
+            if semantics::is_gadget_tail(i) {
                 debug_assert!(instrs[0].ip() == buf_start_addr);
                 instr_sequences.push((instrs, buf_start_addr));
             }

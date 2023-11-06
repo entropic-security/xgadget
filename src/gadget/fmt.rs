@@ -97,7 +97,6 @@ impl GadgetFormatterOutput {
     }
 
     // Compute hash for a (text, kind) tuple
-    #[inline]
     fn compute_hash(text: &str, kind: iced_x86::FormatterTextKind) -> u64 {
         let mut h = FxHasher::default();
         h.write(text.as_bytes());
@@ -145,7 +144,6 @@ impl DisplayLen for GadgetFormatterOutput {
 // Private API ---------------------------------------------------------------------------------------------------------
 
 // Configure instruction formatter
-#[inline]
 fn config_formatter<F: iced_x86::Formatter>(formatter: &mut F) {
     let fmt_opts = formatter.options_mut();
     fmt_opts.set_first_operand_char_index(0);
@@ -158,7 +156,6 @@ fn config_formatter<F: iced_x86::Formatter>(formatter: &mut F) {
 }
 
 // Coloring ruleset
-#[inline]
 fn color_token(s: &str, kind: iced_x86::FormatterTextKind) -> colored::ColoredString {
     match kind {
         iced_x86::FormatterTextKind::Directive | iced_x86::FormatterTextKind::Keyword => s.blue(),
@@ -170,9 +167,12 @@ fn color_token(s: &str, kind: iced_x86::FormatterTextKind) -> colored::ColoredSt
         | iced_x86::FormatterTextKind::FunctionAddress => s.green(),
         iced_x86::FormatterTextKind::Punctuation => s.bright_magenta(),
         iced_x86::FormatterTextKind::Register => {
-            // Special case the stack pointer - typically don't want to overwrite
             match s {
+                // Stack pointer
                 "rsp" | "esp" | "sp" => s.red(),
+                // Instruction pointer
+                "rip" | "eip" | "ip" => s.bold().red(),
+                // Any other register
                 _ => s.yellow(),
             }
         }

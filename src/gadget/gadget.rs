@@ -176,7 +176,6 @@ impl<'a> Gadget<'a> {
     // Private API -----------------------------------------------------------------------------------------------------
 
     // Ord helper: Lowest gadget occurrence address, full matches preferred
-    #[inline]
     fn min_addr(&self) -> Option<&u64> {
         if let Some(min_full) = self.full_matches.iter().next() {
             Some(min_full)
@@ -187,7 +186,6 @@ impl<'a> Gadget<'a> {
         }
     }
 
-    #[inline]
     fn write_instrs_internal(&self, att_syntax: bool) -> String {
         let mut formatter = fmt::get_formatter(att_syntax);
         let mut output = String::new();
@@ -199,7 +197,6 @@ impl<'a> Gadget<'a> {
     }
 
     // Partial match format helper, shrinks a working set
-    #[inline]
     fn fmt_partial_matches_internal(
         match_str: &mut impl iced_x86::FormatterOutput,
         partial_matches: &mut BTreeMap<u64, Vec<&binary::Binary>>,
@@ -251,7 +248,6 @@ impl<'a> Gadget<'a> {
         fmted_bin_cnt
     }
 
-    #[inline]
     fn write_bin_name(name: &str, output: &mut impl iced_x86::FormatterOutput) {
         output.write("'", iced_x86::FormatterTextKind::Punctuation);
         output.write(name, iced_x86::FormatterTextKind::Text);
