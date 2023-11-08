@@ -1,10 +1,3 @@
-// Supported register counts -------------------------------------------------------------------------------------------
-
-/// Total number of named registers
-pub const ICED_X86_REG_TOTAL: usize = 256;
-/// Total number of unique named registers
-pub const ICED_X86_REG_TOTAL_UNIQUE: usize = 248;
-
 // Argument Registers --------------------------------------------------------------------------------------------------
 
 /// x64 ELF argument registers

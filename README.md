@@ -53,7 +53,7 @@ It's a fast, multi-threaded alternative to awesome tools like [`ROPGadget`](http
 The goal is supporting practical usage while simultaneously exploring unique and experimental features.
 To the best of our knowledge, `xgadget` is the first gadget search tool to be:
 
-* **Register-sensitive:** Finds gadgets based on register usage behavior - not just matches for a given regex
+* **Register-sensitive:** Reliably find gadgets based on register usage behavior - not just matches for a given regex
 
     * Use `--reg-ctrl [<OPT_REG(S)>...]` flag for register overwrites
 

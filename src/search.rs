@@ -26,10 +26,8 @@ bitflags! {
         const SYS   = 0b0000_0100;
         /// Include partial (same gadget, different address) cross-variant matches
         const PART  = 0b0000_1000;
-        /// Include ROP gadgets with '{ret, ret far} imm16' (e.g. add to stack ptr) tails
-        const IMM16 = 0b0001_0000;
-        /// Include JOP gadgets containing a non-tail call
-        const CALL  = 0b0010_0000;
+        /// Include low-quality gadgets (containing branches, calls, interrupts, etc)
+        const ALL   = 0b0001_0000;
     }
 }
 
@@ -196,6 +194,11 @@ impl<'a> DecodeConfig<'a> {
             max_len,
         }
     }
+
+    // Get decoder options
+    const fn get_opts() -> u32 {
+        iced_x86::DecoderOptions::AMD | iced_x86::DecoderOptions::UDBG
+    }
 }
 
 // Get offsets of all potential gadget tails within a segment.
@@ -205,26 +208,19 @@ fn get_gadget_tail_offsets(
     seg: &binary::Segment,
     s_config: SearchConfig,
 ) -> Vec<usize> {
-    (1..seg.bytes.len())
+    (0..seg.bytes.len())
         .into_par_iter()
         .filter(|offset| {
             let offset = *offset;
-            let mut decoder = iced_x86::Decoder::new(
-                bin.bits(),
-                &seg.bytes[(offset)..],
-                iced_x86::DecoderOptions::NONE,
-            );
+            let mut decoder =
+                iced_x86::Decoder::new(bin.bits(), &seg.bytes[offset..], DecodeConfig::get_opts());
             decoder.set_ip(seg.addr + (offset as u64));
             let instr = decoder.decode();
 
             // ROP tail
             (s_config.intersects(SearchConfig::ROP)
-                && semantics::is_ret(&instr)
-                && !semantics::is_ret_imm16(&instr))
-
-                // ROP tail changing stack pointer (typically not desirable)
-                || (s_config.intersects(SearchConfig::IMM16)
-                    && semantics::is_ret_imm16(&instr))
+                && (semantics::is_ret(&instr)
+                || (s_config.intersects(SearchConfig::ALL) && semantics::is_ret_imm16(&instr))))
 
                 // JOP tail
                 || (s_config.intersects(SearchConfig::JOP)
@@ -241,6 +237,7 @@ fn get_gadget_tail_offsets(
 /// Iterative search backwards from instance of gadget tail instruction
 fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<iced_x86::Instruction>, u64)> {
     let mut instr_sequences = Vec::new();
+    let all_flag = d_config.s_config.intersects(SearchConfig::ALL);
 
     for offset in (d_config.stop_idx..=d_config.flow_op_idx).rev() {
         let mut instrs = Vec::new();
@@ -250,7 +247,7 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<iced_x86::Instruction>,
         let mut decoder = iced_x86::Decoder::new(
             d_config.bin.bits(),
             &d_config.seg.bytes[offset..],
-            iced_x86::DecoderOptions::NONE,
+            DecodeConfig::get_opts(),
         );
         decoder.set_ip(buf_start_addr);
 
@@ -260,23 +257,16 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<iced_x86::Instruction>,
                 break;
             }
 
-            // TODO: some of these semantics funcs sould be replace with instr flow control
-
-            // Early decode stop if control flow doesn't reach gadget tail
-            let pc = i.ip();
-            if (pc > tail_addr)
-                || ((pc != tail_addr) && semantics::is_gadget_tail(&i))
-                || (semantics::is_direct_call(&i)
-                    && !d_config.s_config.intersects(SearchConfig::CALL))
-                || (semantics::is_uncond_fixed_jmp(&i))
-                || (semantics::is_int(&i))
+            // Early stop if past tail or undesirable body
+            if (i.ip() > tail_addr)
+                || ((i.ip() != tail_addr) && !semantics::is_gadget_body(&i, all_flag))
             {
                 break;
             }
 
             instrs.push(i);
 
-            // Early decode stop if length limit hit
+            // Early stop if instr length limit hit
             if (d_config.max_len != 0) && (instrs.len() == d_config.max_len) {
                 break;
             }

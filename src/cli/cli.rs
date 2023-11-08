@@ -73,11 +73,8 @@ pub(crate) struct CLIOpts {
     #[arg(help = HELP_SYS.as_str(), short, long, conflicts_with = "jop")]
     pub(crate) sys: bool,
 
-    #[arg(help = HELP_INC_IMM16.as_str(), long, conflicts_with = "jop")]
-    pub(crate) inc_imm16: bool,
-
-    #[arg(help = HELP_CALL.as_str(), long)]
-    pub(crate) inc_call: bool,
+    #[arg(help = HELP_ALL.as_str(), long)]
+    pub(crate) all: bool,
 
     #[arg(help = HELP_PARTIAL_MACH.as_str(), short = 'm', long)]
     pub(crate) partial_match: bool,
@@ -108,7 +105,7 @@ pub(crate) struct CLIOpts {
 
     #[arg(help = HELP_CHECKSEC.as_str(), short, long, conflicts_with_all = &[
         "arch", "att", "extended_fmt", "max_len",
-        "rop", "jop", "sys", "inc_imm16", "partial_match",
+        "rop", "jop", "sys", "partial_match",
         "stack_pivot", "dispatcher", "reg_pop", "usr_regex", "fess", "imports"
     ])]
     pub(crate) check_sec: bool,
@@ -116,14 +113,14 @@ pub(crate) struct CLIOpts {
     // TODO: conflict list gen by removal
     #[arg(help = HELP_FESS.as_str(), long, conflicts_with_all = &[
         "arch", "att", "extended_fmt", "max_len",
-        "rop", "jop", "sys", "inc_imm16", "partial_match",
+        "rop", "jop", "sys", "partial_match",
         "stack_pivot", "dispatcher", "reg_pop", "usr_regex", "check_sec", "imports"
     ])]
     pub(crate) fess: bool,
 
     #[arg(help = HELP_IMPORTS.as_str(), long, conflicts_with_all = &[
         "arch", "att", "extended_fmt", "max_len",
-        "rop", "jop", "sys", "inc_imm16", "partial_match",
+        "rop", "jop", "sys", "partial_match",
         "stack_pivot", "dispatcher", "reg_pop", "usr_regex", "check_sec", "fess"
     ])]
     pub(crate) imports: bool,
@@ -162,11 +159,8 @@ impl CLIOpts {
         if self.partial_match {
             search_config |= xgadget::SearchConfig::PART;
         }
-        if self.inc_imm16 {
-            search_config |= xgadget::SearchConfig::IMM16;
-        }
-        if self.inc_call {
-            search_config |= xgadget::SearchConfig::CALL;
+        if self.all {
+            search_config |= xgadget::SearchConfig::ALL;
         }
 
         // Subtract from default

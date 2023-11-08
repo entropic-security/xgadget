@@ -11,24 +11,19 @@ fn test_rop_semantics() {
     let ret_far_imm: [u8; 3] = [0xca, 0xaa, 0xbb];
 
     let instr = common::decode_single_x64_instr(0, &ret);
-    assert!(!xgadget::is_ret_imm16(&instr));
-    assert!(xgadget::is_ret(&instr));
-    assert!(xgadget::is_ret(&instr));
+    assert!(xgadget::is_rop_gadget_tail(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
 
     let instr = common::decode_single_x64_instr(0, &ret_far);
-    assert!(!xgadget::is_ret_imm16(&instr));
-    assert!(xgadget::is_ret(&instr));
+    assert!(xgadget::is_rop_gadget_tail(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
 
     let instr = common::decode_single_x64_instr(0, &ret_imm);
-    assert!(xgadget::is_ret_imm16(&instr));
-    assert!(xgadget::is_ret(&instr));
+    assert!(xgadget::is_rop_gadget_tail(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
 
     let instr = common::decode_single_x64_instr(0, &ret_far_imm);
-    assert!(xgadget::is_ret_imm16(&instr));
-    assert!(xgadget::is_ret(&instr));
+    assert!(xgadget::is_rop_gadget_tail(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
 }
 
@@ -45,44 +40,44 @@ fn test_jop_semantics() {
     let call_fixed_deref: [u8; 7] = [0xff, 0x14, 0x25, 0x10, 0x00, 0x00, 0x00];
 
     let instr = common::decode_single_x64_instr(0, &jmp_rax);
-    assert!(xgadget::is_reg_indirect_jmp(&instr));
+    assert!(xgadget::is_indirect_jmp(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_jop_gadget_tail(&instr));
 
     let instr = common::decode_single_x64_instr(0, &jmp_rax_deref);
-    assert!(xgadget::is_reg_indirect_jmp(&instr));
+    assert!(xgadget::is_indirect_jmp(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_jop_gadget_tail(&instr));
 
     let instr = common::decode_single_x64_instr(0, &jmp_rax_deref_offset);
-    assert!(xgadget::is_reg_indirect_jmp(&instr));
+    assert!(xgadget::is_indirect_jmp(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_jop_gadget_tail(&instr));
 
     // Negative --------------------------------------------------------------------------------------------------------
     let instr = common::decode_single_x64_instr(0, &jmp_fixed_deref);
-    assert!(!xgadget::is_reg_indirect_jmp(&instr));
+    assert!(!xgadget::is_indirect_jmp(&instr));
     assert!(!xgadget::is_gadget_tail(&instr));
     assert!(!xgadget::is_jop_gadget_tail(&instr));
 
     let instr = common::decode_single_x64_instr(0, &call_rax);
-    assert!(xgadget::is_reg_indirect_call(&instr));
+    assert!(xgadget::is_indirect_call(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_jop_gadget_tail(&instr));
 
     let instr = common::decode_single_x64_instr(0, &call_rax_deref);
-    assert!(xgadget::is_reg_indirect_call(&instr));
+    assert!(xgadget::is_indirect_call(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_jop_gadget_tail(&instr));
 
     let instr = common::decode_single_x64_instr(0, &call_rax_deref_offset);
-    assert!(xgadget::is_reg_indirect_call(&instr));
+    assert!(xgadget::is_indirect_call(&instr));
     assert!(xgadget::is_gadget_tail(&instr));
     assert!(xgadget::is_jop_gadget_tail(&instr));
 
     // Negative --------------------------------------------------------------------------------------------------------
     let instr = common::decode_single_x64_instr(0, &call_fixed_deref);
-    assert!(!xgadget::is_reg_indirect_call(&instr));
+    assert!(!xgadget::is_indirect_call(&instr));
     assert!(!xgadget::is_gadget_tail(&instr));
     assert!(!xgadget::is_jop_gadget_tail(&instr));
 }
@@ -160,24 +155,24 @@ fn test_has_reg_ops_only() {
     // Positive --------------------------------------------------------------------------------------------------------
     let jmp_rax: [u8; 2] = [0xff, 0xe0];
     let instr = common::decode_single_x64_instr(0, &jmp_rax);
-    assert!(xgadget::semantics::has_reg_ops_only(&instr));
+    assert!(xgadget::semantics::is_reg_ops_only(&instr));
 
     let jmp_rax_deref: [u8; 2] = [0xff, 0x20];
     let instr = common::decode_single_x64_instr(0, &jmp_rax_deref);
-    assert!(xgadget::semantics::has_reg_ops_only(&instr));
+    assert!(xgadget::semantics::is_reg_ops_only(&instr));
 
     let jmp_rax_deref_offset: [u8; 3] = [0xff, 0x60, 0x10];
     let instr = common::decode_single_x64_instr(0, &jmp_rax_deref_offset);
-    assert!(xgadget::semantics::has_reg_ops_only(&instr));
+    assert!(xgadget::semantics::is_reg_ops_only(&instr));
 
     let mov_rax_rbx: [u8; 3] = [0x48, 0x89, 0xd8];
     let instr = common::decode_single_x64_instr(0, &mov_rax_rbx);
-    assert!(xgadget::semantics::has_reg_ops_only(&instr));
+    assert!(xgadget::semantics::is_reg_ops_only(&instr));
 
     // Negative --------------------------------------------------------------------------------------------------------
     let add_rax_0x08: [u8; 4] = [0x48, 0x83, 0xc0, 0x08];
     let instr = common::decode_single_x64_instr(0, &add_rax_0x08);
-    assert!(!xgadget::semantics::has_reg_ops_only(&instr));
+    assert!(!xgadget::semantics::is_reg_ops_only(&instr));
 }
 
 #[test]

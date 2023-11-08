@@ -79,19 +79,19 @@ fn test_conflicting_flags_dispatcher_stack_set_reg() {
 
 #[test]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_conflicting_flags_imm16_jop() {
+fn test_conflicting_flags_fess_checksec() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
     xgadget_bin
         .arg("/usr/bin/some_file_83bb57de34d8713f6e4940b4bdda4bea")
-        .arg("--inc-imm16")
-        .arg("-j");
+        .arg("--fess")
+        .arg("--check-sec");
 
     xgadget_bin
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "the argument '--inc-imm16' cannot be used with '--jop'",
+            "the argument '--fess' cannot be used with '--check-sec'",
         ));
 }
 
@@ -203,10 +203,21 @@ fn test_checksec() {
 #[cfg(target_os = "linux")]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_search_args() {
-    let output_all = String::from_utf8(
+    let output_rop_jop_sys = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    let output_rop_jop_sys_all = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/bin/cat")
+            .arg("--all")
             .output()
             .unwrap()
             .stdout,
@@ -218,30 +229,6 @@ fn test_search_args() {
             .unwrap()
             .arg("/bin/cat")
             .arg("-r")
-            .output()
-            .unwrap()
-            .stdout,
-    )
-    .unwrap();
-
-    let output_rop_imm16 = String::from_utf8(
-        Command::cargo_bin("xgadget")
-            .unwrap()
-            .arg("/bin/cat")
-            .arg("-r")
-            .arg("--inc-imm16")
-            .output()
-            .unwrap()
-            .stdout,
-    )
-    .unwrap();
-
-    let output_rop_call = String::from_utf8(
-        Command::cargo_bin("xgadget")
-            .unwrap()
-            .arg("/bin/cat")
-            .arg("-r")
-            .arg("--inc-call")
             .output()
             .unwrap()
             .stdout,
@@ -281,12 +268,11 @@ fn test_search_args() {
     )
     .unwrap();
 
-    assert!(output_all.len() >= output_rop.len());
-    assert!(output_all.len() >= output_jop.len());
-    assert!(output_all.len() >= output_sys.len());
-    assert!(output_all.len() >= output_stack_pivot.len());
-    assert!(output_rop_imm16.len() >= output_rop.len());
-    assert!(output_rop_call.len() >= output_rop.len());
+    assert!(output_rop_jop_sys_all.len() >= output_rop_jop_sys.len());
+    assert!(output_rop_jop_sys.len() >= output_rop.len());
+    assert!(output_rop_jop_sys.len() >= output_jop.len());
+    assert!(output_rop_jop_sys.len() >= output_sys.len());
+    assert!(output_rop_jop_sys.len() >= output_stack_pivot.len());
 }
 
 #[test]

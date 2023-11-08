@@ -126,16 +126,10 @@ gen_help_str!(
         "Search for SYSCALL gadgets only (otherwise ROP, JOP, and SYSCALL)",
     ),
     (
-        HELP_INC_IMM16,
+        HELP_ALL,
         false,
         false,
-        "Include '{ret, ret far} imm16', e.g. add to stack ptr (otherwise don't include)",
-    ),
-    (
-        HELP_CALL,
-        false,
-        false,
-        "Include gadgets containing a call (otherwise don't include)",
+        "Include low-quality gadgets (containing branches, calls, interrupts, etc)",
     ),
     (
         HELP_PARTIAL_MACH,
@@ -300,8 +294,12 @@ pub fn cli_rule_fmt(help_desc: &str, has_default: bool, fess_entry: bool) -> Str
 #[cfg(test)]
 mod tests {
     use super::*;
-    use xgadget::ICED_X86_REG_TOTAL;
-    use xgadget::ICED_X86_REG_TOTAL_UNIQUE;
+
+    /// Total number of named registers
+    const ICED_X86_REG_TOTAL: usize = 256;
+
+    /// Total number of unique named registers
+    const ICED_X86_REG_TOTAL_UNIQUE: usize = 248;
 
     #[test]
     fn test_reg_strs() {

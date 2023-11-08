@@ -171,7 +171,7 @@ fn color_token(s: &str, kind: iced_x86::FormatterTextKind) -> colored::ColoredSt
                 // Stack pointer
                 "rsp" | "esp" | "sp" => s.red(),
                 // Instruction pointer
-                "rip" | "eip" | "ip" => s.bold().red(),
+                "rip" | "eip" | "ip" => s.green(),
                 // Any other register
                 _ => s.yellow(),
             }
