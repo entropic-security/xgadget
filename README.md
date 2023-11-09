@@ -57,7 +57,7 @@ To the best of our knowledge, `xgadget` is the first gadget search tool to be:
 
     * Use `--reg-ctrl [<OPT_REG(S)>...]` flag for register overwrites
 
-    * Use `--no-deref [<OPT_REG(S)>...]` flag for no-deference search
+    * Use `--reg-no-deref [<OPT_REG(S)>...]` flag for no-deference search
 
 * **JOP-efficient**: JOP search uses instruction semantics - not hardcoded regex for individual encodings
 
@@ -121,7 +121,7 @@ xgadget /usr/bin/sudo --regex-filter "^(?:pop)(?:.*(?:pop))*.*(?:call|jmp)" --at
 * **Example:** Search for ROP gadgets that control the value of `rdi`, never dereference `rsi` or `rdx`, and occur at addresses that don't contain bytes `0x32` or `0x0d`:
 
 ```bash
-xgadget /usr/bin/sudo --rop --reg-ctrl rdi --no-deref rsi rdx --bad-bytes 0x32 0x0d
+xgadget /usr/bin/sudo --rop --reg-ctrl rdi --reg-no-deref rsi rdx --bad-bytes 0x32 0x0d
 ```
 
 * **Example:** Examine the exploit mitigations binaries `sudo` and `lighttpd` have been compiled with:

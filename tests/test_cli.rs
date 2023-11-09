@@ -119,7 +119,7 @@ fn test_invalid_bad_bytes() {
 fn test_invalid_reg_name() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
-    xgadget_bin.arg("/bin/cat").arg("--reg-ctrl").arg("r42");
+    xgadget_bin.arg("/bin/cat").arg("--reg-write").arg("r42");
 
     xgadget_bin
         .assert()
@@ -497,12 +497,12 @@ fn test_param_ctrl_filter() {
 #[test]
 #[cfg(target_os = "linux")]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_no_deref_filter_1() {
-    let output_no_deref_rax_filter = String::from_utf8(
+fn test_reg_no_deref_filter_1() {
+    let output_reg_no_deref_rax_filter = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
-            .arg("--no-deref")
+            .arg("--reg-no-deref")
             .arg(REG_NAME)
             .output()
             .unwrap()
@@ -510,35 +510,35 @@ fn test_no_deref_filter_1() {
     )
     .unwrap();
 
-    let output_no_deref_all_regs_filter = String::from_utf8(
+    let output_reg_no_deref_all_regs_filter = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
-            .arg("--no-deref")
+            .arg("--reg-no-deref")
             .output()
             .unwrap()
             .stdout,
     )
     .unwrap();
 
-    println!("NO_DEREF_RAX: {}", output_no_deref_rax_filter);
-    println!("NO_DEREF: {}", output_no_deref_all_regs_filter);
-    assert!(output_no_deref_rax_filter.len() >= output_no_deref_all_regs_filter.len());
+    println!("REG_NO_DEREF_RAX: {}", output_reg_no_deref_rax_filter);
+    println!("REG_NO_DEREF: {}", output_reg_no_deref_all_regs_filter);
+    assert!(output_reg_no_deref_rax_filter.len() >= output_reg_no_deref_all_regs_filter.len());
 }
 
 #[test]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_no_deref_filter_2() {
+fn test_reg_no_deref_filter_2() {
     let mut raw_file = NamedTempFile::new().unwrap();
     raw_file
-        .write_all(common::FILTERS_NO_DEREF_AND_REG_CTRL)
+        .write_all(common::FILTERS_REG_NO_DEREF_AND_REG_WRITE)
         .unwrap();
 
-    let no_deref_1_reg = String::from_utf8(
+    let reg_no_deref_1_reg = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg(raw_file.path())
-            .arg("--no-deref")
+            .arg("--reg-no-deref")
             .arg("rdi")
             .output()
             .unwrap()
@@ -546,11 +546,11 @@ fn test_no_deref_filter_2() {
     )
     .unwrap();
 
-    let no_deref_2_regs = String::from_utf8(
+    let reg_no_deref_2_regs = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg(raw_file.path())
-            .arg("--no-deref")
+            .arg("--reg-no-deref")
             .arg("rdi")
             .arg("rsi")
             .output()
@@ -559,40 +559,40 @@ fn test_no_deref_filter_2() {
     )
     .unwrap();
 
-    let no_deref_any_regs = String::from_utf8(
+    let reg_no_deref_any_regs = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg(raw_file.path())
-            .arg("--no-deref")
+            .arg("--reg-no-deref")
             .output()
             .unwrap()
             .stdout,
     )
     .unwrap();
 
-    println!("NO_DEREF_1_REG: {}", no_deref_1_reg);
-    println!("NO_DEREF_2_REGS: {}", no_deref_2_regs);
-    println!("NO_DEREF_ANY_REGS: {}", no_deref_any_regs);
-    assert!(no_deref_1_reg.lines().count() >= no_deref_2_regs.lines().count());
-    assert!(no_deref_2_regs.lines().count() >= no_deref_any_regs.lines().count());
+    println!("REG_NO_DEREF_1_REG: {}", reg_no_deref_1_reg);
+    println!("REG_NO_DEREF_2_REGS: {}", reg_no_deref_2_regs);
+    println!("REG_NO_DEREF_ANY_REGS: {}", reg_no_deref_any_regs);
+    assert!(reg_no_deref_1_reg.lines().count() >= reg_no_deref_2_regs.lines().count());
+    assert!(reg_no_deref_2_regs.lines().count() >= reg_no_deref_any_regs.lines().count());
 
-    assert!(no_deref_2_regs.contains("pop rsi; pop rdi; ret;"));
-    assert!(no_deref_1_reg.contains("pop rsi; pop rdi; ret;"));
-    assert!(no_deref_any_regs.contains("pop rsi; pop rdi; ret;"));
+    assert!(reg_no_deref_2_regs.contains("pop rsi; pop rdi; ret;"));
+    assert!(reg_no_deref_1_reg.contains("pop rsi; pop rdi; ret;"));
+    assert!(reg_no_deref_any_regs.contains("pop rsi; pop rdi; ret;"));
 
-    assert!(no_deref_1_reg.contains("add r8, [rsi]; add r8, [rdx]; pop rsi; pop rdi; ret;"));
-    assert!(no_deref_2_regs.contains("add r8, [rdx]; pop rsi; pop rdi; ret;"));
+    assert!(reg_no_deref_1_reg.contains("add r8, [rsi]; add r8, [rdx]; pop rsi; pop rdi; ret;"));
+    assert!(reg_no_deref_2_regs.contains("add r8, [rdx]; pop rsi; pop rdi; ret;"));
 }
 
 #[test]
 #[cfg(target_os = "linux")]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_reg_ctrl_filter_1() {
-    let output_reg_ctrl_rax_filter = String::from_utf8(
+fn test_reg_write_filter_1() {
+    let output_reg_write_rax_filter = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
-            .arg("--reg-ctrl")
+            .arg("--reg-write")
             .arg(REG_NAME)
             .output()
             .unwrap()
@@ -600,35 +600,35 @@ fn test_reg_ctrl_filter_1() {
     )
     .unwrap();
 
-    let output_reg_ctrl_all_regs_filter = String::from_utf8(
+    let output_reg_write_all_regs_filter = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
-            .arg("--reg-ctrl")
+            .arg("--reg-write")
             .output()
             .unwrap()
             .stdout,
     )
     .unwrap();
 
-    println!("REG_CTRL_RAX: {}", output_reg_ctrl_rax_filter);
-    println!("REG_CTRL_ALL: {}", output_reg_ctrl_all_regs_filter);
-    assert!(output_reg_ctrl_all_regs_filter.len() >= output_reg_ctrl_rax_filter.len());
+    println!("REG_WRITE_RAX: {}", output_reg_write_rax_filter);
+    println!("REG_WRITE_ALL: {}", output_reg_write_all_regs_filter);
+    assert!(output_reg_write_all_regs_filter.len() >= output_reg_write_rax_filter.len());
 }
 
 #[test]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_reg_ctrl_filter_2() {
+fn test_reg_write_filter_2() {
     let mut raw_file = NamedTempFile::new().unwrap();
     raw_file
-        .write_all(common::FILTERS_NO_DEREF_AND_REG_CTRL)
+        .write_all(common::FILTERS_REG_NO_DEREF_AND_REG_WRITE)
         .unwrap();
 
     let ctrl_1_reg = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg(raw_file.path())
-            .arg("--reg-ctrl")
+            .arg("--reg-write")
             .arg("rsi")
             .arg("--max-len")
             .arg("25")
@@ -642,7 +642,7 @@ fn test_reg_ctrl_filter_2() {
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg(raw_file.path())
-            .arg("--reg-ctrl")
+            .arg("--reg-write")
             .arg("rsi")
             .arg("rdi")
             .arg("--max-len")
@@ -657,7 +657,7 @@ fn test_reg_ctrl_filter_2() {
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg(raw_file.path())
-            .arg("--reg-ctrl")
+            .arg("--reg-write")
             .arg("--max-len")
             .arg("25")
             .output()
@@ -718,11 +718,11 @@ fn test_bad_bytes_filter() {
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_reg_equivalence() {
-    let no_deref_r8l_filter = String::from_utf8(
+    let reg_no_deref_r8l_filter = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
-            .arg("--no-deref")
+            .arg("--reg-no-deref")
             .arg("r8l")
             .output()
             .unwrap()
@@ -730,11 +730,11 @@ fn test_reg_equivalence() {
     )
     .unwrap();
 
-    let no_deref_r8b_filter = String::from_utf8(
+    let reg_no_deref_r8b_filter = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
-            .arg("--no-deref")
+            .arg("--reg-no-deref")
             .arg("r8b")
             .output()
             .unwrap()
@@ -742,9 +742,9 @@ fn test_reg_equivalence() {
     )
     .unwrap();
 
-    println!("NO_DEREF_R8L: {}", no_deref_r8l_filter);
-    println!("NO_DEREF_R8B: {}", no_deref_r8b_filter);
-    assert!(no_deref_r8l_filter.lines().count() == no_deref_r8b_filter.lines().count());
+    println!("REG_NO_DEREF_R8L: {}", reg_no_deref_r8l_filter);
+    println!("REG_NO_DEREF_R8B: {}", reg_no_deref_r8b_filter);
+    assert!(reg_no_deref_r8l_filter.lines().count() == reg_no_deref_r8b_filter.lines().count());
 }
 
 #[test]
@@ -836,9 +836,9 @@ fn test_readme_3() {
             .unwrap()
             .arg("/usr/bin/sudo")
             .arg("--rop")
-            .arg("--reg-ctrl")
+            .arg("--reg-write")
             .arg("rdi")
-            .arg("--no-deref")
+            .arg("--reg-no-deref")
             .arg("rsi")
             .arg("rdx")
             .arg("--bad-bytes")

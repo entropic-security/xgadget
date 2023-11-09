@@ -3,11 +3,7 @@ use std::collections::BTreeSet;
 use rayon::prelude::*;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use crate::binary;
-use crate::error::Error;
-use crate::fess::FESSColumn;
-use crate::gadget;
-use crate::semantics;
+use crate::{binary, error::Error, fess::FESSColumn, gadget, semantics};
 
 /// Max instruction size in bytes
 pub const X86_MAX_INSTR_BYTE_CNT: usize = 15;
@@ -202,7 +198,7 @@ impl<'a> DecodeConfig<'a> {
 }
 
 // Get offsets of all potential gadget tails within a segment.
-// Maximizes accuracy by checking every possible instruction in parallel
+// Maximizes accuracy by checking every possible instruction in parallel.
 fn get_gadget_tail_offsets(
     bin: &binary::Binary,
     seg: &binary::Segment,
@@ -291,11 +287,12 @@ fn find_gadgets_single_bin(
     bin_cnt: usize,
     s_config: SearchConfig,
 ) -> HashSet<gadget::Gadget> {
+    // Map: gadget instr sequence -> gadget occurrence addresses
     let mut gadget_collector: HashMap<Vec<iced_x86::Instruction>, BTreeSet<u64>> =
         HashMap::default();
 
     for seg in bin.segments() {
-        // Search backward for all potential tails (possible duplicates)
+        // Search backward from every potential tail (duplicate gadgets possible)
         let parallel_results: Vec<(Vec<iced_x86::Instruction>, u64)> =
             get_gadget_tail_offsets(bin, seg, s_config)
                 .par_iter()
@@ -305,16 +302,10 @@ fn find_gadgets_single_bin(
 
         // Running consolidation of parallel results (de-dup instr sequences, aggregate occurrence addrs)
         for (instrs, addr) in parallel_results {
-            match gadget_collector.get_mut(&instrs) {
-                Some(addrs) => {
-                    addrs.insert(addr);
-                }
-                _ => {
-                    let mut addrs = BTreeSet::new();
-                    addrs.insert(addr);
-                    gadget_collector.insert(instrs, addrs);
-                }
-            }
+            gadget_collector
+                .entry(instrs)
+                .or_insert(BTreeSet::from([addr]))
+                .insert(addr);
         }
     }
 

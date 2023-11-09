@@ -88,11 +88,11 @@ pub(crate) struct CLIOpts {
     #[arg(help = HELP_REG_POP.as_str(), long, conflicts_with = "dispatcher")]
     pub(crate) reg_pop: bool,
 
-    #[arg(help = HELP_NO_DEREF.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
-    pub(crate) no_deref: Vec<String>,
+    #[arg(help = HELP_REG_NO_DEREF.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
+    pub(crate) reg_no_deref: Vec<String>,
 
-    #[arg(help = HELP_REG_CTRL.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
-    pub(crate) reg_ctrl: Vec<String>,
+    #[arg(help = HELP_REG_WRITE.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
+    pub(crate) reg_write: Vec<String>,
 
     #[arg(help = HELP_PARAM_CTRL.as_str(), long)]
     pub(crate) param_ctrl: bool,
@@ -298,8 +298,8 @@ impl fmt::Display for CLIOpts {
         let colon = self.fmt_summary_item(":", SummaryItemType::Separator);
         write!(
             f,
-            "{} {} arch{colon} {} {pipe_sep} search{colon} {} {pipe_sep} x_match{colon} \
-            {} {pipe_sep} max_len{colon} {} {pipe_sep} syntax{colon} {} {pipe_sep} regex{colon} {} {}",
+            "{} {} arch{colon} {} {pipe_sep} search{colon} {} {pipe_sep} max_len{colon} \
+            {} {pipe_sep} syntax{colon} {} {pipe_sep} regex{colon} {} {pipe_sep} x_match{colon} {} {}",
             { self.fmt_summary_item("CONFIG", SummaryItemType::Header) },
             self.fmt_summary_item("[", SummaryItemType::Separator),
             {
@@ -343,32 +343,32 @@ impl fmt::Display for CLIOpts {
                 if self.param_ctrl {
                     search_mode.push("Param-ctrl");
                 };
-                if is_env_resident(&[REG_CTRL_FLAG]) {
-                    if !self.reg_ctrl.is_empty() {
+                if is_env_resident(&[REG_WRITE_FLAG]) {
+                    if !self.reg_write.is_empty() {
                         // Note: leak on rare case to avoid alloc on common case
                         search_mode.push(Box::leak(format!(
-                            "Reg-ctrl-{{{}}}",
-                            self.reg_ctrl.iter()
+                            "Reg-write-{{{}}}",
+                            self.reg_write.iter()
                                 .map(|r| r.to_lowercase())
                                 .collect::<Vec<_>>()
                                 .join(&comma_sep)
                         ).into_boxed_str()));
                     } else {
-                        search_mode.push("Reg-ctrl");
+                        search_mode.push("Reg-write");
                     }
                 };
-                if is_env_resident(&[NO_DEREF_FLAG]) {
-                    if !self.no_deref.is_empty() {
+                if is_env_resident(&[REG_NO_DEREF_FLAG]) {
+                    if !self.reg_no_deref.is_empty() {
                         // Note: leak on rare case to avoid alloc on common case
                         search_mode.push(Box::leak(format!(
-                            "No-deref-{{{}}}",
-                            self.no_deref.iter()
+                            "Reg-no-deref-{{{}}}",
+                            self.reg_no_deref.iter()
                                 .map(|r| r.to_lowercase())
                                 .collect::<Vec<_>>()
                                 .join(&comma_sep)
                         ).into_boxed_str()));
                     } else {
-                        search_mode.push("No-deref");
+                        search_mode.push("Reg-no-deref");
                     }
                 };
                 cli_rule_fmt(
@@ -376,17 +376,6 @@ impl fmt::Display for CLIOpts {
                     false,
                     false
                 ).bold()
-            },
-            {
-                let x_match = if self.bin_paths.len() == 1 {
-                    "none"
-                } else if self.partial_match || self.fess {
-                    "full-and-partial"
-                } else {
-                    "full"
-                };
-
-                self.fmt_summary_item(x_match, SummaryItemType::Data)
             },
             { self.fmt_summary_item(&format!("{}", self.max_len), SummaryItemType::Data) },
             {
@@ -403,6 +392,17 @@ impl fmt::Display for CLIOpts {
 
                 self.fmt_summary_item(&regex, SummaryItemType::Data)
             },
+            {
+                let x_match = if self.bin_paths.len() == 1 {
+                    "none"
+                } else if self.partial_match || self.fess {
+                    "full-and-partial"
+                } else {
+                    "full"
+                };
+
+                self.fmt_summary_item(x_match, SummaryItemType::Data)
+            },
             "]".bright_magenta(),
         )
     }
@@ -411,10 +411,10 @@ impl fmt::Display for CLIOpts {
 // Dirty Hacks ---------------------------------------------------------------------------------------------------------
 
 // XXX: We hardcode these to support modifying runtime behavior on presence or absence
-pub(crate) const REG_CTRL_FLAG: &str = "--reg-ctrl";
-pub(crate) const NO_DEREF_FLAG: &str = "--no-deref";
+pub(crate) const REG_WRITE_FLAG: &str = "--reg-write";
+pub(crate) const REG_NO_DEREF_FLAG: &str = "--reg-no-deref";
 
-// Runtime reflection, underpins `--reg-ctrl` and `--no-deref` flag behavior.
+// Runtime reflection, underpins `--reg-write` and `--reg-no-deref` flag behavior.
 // XXX: more idiomatic alternative with `clap`?
 pub(crate) fn is_env_resident(clap_args: &[&str]) -> bool {
     std::env::args_os().any(|a| {

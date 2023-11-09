@@ -124,7 +124,7 @@ where
 /// Parallel filter to gadgets that don't dereference any registers (if `opt_regs.is_none()`),
 /// or don't dereference specific registers (if `opt_regs.is_some()`).
 /// Doesn't count the stack pointer unless explicitly provided in `opt_regs`.
-pub fn filter_no_deref<'a, P>(gadgets: P, opt_regs: Option<&[iced_x86::Register]>) -> P
+pub fn filter_reg_no_deref<'a, P>(gadgets: P, opt_regs: Option<&[iced_x86::Register]>) -> P
 where
     P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
 {

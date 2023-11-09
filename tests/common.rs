@@ -137,7 +137,7 @@ pub const FILTERS_X64: &[u8] = &[
 
 #[allow(dead_code)]
 #[rustfmt::skip]
-pub const FILTERS_NO_DEREF_AND_REG_CTRL: &[u8] = &[
+pub const FILTERS_REG_NO_DEREF_AND_REG_WRITE: &[u8] = &[
     0x4c, 0x03, 0x07,                                       // add    r8,QWORD PTR [rdi]
     0x4c, 0x03, 0x06,                                       // add    r8,QWORD PTR [rsi]
     0x4c, 0x03, 0x02,                                       // add    r8,QWORD PTR [rdx]
