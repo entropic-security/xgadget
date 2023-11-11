@@ -9,7 +9,7 @@ pub fn is_gadget_tail(instr: &iced_x86::Instruction) -> bool {
 
 /// Check if instruction is a ROP gadget tail
 pub fn is_rop_gadget_tail(instr: &iced_x86::Instruction) -> bool {
-    is_ret(instr)
+    is_ret(instr, true)
 }
 
 /// Check if instruction is a JOP gadget tail
@@ -163,15 +163,19 @@ pub fn is_reg_ops_only(instr: &iced_x86::Instruction) -> bool {
 
 // Crate-private Helpers -----------------------------------------------------------------------------------------------
 
-/// Check if return instruction
-pub(crate) fn is_ret(instr: &iced_x86::Instruction) -> bool {
-    matches!(
+/// Check if return instruction.
+/// If `imm16 == true` include return instructions that add to stack pointer.
+pub(crate) fn is_ret(instr: &iced_x86::Instruction, imm16: bool) -> bool {
+    if !matches!(
         instr.mnemonic(),
         iced_x86::Mnemonic::Ret | iced_x86::Mnemonic::Retf
-    )
-}
+    ) {
+        return false;
+    }
 
-/// Check if return instruction that adds to stack pointer
-pub(crate) fn is_ret_imm16(instr: &iced_x86::Instruction) -> bool {
-    is_ret(instr) && (instr.op_count() != 0)
+    if (!imm16) && (instr.op_count() > 0) {
+        return false;
+    }
+
+    true
 }

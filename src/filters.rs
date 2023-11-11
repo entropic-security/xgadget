@@ -58,7 +58,8 @@ where
         .into_par_iter()
         .filter(|g| {
             if let Some((tail_instr, mut preceding_instrs)) = g.instrs.split_last() {
-                if (semantics::is_ret(tail_instr) || semantics::is_jop_gadget_tail(tail_instr))
+                if (semantics::is_rop_gadget_tail(tail_instr)
+                    || semantics::is_jop_gadget_tail(tail_instr))
                     && (!preceding_instrs.is_empty())
                 {
                     // Allow "leave" preceding tail, if any

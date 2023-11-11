@@ -82,7 +82,7 @@ impl FESSColumn {
             if let Some(i) = g.last_instr() {
                 // TODO: should this tagging logic stored in Gadget obj instead of re-computed here?
                 // Or maybe split out into a function used by both this and iterative_decode?
-                if semantics::is_ret(i) {
+                if semantics::is_rop_gadget_tail(i) {
                     if !g.full_matches.is_empty() {
                         totals.rop_full_cnt += 1;
                     }

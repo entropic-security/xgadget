@@ -215,13 +215,11 @@ fn get_gadget_tail_offsets(
 
             // ROP tail
             (s_config.intersects(SearchConfig::ROP)
-                && (semantics::is_ret(&instr)
-                || (s_config.intersects(SearchConfig::ALL) && semantics::is_ret_imm16(&instr))))
+                && semantics::is_ret(&instr, s_config.intersects(SearchConfig::ALL)))
 
                 // JOP tail
                 || (s_config.intersects(SearchConfig::JOP)
                     && semantics::is_jop_gadget_tail(&instr))
-
 
                 // SYS tail
                 || (s_config.intersects(SearchConfig::SYS)
@@ -240,14 +238,14 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<iced_x86::Instruction>,
         let buf_start_addr = d_config.seg.addr + offset as u64;
         let tail_addr = d_config.seg.addr + d_config.flow_op_idx as u64;
 
-        let mut decoder = iced_x86::Decoder::new(
+        let mut decoder = iced_x86::Decoder::with_ip(
             d_config.bin.bits(),
             &d_config.seg.bytes[offset..],
+            buf_start_addr,
             DecodeConfig::get_opts(),
         );
-        decoder.set_ip(buf_start_addr);
 
-        for i in &mut decoder {
+        for i in decoder.iter() {
             // Early stop if invalid encoding
             if i.code() == iced_x86::Code::INVALID {
                 break;
