@@ -102,6 +102,23 @@ pub fn is_sysret(instr: &iced_x86::Instruction) -> bool {
     }
 }
 
+/// Check if return instruction.
+/// * x86: if `all == true` include return instructions that add to stack pointer.
+pub fn is_ret(instr: &iced_x86::Instruction, all: bool) -> bool {
+    if !matches!(
+        instr.mnemonic(),
+        iced_x86::Mnemonic::Ret | iced_x86::Mnemonic::Retf
+    ) {
+        return false;
+    }
+
+    if (!all) && (instr.op_count() > 0) {
+        return false;
+    }
+
+    true
+}
+
 // Register usage ------------------------------------------------------------------------------------------------------
 
 /// Check if instruction both reads and writes the same register
@@ -159,23 +176,4 @@ pub fn is_reg_ops_only(instr: &iced_x86::Instruction) -> bool {
     }
 
     op_cnt > 0
-}
-
-// Crate-private Helpers -----------------------------------------------------------------------------------------------
-
-/// Check if return instruction.
-/// If `imm16 == true` include return instructions that add to stack pointer.
-pub(crate) fn is_ret(instr: &iced_x86::Instruction, imm16: bool) -> bool {
-    if !matches!(
-        instr.mnemonic(),
-        iced_x86::Mnemonic::Ret | iced_x86::Mnemonic::Retf
-    ) {
-        return false;
-    }
-
-    if (!imm16) && (instr.op_count() > 0) {
-        return false;
-    }
-
-    true
 }

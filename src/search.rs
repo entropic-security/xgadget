@@ -5,6 +5,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::{binary, error::Error, fess::FESSColumn, gadget, semantics};
 
+/// TODO: add to semantics backend trait?
 /// Max instruction size in bytes
 pub const X86_MAX_INSTR_BYTE_CNT: usize = 15;
 
@@ -154,40 +155,48 @@ pub(crate) fn find_gadgets_multi_bin<'a>(
 
 // Private API ---------------------------------------------------------------------------------------------------------
 
-#[derive(Debug)]
-struct DecodeConfig<'a> {
-    bin: &'a binary::Binary,
-    seg: &'a binary::Segment,
-    s_config: SearchConfig,
-    stop_idx: usize,
-    flow_op_idx: usize,
-    max_len: usize,
+// Valid gadget decoded
+struct GadgetFound {
+    start_addr: u64,
+    instrs: Vec<iced_x86::Instruction>,
 }
 
-impl<'a> DecodeConfig<'a> {
+#[derive(Debug)]
+struct DisassemblyConfig<'a> {
+    bin: &'a binary::Binary,
+    seg: &'a binary::Segment,
+    search_conf: SearchConfig,
+    decode_opts: u32,
+    stop_idx: usize,
+    flow_op_idx: usize,
+    max_gadget_len: usize,
+}
+
+impl<'a> DisassemblyConfig<'a> {
     // Setup search parameters
     fn new(
         bin: &'a binary::Binary,
         seg: &'a binary::Segment,
-        s_config: SearchConfig,
+        search_conf: SearchConfig,
         flow_op_idx: usize,
-        max_len: usize,
-    ) -> DecodeConfig<'a> {
+        max_gadget_len: usize,
+    ) -> DisassemblyConfig<'a> {
         let mut stop_idx = 0;
 
         // Optional early stop
-        let ret_prefix_size = max_len * X86_MAX_INSTR_BYTE_CNT;
-        if (max_len != 0) && (flow_op_idx > ret_prefix_size) {
+        let ret_prefix_size = max_gadget_len * X86_MAX_INSTR_BYTE_CNT;
+        if (max_gadget_len != 0) && (flow_op_idx > ret_prefix_size) {
             stop_idx = flow_op_idx - ret_prefix_size;
         }
 
-        DecodeConfig {
+        DisassemblyConfig {
             bin,
             seg,
-            s_config,
+            search_conf,
+            decode_opts: Self::get_opts(),
             stop_idx,
             flow_op_idx,
-            max_len,
+            max_gadget_len,
         }
     }
 
@@ -207,13 +216,16 @@ fn get_gadget_tail_offsets(
     (0..seg.bytes.len())
         .into_par_iter()
         .filter(|offset| {
-            let offset = *offset;
-            let mut decoder =
-                iced_x86::Decoder::new(bin.bits(), &seg.bytes[offset..], DecodeConfig::get_opts());
-            decoder.set_ip(seg.addr + (offset as u64));
-            let instr = decoder.decode();
+            let instr = iced_x86::Decoder::with_ip(
+                bin.bits(),
+                &seg.bytes[*offset..],
+                seg.addr + (*offset as u64),
+                DisassemblyConfig::get_opts(),
+            )
+            .decode();
 
             // ROP tail
+            // Does more filtering than the `semantics::is_rop_gadget` public API: accept `ret`, reject `ret imm16`
             (s_config.intersects(SearchConfig::ROP)
                 && semantics::is_ret(&instr, s_config.intersects(SearchConfig::ALL)))
 
@@ -229,9 +241,9 @@ fn get_gadget_tail_offsets(
 }
 
 /// Iterative search backwards from instance of gadget tail instruction
-fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<iced_x86::Instruction>, u64)> {
-    let mut instr_sequences = Vec::new();
-    let all_flag = d_config.s_config.intersects(SearchConfig::ALL);
+fn iterative_decode(d_config: &DisassemblyConfig) -> Vec<GadgetFound> {
+    let mut gadgets_found = Vec::new();
+    let all_flag = d_config.search_conf.intersects(SearchConfig::ALL);
 
     for offset in (d_config.stop_idx..=d_config.flow_op_idx).rev() {
         let mut instrs = Vec::new();
@@ -242,7 +254,7 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<iced_x86::Instruction>,
             d_config.bin.bits(),
             &d_config.seg.bytes[offset..],
             buf_start_addr,
-            DecodeConfig::get_opts(),
+            d_config.decode_opts,
         );
 
         for i in decoder.iter() {
@@ -261,7 +273,7 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<iced_x86::Instruction>,
             instrs.push(i);
 
             // Early stop if instr length limit hit
-            if (d_config.max_len != 0) && (instrs.len() == d_config.max_len) {
+            if (d_config.max_gadget_len != 0) && (instrs.len() == d_config.max_gadget_len) {
                 break;
             }
         }
@@ -270,12 +282,15 @@ fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<iced_x86::Instruction>,
         if let Some(i) = instrs.last() {
             if semantics::is_gadget_tail(i) {
                 debug_assert!(instrs[0].ip() == buf_start_addr);
-                instr_sequences.push((instrs, buf_start_addr));
+                gadgets_found.push(GadgetFound {
+                    start_addr: buf_start_addr,
+                    instrs,
+                });
             }
         }
     }
 
-    instr_sequences
+    gadgets_found
 }
 
 /// Search a binary for gadgets
@@ -291,19 +306,18 @@ fn find_gadgets_single_bin(
 
     for seg in bin.segments() {
         // Search backward from every potential tail (duplicate gadgets possible)
-        let parallel_results: Vec<(Vec<iced_x86::Instruction>, u64)> =
-            get_gadget_tail_offsets(bin, seg, s_config)
-                .par_iter()
-                .map(|&offset| DecodeConfig::new(bin, seg, s_config, offset, max_len))
-                .flat_map(|d_config| iterative_decode(&d_config))
-                .collect();
+        let parallel_results: Vec<GadgetFound> = get_gadget_tail_offsets(bin, seg, s_config)
+            .par_iter()
+            .map(|&offset| DisassemblyConfig::new(bin, seg, s_config, offset, max_len))
+            .flat_map(|d_config| iterative_decode(&d_config))
+            .collect();
 
         // Running consolidation of parallel results (de-dup instr sequences, aggregate occurrence addrs)
-        for (instrs, addr) in parallel_results {
+        for GadgetFound { start_addr, instrs } in parallel_results {
             gadget_collector
                 .entry(instrs)
-                .or_insert(BTreeSet::from([addr]))
-                .insert(addr);
+                .or_insert(BTreeSet::from([start_addr]))
+                .insert(start_addr);
         }
     }
 

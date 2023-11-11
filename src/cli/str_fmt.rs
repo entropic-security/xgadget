@@ -31,6 +31,7 @@ lazy_static! {
             .collect()
     };
 }
+
 lazy_static! {
     pub static ref VERSION_STR: String = format!("v{}", clap::crate_version!());
 }

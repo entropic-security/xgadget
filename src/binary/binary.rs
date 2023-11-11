@@ -310,7 +310,16 @@ impl Default for Binary {
 // Summary print
 impl fmt::Display for Binary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let color_punctuation = |s: &str| s.bright_magenta();
+        let color_punctuation = |s: &str| s.bold().bright_magenta();
+
+        let num_fmt = |n: usize| {
+            if cfg!(feature = "cli-bin") {
+                use num_format::{Locale, ToFormattedString};
+                n.to_formatted_string(&Locale::en)
+            } else {
+                n.to_string()
+            }
+        };
 
         let seg_cnt = self.segments.len();
 
@@ -322,26 +331,35 @@ impl fmt::Display for Binary {
         let single_quote = color_punctuation("'");
         let forward_slash = color_punctuation("/");
         let dash = color_punctuation("-");
+        let open_bracket = color_punctuation("[");
+        let close_bracket = color_punctuation("]");
         let colon = color_punctuation(":");
-        let comma = color_punctuation(",");
+        let pipe = color_punctuation("|");
 
         write!(
             f,
-            "{}{}{}{} {}{}{}{} {} entry{} {}{}{} exec bytes{}segments",
+            "{} name{} {}{}{} {} fmt{}arch{} {}{}{} {} entry{} {} {} exec bytes{}segments{} {}{}{} {}",
+            open_bracket,
+            colon,
             single_quote,
             self.name.cyan(),
             single_quote,
+            pipe,
+            dash,
             colon,
             format!("{:?}", self.format).yellow(),
             dash,
             format!("{:?}", self.arch).yellow(),
-            comma,
+            pipe,
+            colon,
             format!("{:#016x}", self.entry).green(),
-            comma,
-            format!("{}", bytes).bright_blue(),
+            pipe,
             forward_slash,
-            format!("{}", seg_cnt).bright_blue(),
+            colon,
+            format!("{}", num_fmt(bytes)).bright_blue(),
             forward_slash,
+            format!("{}", num_fmt(seg_cnt)).bright_blue(),
+            close_bracket,
         )
     }
 }

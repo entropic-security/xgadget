@@ -33,7 +33,7 @@ xgadget --help                              # List available command line option
 <i><b>ROP</b> Attack Model (recreated from:<a href="https://www.comp.nus.edu.sg/~liangzk/papers/asiaccs11.pdf"> Bletsch et. al.</a>)</i>
 </p>
 
-* **Jump Oriented Programming (JOP)** is a newer code reuse method which, unlike ROP, doesn't rely on stack control. And thus bypasses hardware-assisted shadow-stack implementations and prototype-insensitive indirect branch checks (e.g. Intel CET). JOP allows storing a table of gadget addresses in any `READ`/`WRITE` memory location. Instead of piggy-backing on call-return semantics to execute a gadget list, a "dispatch" gadget (e.g. `add rax, 8; jmp [rax]`) controls table indexing. Chaining happens if each gadget ends with a `jmp` back to the dispatcher (instead of a `ret`).
+* **Jump Oriented Programming (JOP)** is a newer code reuse method which, unlike ROP, doesn't rely on stack control. The attack *bypasses* hardware-assisted shadow-stack implementations (e.g. Intel CET's shadow stack), and is *limited* but *not prevented* by prototype-insensitive indirect location checks (e.g. Intel CET's IBT). JOP allows storing a table of gadget addresses in any `READ`/`WRITE` memory location. Instead of piggy-backing on call-return semantics to execute a gadget list, a "dispatch" gadget (e.g. `add rax, 8; jmp [rax]`) controls table indexing. Chaining happens if each gadget ends with a `jmp` back to the dispatcher (instead of a `ret`).
 
 <p style="text-align: center;" align="center">
     <img src="https://raw.githubusercontent.com/tnballo/high-assurance-rust/main/src/chp4/exploit_jop_model.svg" width="100%" alt="jop model">
@@ -53,11 +53,11 @@ It's a fast, multi-threaded alternative to awesome tools like [`ROPGadget`](http
 The goal is supporting practical usage while simultaneously exploring unique and experimental features.
 To the best of our knowledge, `xgadget` is the first gadget search tool to be:
 
-* **Register-sensitive:** Reliably find gadgets based on register usage behavior - not just matches for a given regex
+* **Fast-register-sensitive**: Filters gadgets by register usage behavior, not just matches for a given regex, without SMT solving (more powerful, but often impractical)
 
-    * Use `--reg-ctrl [<OPT_REG(S)>...]` flag for register overwrites
+    * `--reg-write [<OPT_REG(S)>...]` - filter to gadgets that control any reg (no args) or specific regs (flag args)
 
-    * Use `--reg-no-deref [<OPT_REG(S)>...]` flag for no-deference search
+    * `--reg-no-deref [<OPT_REG(S)>...]` - filter to gadgets that don't deref any regs (no args) or specific regs (flag args)
 
 * **JOP-efficient**: JOP search uses instruction semantics - not hardcoded regex for individual encodings
 
@@ -249,29 +249,29 @@ To view similarity scores for kernel versions `5.0.1`, `5.0.5`, and `5.0.10` wit
 
 ```bash
 root@container# cd ./benches/kernels/
-root@container# xgadget vmlinux-5.0.1 vmlinux-5.0.5 vmlinux-5.0.10 --fess
-TARGET 0 - 'vmlinux-5.0.1': ELF-X64, 0x00000001000000 entry, 21065728/2 exec bytes/segments
-TARGET 1 - 'vmlinux-5.0.5': ELF-X64, 0x00000001000000 entry, 21069824/2 exec bytes/segments
-TARGET 2 - 'vmlinux-5.0.10': ELF-X64, 0x00000001000000 entry, 21069824/2 exec bytes/segments
+root@container# xgadget vmlinux-5.0.1 vmlinux-5.0.5 vmlinux-5.0.10 --fess --all
+TARGET 0 - [ name: 'vmlinux-5.0.1' | fmt-arch: ELF-X64 | entry: 0x00000001000000 | exec bytes/segments: 21,065,728/2 ]
+TARGET 1 - [ name: 'vmlinux-5.0.5' | fmt-arch: ELF-X64 | entry: 0x00000001000000 | exec bytes/segments: 21,069,824/2 ]
+TARGET 2 - [ name: 'vmlinux-5.0.10' | fmt-arch: ELF-X64 | entry: 0x00000001000000 | exec bytes/segments: 21,069,824/2 ]
 
 ┌─────────────┬──────────────────────┬──────────────────────┬───────────────────────┐
 │ Gadget Type │ vmlinux-5.0.1 (base) │ vmlinux-5.0.5 (diff) │ vmlinux-5.0.10 (diff) │
 ├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
-│  ROP (full) │              175,739 │       11,124 (6.33%) │           699 (0.40%) │
+│  ROP (full) │              283,902 │       15,759 (5.55%) │           951 (0.33%) │
 ├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
-│  ROP (part) │                    - │      85,717 (48.78%) │       79,367 (45.16%) │
+│  ROP (part) │                    - │     128,884 (45.40%) │      118,304 (41.67%) │
 ├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
-│  JOP (full) │               97,239 │        1,093 (1.12%) │           277 (0.28%) │
+│  JOP (full) │               99,833 │        1,125 (1.13%) │           290 (0.29%) │
 ├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
-│  JOP (part) │                    - │      16,792 (17.27%) │       12,635 (12.99%) │
+│  JOP (part) │                    - │      16,925 (16.95%) │       12,741 (12.76%) │
 ├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
-│  SYS (full) │                   81 │          20 (24.69%) │           20 (24.69%) │
+│  SYS (full) │               11,969 │          478 (3.99%) │           130 (1.09%) │
 ├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
-│  SYS (part) │                    - │          59 (72.84%) │           58 (71.60%) │
+│  SYS (part) │                    - │       4,479 (37.42%) │        3,972 (33.19%) │
 └─────────────┴──────────────────────┴──────────────────────┴───────────────────────┘
 ```
 
-In the output table, we see that up to 45.16% of individual ROP gadgets are portable across all three versions (counting partial matches).
+In the output table, we see that up to 41.67% of individual ROP gadgets are portable across all three versions (counting partial matches).
 
 ### Acknowledgements
 
