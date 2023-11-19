@@ -4,11 +4,10 @@ use rustc_hash::FxHashSet as HashSet;
 
 use super::gadget::Gadget;
 
-// TODO: have this be a `OnceCell` on `Gadget`?
-
 // Gadget Analysis -----------------------------------------------------------------------------------------------------
 
 /// Determines gadget register usage properties.
+/// Lazy construct by calling [`Gadget::analysis`].
 ///
 /// * Registers overwritten (written without reading previous value)
 /// * Registers updated (read and then written, within single instruction)
@@ -26,8 +25,8 @@ pub struct GadgetAnalysis {
 impl GadgetAnalysis {
     // GadgetAnalysis Public API ---------------------------------------------------------------------------------------
 
-    /// Analyze gadget
-    pub fn new(gadget: &Gadget) -> Self {
+    /// Init gadget analysis
+    pub(crate) fn new(gadget: &Gadget) -> Self {
         let mut info_factory = iced_x86::InstructionInfoFactory::new();
         let mut unique_used_regs = HashSet::default();
         let mut unique_used_mem = HashSet::default();

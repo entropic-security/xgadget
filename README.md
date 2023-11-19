@@ -178,7 +178,7 @@ where
     gadgets
         .into_par_iter()
         .filter(|g| {
-            let regs_overwritten = GadgetAnalysis::new(g).regs_overwritten();
+            let regs_overwritten = g.analysis().regs_overwritten();
             if regs_overwritten.contains(&iced_x86::Register::RSP)
                 || regs_overwritten.contains(&iced_x86::Register::ESP)
                 || regs_overwritten.contains(&iced_x86::Register::SP)

@@ -1,13 +1,14 @@
+use core::marker::Send;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::hash::{Hash, Hasher};
-use std::marker::Send;
+use std::sync::OnceLock;
 
 use iced_x86::FormatterOutput;
 
 use super::fmt;
 use super::fmt::DisplayLen;
-use crate::binary;
+use crate::{binary, GadgetAnalysis};
 
 // TODO: implement Ord for binary, use BTReeSet instead of Vector to maintain sorted order on insertion
 // will have nicer output at partial match at cost of speed (how much?)
@@ -24,6 +25,7 @@ pub struct Gadget<'a> {
     pub(crate) instrs: Vec<iced_x86::Instruction>,
     pub(crate) full_matches: BTreeSet<u64>,
     pub(crate) partial_matches: BTreeMap<u64, Vec<&'a binary::Binary>>,
+    analysis: OnceLock<GadgetAnalysis>,
 }
 
 impl<'a> Gadget<'a> {
@@ -41,6 +43,7 @@ impl<'a> Gadget<'a> {
             instrs,
             full_matches: occurrence_addrs,
             partial_matches: BTreeMap::new(),
+            analysis: OnceLock::new(),
         }
     }
 
@@ -61,7 +64,13 @@ impl<'a> Gadget<'a> {
             instrs,
             full_matches,
             partial_matches: BTreeMap::new(),
+            analysis: OnceLock::new(),
         }
+    }
+
+    /// Get analysis
+    pub fn analysis(&self) -> &GadgetAnalysis {
+        self.analysis.get_or_init(|| GadgetAnalysis::new(&self))
     }
 
     /// Get a instructions

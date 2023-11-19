@@ -4,7 +4,7 @@ use rayon::prelude::*;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::semantics;
-use crate::{Gadget, GadgetAnalysis};
+use crate::Gadget;
 
 /// Parallel filter to gadgets that write the stack pointer
 pub fn filter_stack_pivot<'a, P>(gadgets: P) -> P
@@ -14,7 +14,7 @@ where
     gadgets
         .into_par_iter()
         .filter(|g| {
-            let regs_overwritten = GadgetAnalysis::new(g).regs_overwritten();
+            let regs_overwritten = g.analysis().regs_overwritten();
             if regs_overwritten.contains(&iced_x86::Register::RSP)
                 || regs_overwritten.contains(&iced_x86::Register::ESP)
                 || regs_overwritten.contains(&iced_x86::Register::SP)
@@ -132,7 +132,7 @@ where
     gadgets
         .into_par_iter()
         .filter(|g| {
-            let regs_overwritten = GadgetAnalysis::new(g).regs_overwritten();
+            let regs_overwritten = g.analysis().regs_overwritten();
             match opt_regs {
                 Some(regs) => regs.iter().all(|r| regs_overwritten.contains(r)),
                 None => !regs_overwritten.is_empty(),
@@ -150,7 +150,7 @@ where
     gadgets
         .into_par_iter()
         .filter(|g| {
-            let analysis = GadgetAnalysis::new(g);
+            let analysis = g.analysis();
             let regs_written = analysis
                 .regs_overwritten()
                 .into_iter()
@@ -174,7 +174,7 @@ where
     gadgets
         .into_par_iter()
         .filter(|g| {
-            let analysis = GadgetAnalysis::new(g);
+            let analysis = g.analysis();
             let regs_written = analysis
                 .regs_overwritten()
                 .into_iter()
@@ -198,7 +198,7 @@ where
     gadgets
         .into_par_iter()
         .filter(|g| {
-            let regs_read = GadgetAnalysis::new(g).regs_read();
+            let regs_read = g.analysis().regs_read();
             match opt_regs {
                 Some(regs) => regs.iter().all(|r| regs_read.contains(r)),
                 None => !regs_read.is_empty(),
@@ -216,7 +216,7 @@ where
     gadgets
         .into_par_iter()
         .filter(|g| {
-            let regs_read = GadgetAnalysis::new(g).regs_read();
+            let regs_read = g.analysis().regs_read();
             match opt_regs {
                 Some(regs) => regs.iter().all(|r| !regs_read.contains(r)),
                 None => regs_read.is_empty(),
@@ -235,7 +235,7 @@ where
     gadgets
         .into_par_iter()
         .filter(|g| {
-            let mut regs_derefed = GadgetAnalysis::new(g).regs_dereferenced();
+            let mut regs_derefed = g.analysis().regs_dereferenced();
             match opt_regs {
                 Some(regs) => regs.iter().all(|r| !regs_derefed.contains(r)),
                 None => {
