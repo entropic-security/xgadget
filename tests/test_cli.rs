@@ -589,7 +589,7 @@ fn test_reg_no_read_filter_2() {
 #[test]
 #[cfg(target_os = "linux")]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_reg_write_filter_1() {
+fn test_reg_overwrite_filter_1() {
     let output_reg_write_rax_filter = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
@@ -620,7 +620,7 @@ fn test_reg_write_filter_1() {
 
 #[test]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_reg_write_filter_2() {
+fn test_reg_overwrite_filter_2() {
     let mut raw_file = NamedTempFile::new().unwrap();
     raw_file
         .write_all(common::FILTERS_REG_NO_DEREF_AND_REG_WRITE)

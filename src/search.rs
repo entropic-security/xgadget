@@ -5,9 +5,9 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::{binary, error::Error, fess::FESSColumn, gadget, semantics};
 
-/// TODO: add to semantics backend trait?
+// TODO: add to semantics backend trait?
 /// Max instruction size in bytes
-pub const X86_MAX_INSTR_BYTE_CNT: usize = 15;
+pub(crate) const X86_MAX_INSTR_BYTE_CNT: usize = 15;
 
 // Search Flags --------------------------------------------------------------------------------------------------------
 

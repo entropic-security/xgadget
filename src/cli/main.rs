@@ -12,7 +12,10 @@ mod str_fmt;
 use str_fmt::{str_to_reg, STR_REG_MAP};
 
 mod cli;
-use cli::{is_env_resident, CLIOpts, REG_NO_READ_FLAG, REG_OVERWRITE_FLAG};
+use cli::{
+    is_env_resident, CLIOpts, REG_NO_READ_FLAG, REG_NO_WRITE_FLAG, REG_OVERWRITE_FLAG,
+    REG_READ_FLAG,
+};
 
 mod checksec_fmt;
 
@@ -102,6 +105,34 @@ fn main() -> Result<()> {
             gadgets = xgadget::filter_regs_overwritten(gadgets, None);
         } else {
             gadgets = xgadget::filter_regs_overwritten(gadgets, Some(&regs))
+        }
+    }
+
+    if is_env_resident(&[REG_NO_WRITE_FLAG]) {
+        let regs = cli
+            .reg_no_write
+            .iter()
+            .map(|r| str_to_reg(r).unwrap_or_else(|| panic!("Invalid register: {:?}", r)))
+            .collect::<Vec<_>>();
+
+        if regs.is_empty() {
+            gadgets = xgadget::filter_regs_not_written(gadgets, None);
+        } else {
+            gadgets = xgadget::filter_regs_not_written(gadgets, Some(&regs))
+        }
+    }
+
+    if is_env_resident(&[REG_READ_FLAG]) {
+        let regs = cli
+            .reg_read
+            .iter()
+            .map(|r| str_to_reg(r).unwrap_or_else(|| panic!("Invalid register: {:?}", r)))
+            .collect::<Vec<_>>();
+
+        if regs.is_empty() {
+            gadgets = xgadget::filter_regs_read(gadgets, None);
+        } else {
+            gadgets = xgadget::filter_regs_read(gadgets, Some(&regs))
         }
     }
 
