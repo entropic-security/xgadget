@@ -263,7 +263,7 @@ fn test_x64_filter_regs_overwritten_1() {
     let bins = vec![bin_filters];
     let gadgets =
         xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::default()).unwrap();
-    let param_ctrl_gadgets = xgadget::filter_regs_overwritten(gadgets, None);
+    let param_ctrl_gadgets = xgadget::filter_regs_written(gadgets, None);
     let reg_write_gadget_strs = common::get_gadget_strs(&param_ctrl_gadgets, false);
     common::print_gadget_strs(&reg_write_gadget_strs);
 
@@ -293,8 +293,8 @@ fn test_x64_filter_regs_overwritten_1() {
         "pop rax; jmp rax;"
     ));
 
-    // Negative
-    assert!(!common::gadget_strs_contains_sub_str(
+    // Positive because writes the stack pointer
+    assert!(common::gadget_strs_contains_sub_str(
         &reg_write_gadget_strs,
         "push rax; ret;"
     ));
@@ -307,7 +307,7 @@ fn test_x64_filter_regs_overwritten_2() {
     let gadgets =
         xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::default()).unwrap();
     let param_ctrl_gadgets =
-        xgadget::filter_regs_overwritten(gadgets, Some(&[iced_x86::Register::RCX]));
+        xgadget::filter_regs_written(gadgets, Some(&[iced_x86::Register::RCX]));
     let reg_write_gadget_strs = common::get_gadget_strs(&param_ctrl_gadgets, false);
     common::print_gadget_strs(&reg_write_gadget_strs);
 

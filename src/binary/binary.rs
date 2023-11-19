@@ -258,11 +258,16 @@ impl Binary {
         Ok(bin)
     }
 
-    // Raw bytes -> Binary, Unknown arch to be updated by caller
+    // Raw bytes -> Binary
+    //
+    // ### WARNING:
+    //
+    // This defaults `arch` to [Arch::X64], caller must update if incorrect.
     fn from_raw(name: &str, bytes: &[u8]) -> Binary {
         let mut bin = Binary {
             name: name.to_string(),
             format: Format::Raw,
+            arch: Arch::X64,
             ..Default::default()
         };
 
@@ -313,10 +318,14 @@ impl fmt::Display for Binary {
         let color_punctuation = |s: &str| s.bold().bright_magenta();
 
         let num_fmt = |n: usize| {
-            if cfg!(feature = "cli-bin") {
+            #[cfg(feature = "cli-bin")]
+            {
                 use num_format::{Locale, ToFormattedString};
                 n.to_formatted_string(&Locale::en)
-            } else {
+            }
+
+            #[cfg(not(feature = "cli-bin"))]
+            {
                 n.to_string()
             }
         };

@@ -4,6 +4,8 @@ use rustc_hash::FxHashSet as HashSet;
 
 use super::gadget::Gadget;
 
+// TODO: have this be a `OnceCell` on `Gadget`?
+
 // Gadget Analysis -----------------------------------------------------------------------------------------------------
 
 /// Determines gadget register usage properties.
@@ -56,6 +58,23 @@ impl GadgetAnalysis {
     /// Get full memory usage info
     pub fn used_mem(&self) -> impl ExactSizeIterator<Item = iced_x86::UsedMemory> + '_ {
         self.used_mem.iter().copied()
+    }
+
+    /// Get registers read by gadget. Includes conditional reads.
+    pub fn regs_read(&self) -> HashSet<iced_x86::Register> {
+        self.used_regs
+            .iter()
+            .filter(|ur| {
+                matches!(
+                    ur.access(),
+                    iced_x86::OpAccess::Read
+                        | iced_x86::OpAccess::CondRead
+                        | iced_x86::OpAccess::ReadWrite
+                        | iced_x86::OpAccess::ReadCondWrite
+                )
+            })
+            .map(|ur| ur.register())
+            .collect()
     }
 
     /// Get registers overwritten by gadget (written without reading previous value)

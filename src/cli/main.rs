@@ -12,7 +12,7 @@ mod str_fmt;
 use str_fmt::{str_to_reg, STR_REG_MAP};
 
 mod cli;
-use cli::{is_env_resident, CLIOpts, REG_NO_DEREF_FLAG, REG_WRITE_FLAG};
+use cli::{is_env_resident, CLIOpts, REG_NO_READ_FLAG, REG_OVERWRITE_FLAG};
 
 mod checksec_fmt;
 
@@ -91,9 +91,9 @@ fn main() -> Result<()> {
         gadgets = xgadget::filter_reg_pop_only(gadgets);
     }
 
-    if is_env_resident(&[REG_WRITE_FLAG]) {
+    if is_env_resident(&[REG_OVERWRITE_FLAG]) {
         let regs = cli
-            .reg_write
+            .reg_overwrite
             .iter()
             .map(|r| str_to_reg(r).unwrap_or_else(|| panic!("Invalid register: {:?}", r)))
             .collect::<Vec<_>>();
@@ -105,17 +105,17 @@ fn main() -> Result<()> {
         }
     }
 
-    if is_env_resident(&[REG_NO_DEREF_FLAG]) {
+    if is_env_resident(&[REG_NO_READ_FLAG]) {
         let regs = cli
-            .reg_no_deref
+            .reg_no_read
             .iter()
             .map(|r| str_to_reg(r).unwrap_or_else(|| panic!("Invalid register: {:?}", r)))
             .collect::<Vec<_>>();
 
         if regs.is_empty() {
-            gadgets = xgadget::filter_reg_no_deref(gadgets, None);
+            gadgets = xgadget::filter_regs_not_read(gadgets, None);
         } else {
-            gadgets = xgadget::filter_reg_no_deref(gadgets, Some(&regs))
+            gadgets = xgadget::filter_regs_not_read(gadgets, Some(&regs))
         }
     }
 

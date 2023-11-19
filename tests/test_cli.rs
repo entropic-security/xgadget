@@ -119,7 +119,10 @@ fn test_invalid_bad_bytes() {
 fn test_invalid_reg_name() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
-    xgadget_bin.arg("/bin/cat").arg("--reg-write").arg("r42");
+    xgadget_bin
+        .arg("/bin/cat")
+        .arg("--reg-overwrite")
+        .arg("r42");
 
     xgadget_bin
         .assert()
@@ -497,12 +500,12 @@ fn test_param_ctrl_filter() {
 #[test]
 #[cfg(target_os = "linux")]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_reg_no_deref_filter_1() {
-    let output_reg_no_deref_rax_filter = String::from_utf8(
+fn test_reg_no_read_filter_1() {
+    let output_reg_no_read_rax_filter = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
-            .arg("--reg-no-deref")
+            .arg("--reg-no-read")
             .arg(REG_NAME)
             .output()
             .unwrap()
@@ -510,35 +513,35 @@ fn test_reg_no_deref_filter_1() {
     )
     .unwrap();
 
-    let output_reg_no_deref_all_regs_filter = String::from_utf8(
+    let output_reg_no_read_all_regs_filter = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
-            .arg("--reg-no-deref")
+            .arg("--reg-no-read")
             .output()
             .unwrap()
             .stdout,
     )
     .unwrap();
 
-    println!("REG_NO_DEREF_RAX: {}", output_reg_no_deref_rax_filter);
-    println!("REG_NO_DEREF: {}", output_reg_no_deref_all_regs_filter);
-    assert!(output_reg_no_deref_rax_filter.len() >= output_reg_no_deref_all_regs_filter.len());
+    println!("REG_NO_READ_RAX: {}", output_reg_no_read_rax_filter);
+    println!("REG_NO_READ: {}", output_reg_no_read_all_regs_filter);
+    assert!(output_reg_no_read_rax_filter.len() >= output_reg_no_read_all_regs_filter.len());
 }
 
 #[test]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_reg_no_deref_filter_2() {
+fn test_reg_no_read_filter_2() {
     let mut raw_file = NamedTempFile::new().unwrap();
     raw_file
         .write_all(common::FILTERS_REG_NO_DEREF_AND_REG_WRITE)
         .unwrap();
 
-    let reg_no_deref_1_reg = String::from_utf8(
+    let reg_no_read_1_reg = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg(raw_file.path())
-            .arg("--reg-no-deref")
+            .arg("--reg-no-read")
             .arg("rdi")
             .output()
             .unwrap()
@@ -546,11 +549,11 @@ fn test_reg_no_deref_filter_2() {
     )
     .unwrap();
 
-    let reg_no_deref_2_regs = String::from_utf8(
+    let reg_no_read_2_regs = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg(raw_file.path())
-            .arg("--reg-no-deref")
+            .arg("--reg-no-read")
             .arg("rdi")
             .arg("rsi")
             .output()
@@ -559,29 +562,28 @@ fn test_reg_no_deref_filter_2() {
     )
     .unwrap();
 
-    let reg_no_deref_any_regs = String::from_utf8(
+    let reg_no_read_any_regs = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg(raw_file.path())
-            .arg("--reg-no-deref")
+            .arg("--reg-no-read")
             .output()
             .unwrap()
             .stdout,
     )
     .unwrap();
 
-    println!("REG_NO_DEREF_1_REG: {}", reg_no_deref_1_reg);
-    println!("REG_NO_DEREF_2_REGS: {}", reg_no_deref_2_regs);
-    println!("REG_NO_DEREF_ANY_REGS: {}", reg_no_deref_any_regs);
-    assert!(reg_no_deref_1_reg.lines().count() >= reg_no_deref_2_regs.lines().count());
-    assert!(reg_no_deref_2_regs.lines().count() >= reg_no_deref_any_regs.lines().count());
+    println!("REG_NO_READ_1_REG: {}", reg_no_read_1_reg);
+    println!("REG_NO_READ_2_REGS: {}", reg_no_read_2_regs);
+    println!("REG_NO_READ_ANY_REGS: {}", reg_no_read_any_regs);
+    assert!(reg_no_read_1_reg.lines().count() >= reg_no_read_2_regs.lines().count());
+    assert!(reg_no_read_2_regs.lines().count() >= reg_no_read_any_regs.lines().count());
 
-    assert!(reg_no_deref_2_regs.contains("pop rsi; pop rdi; ret;"));
-    assert!(reg_no_deref_1_reg.contains("pop rsi; pop rdi; ret;"));
-    assert!(reg_no_deref_any_regs.contains("pop rsi; pop rdi; ret;"));
+    assert!(reg_no_read_2_regs.contains("pop rsi; pop rdi; ret;"));
+    assert!(reg_no_read_1_reg.contains("pop rsi; pop rdi; ret;"));
 
-    assert!(reg_no_deref_1_reg.contains("add r8, [rsi]; add r8, [rdx]; pop rsi; pop rdi; ret;"));
-    assert!(reg_no_deref_2_regs.contains("add r8, [rdx]; pop rsi; pop rdi; ret;"));
+    assert!(reg_no_read_1_reg.contains("add r8, [rsi]; add r8, [rdx]; pop rsi; pop rdi; ret;"));
+    assert!(reg_no_read_2_regs.contains("add r8, [rdx]; pop rsi; pop rdi; ret;"));
 }
 
 #[test]
@@ -592,7 +594,7 @@ fn test_reg_write_filter_1() {
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
-            .arg("--reg-write")
+            .arg("--reg-overwrite")
             .arg(REG_NAME)
             .output()
             .unwrap()
@@ -604,7 +606,7 @@ fn test_reg_write_filter_1() {
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
-            .arg("--reg-write")
+            .arg("--reg-overwrite")
             .output()
             .unwrap()
             .stdout,
@@ -628,7 +630,7 @@ fn test_reg_write_filter_2() {
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg(raw_file.path())
-            .arg("--reg-write")
+            .arg("--reg-overwrite")
             .arg("rsi")
             .arg("--max-len")
             .arg("25")
@@ -642,7 +644,7 @@ fn test_reg_write_filter_2() {
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg(raw_file.path())
-            .arg("--reg-write")
+            .arg("--reg-overwrite")
             .arg("rsi")
             .arg("rdi")
             .arg("--max-len")
@@ -657,7 +659,7 @@ fn test_reg_write_filter_2() {
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg(raw_file.path())
-            .arg("--reg-write")
+            .arg("--reg-overwrite")
             .arg("--max-len")
             .arg("25")
             .output()
@@ -722,7 +724,7 @@ fn test_reg_equivalence() {
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
-            .arg("--reg-no-deref")
+            .arg("--reg-no-read")
             .arg("r8l")
             .output()
             .unwrap()
@@ -734,7 +736,7 @@ fn test_reg_equivalence() {
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
-            .arg("--reg-no-deref")
+            .arg("--reg-no-read")
             .arg("r8b")
             .output()
             .unwrap()
@@ -836,9 +838,9 @@ fn test_readme_3() {
             .unwrap()
             .arg("/usr/bin/sudo")
             .arg("--rop")
-            .arg("--reg-write")
+            .arg("--reg-overwrite")
             .arg("rdi")
-            .arg("--reg-no-deref")
+            .arg("--reg-no-read")
             .arg("rsi")
             .arg("rdx")
             .arg("--bad-bytes")

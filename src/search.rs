@@ -81,7 +81,7 @@ pub(crate) fn find_gadgets_multi_bin<'a>(
             }
 
             for (idx, (next_bin, next_set)) in remaining_results.iter().enumerate() {
-                // Filter common gadgets (set intersection)
+                // Filter common gadgets (set intersection, in-place)
                 common_gadgets.retain(|g| next_set.contains(g));
 
                 // Update full and partial matches
@@ -97,7 +97,7 @@ pub(crate) fn find_gadgets_multi_bin<'a>(
                                     .copied()
                                     .collect();
 
-                                // Short-circuit if no full matches and partial collector if not requested
+                                // Short-circuit - no full matches and partial collector wasn't requested
                                 if (!s_config.intersects(SearchConfig::PART))
                                     && full_matches.is_empty()
                                 {
@@ -118,19 +118,19 @@ pub(crate) fn find_gadgets_multi_bin<'a>(
                                     }
 
                                     for addr in &next_set_g.full_matches {
-                                        match updated_g.partial_matches.get_mut(addr) {
-                                            Some(bin_ref_vec) => bin_ref_vec.push(*next_bin),
-                                            None => {
-                                                updated_g
-                                                    .partial_matches
-                                                    .insert(*addr, vec![next_bin]);
-                                            }
-                                        }
+                                        updated_g
+                                            .partial_matches
+                                            .entry(*addr)
+                                            .and_modify(|bin_ref_vec| {
+                                                bin_ref_vec.push(*next_bin);
+                                            })
+                                            .or_insert(vec![next_bin]);
                                     }
                                 }
 
                                 Some(updated_g)
                             }
+                            // SAFETY: set intersection, entry to this loop
                             None => unreachable!(),
                         }
                     })
@@ -316,8 +316,10 @@ fn find_gadgets_single_bin(
         for GadgetFound { start_addr, instrs } in parallel_results {
             gadget_collector
                 .entry(instrs)
-                .or_insert(BTreeSet::from([start_addr]))
-                .insert(start_addr);
+                .and_modify(|addr_set| {
+                    addr_set.insert(start_addr);
+                })
+                .or_insert(BTreeSet::from([start_addr]));
         }
     }
 

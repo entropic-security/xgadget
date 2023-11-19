@@ -157,13 +157,13 @@ gen_help_str!(
         "Filter to 'pop {reg} * 1+, {ret or ctrl-ed jmp/call}' gadgets (otherwise: all)",
     ),
     (
-        HELP_REG_NO_DEREF,
+        HELP_REG_NO_READ,
         false,
         false,
-        "Filter to gadgets that don't deref any regs (no args) or specific regs (flag args)",
+        "Filter to gadgets that don't read any regs (no args) or specific regs (flag args)",
     ),
     (
-        HELP_REG_WRITE,
+        HELP_REG_OVERWRITE,
         false,
         false,
         "Filter to gadgets that control any reg (no args) or specific regs (flag args)",

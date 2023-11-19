@@ -88,11 +88,11 @@ pub(crate) struct CLIOpts {
     #[arg(help = HELP_REG_POP.as_str(), long, conflicts_with = "dispatcher")]
     pub(crate) reg_pop: bool,
 
-    #[arg(help = HELP_REG_NO_DEREF.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
-    pub(crate) reg_no_deref: Vec<String>,
+    #[arg(help = HELP_REG_NO_READ.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
+    pub(crate) reg_no_read: Vec<String>,
 
-    #[arg(help = HELP_REG_WRITE.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
-    pub(crate) reg_write: Vec<String>,
+    #[arg(help = HELP_REG_OVERWRITE.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
+    pub(crate) reg_overwrite: Vec<String>,
 
     #[arg(help = HELP_PARAM_CTRL.as_str(), long)]
     pub(crate) param_ctrl: bool,
@@ -343,32 +343,32 @@ impl fmt::Display for CLIOpts {
                 if self.param_ctrl {
                     search_mode.push("Param-ctrl");
                 };
-                if is_env_resident(&[REG_WRITE_FLAG]) {
-                    if !self.reg_write.is_empty() {
+                if is_env_resident(&[REG_OVERWRITE_FLAG]) {
+                    if !self.reg_overwrite.is_empty() {
                         // Note: leak on rare case to avoid alloc on common case
                         search_mode.push(Box::leak(format!(
-                            "Reg-write-{{{}}}",
-                            self.reg_write.iter()
+                            "Reg-overwrite-{{{}}}",
+                            self.reg_overwrite.iter()
                                 .map(|r| r.to_lowercase())
                                 .collect::<Vec<_>>()
                                 .join(&comma_sep)
                         ).into_boxed_str()));
                     } else {
-                        search_mode.push("Reg-write");
+                        search_mode.push("Reg-overwrite");
                     }
                 };
-                if is_env_resident(&[REG_NO_DEREF_FLAG]) {
-                    if !self.reg_no_deref.is_empty() {
+                if is_env_resident(&[REG_NO_READ_FLAG]) {
+                    if !self.reg_no_read.is_empty() {
                         // Note: leak on rare case to avoid alloc on common case
                         search_mode.push(Box::leak(format!(
-                            "Reg-no-deref-{{{}}}",
-                            self.reg_no_deref.iter()
+                            "Reg-no-read-{{{}}}",
+                            self.reg_no_read.iter()
                                 .map(|r| r.to_lowercase())
                                 .collect::<Vec<_>>()
                                 .join(&comma_sep)
                         ).into_boxed_str()));
                     } else {
-                        search_mode.push("Reg-no-deref");
+                        search_mode.push("Reg-no-read");
                     }
                 };
                 cli_rule_fmt(
@@ -411,10 +411,10 @@ impl fmt::Display for CLIOpts {
 // Dirty Hacks ---------------------------------------------------------------------------------------------------------
 
 // XXX: We hardcode these to support modifying runtime behavior on presence or absence
-pub(crate) const REG_WRITE_FLAG: &str = "--reg-write";
-pub(crate) const REG_NO_DEREF_FLAG: &str = "--reg-no-deref";
+pub(crate) const REG_OVERWRITE_FLAG: &str = "--reg-overwrite";
+pub(crate) const REG_NO_READ_FLAG: &str = "--reg-no-read";
 
-// Runtime reflection, underpins `--reg-write` and `--reg-no-deref` flag behavior.
+// Runtime reflection, underpins `--reg-overwrite` and `--reg-no-read` flag behavior.
 // XXX: more idiomatic alternative with `clap`?
 pub(crate) fn is_env_resident(clap_args: &[&str]) -> bool {
     std::env::args_os().any(|a| {

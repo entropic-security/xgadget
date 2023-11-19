@@ -55,9 +55,9 @@ To the best of our knowledge, `xgadget` is the first gadget search tool to be:
 
 * **Fast-register-sensitive**: Filters gadgets by register usage behavior, not just matches for a given regex, without SMT solving (more powerful, but often impractical)
 
-    * `--reg-write [<OPT_REG(S)>...]` - filter to gadgets that control any reg (no args) or specific regs (flag args)
+    * `--reg-overwrite [<OPT_REG(S)>...]` - filter to gadgets that control any reg (no args) or specific regs (flag args)
 
-    * `--reg-no-deref [<OPT_REG(S)>...]` - filter to gadgets that don't deref any regs (no args) or specific regs (flag args)
+    * `--reg-no-read [<OPT_REG(S)>...]` - filter to gadgets that don't read any regs (no args) or specific regs (flag args)
 
 * **JOP-efficient**: JOP search uses instruction semantics - not hardcoded regex for individual encodings
 
@@ -118,10 +118,10 @@ xgadget /usr/bin/sudo --jop --reg-pop --att --max-len 10
 xgadget /usr/bin/sudo --regex-filter "^(?:pop)(?:.*(?:pop))*.*(?:call|jmp)" --att --max-len 10
 ```
 
-* **Example:** Search for ROP gadgets that control the value of `rdi`, never dereference `rsi` or `rdx`, and occur at addresses that don't contain bytes `0x32` or `0x0d`:
+* **Example:** Search for ROP gadgets that control the value of `rdi`, never read `rsi` or `rdx`, and occur at addresses that don't contain bytes `0x32` or `0x0d`:
 
 ```bash
-xgadget /usr/bin/sudo --rop --reg-ctrl rdi --reg-no-deref rsi rdx --bad-bytes 0x32 0x0d
+xgadget /usr/bin/sudo --rop --reg-overwrite rdi --reg-no-read rsi rdx --bad-bytes 0x32 0x0d
 ```
 
 * **Example:** Examine the exploit mitigations binaries `sudo` and `lighttpd` have been compiled with:
@@ -249,7 +249,7 @@ To view similarity scores for kernel versions `5.0.1`, `5.0.5`, and `5.0.10` wit
 
 ```bash
 root@container# cd ./benches/kernels/
-root@container# xgadget vmlinux-5.0.1 vmlinux-5.0.5 vmlinux-5.0.10 --fess --all
+root@container# xgadget vmlinux-5.0.1 vmlinux-5.0.5 vmlinux-5.0.10 --fess
 TARGET 0 - [ name: 'vmlinux-5.0.1' | fmt-arch: ELF-X64 | entry: 0x00000001000000 | exec bytes/segments: 21,065,728/2 ]
 TARGET 1 - [ name: 'vmlinux-5.0.5' | fmt-arch: ELF-X64 | entry: 0x00000001000000 | exec bytes/segments: 21,069,824/2 ]
 TARGET 2 - [ name: 'vmlinux-5.0.10' | fmt-arch: ELF-X64 | entry: 0x00000001000000 | exec bytes/segments: 21,069,824/2 ]
@@ -257,21 +257,22 @@ TARGET 2 - [ name: 'vmlinux-5.0.10' | fmt-arch: ELF-X64 | entry: 0x0000000100000
 ┌─────────────┬──────────────────────┬──────────────────────┬───────────────────────┐
 │ Gadget Type │ vmlinux-5.0.1 (base) │ vmlinux-5.0.5 (diff) │ vmlinux-5.0.10 (diff) │
 ├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
-│  ROP (full) │              283,902 │       15,759 (5.55%) │           951 (0.33%) │
+│  ROP (full) │              108,380 │        7,351 (6.78%) │           556 (0.51%) │
 ├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
-│  ROP (part) │                    - │     128,884 (45.40%) │      118,304 (41.67%) │
+│  ROP (part) │                    - │      80,783 (74.54%) │       78,053 (72.02%) │
 ├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
-│  JOP (full) │               99,833 │        1,125 (1.13%) │           290 (0.29%) │
+│  JOP (full) │               79,685 │        1,007 (1.26%) │           276 (0.35%) │
 ├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
-│  JOP (part) │                    - │      16,925 (16.95%) │       12,741 (12.76%) │
+│  JOP (part) │                    - │      16,458 (20.65%) │       12,461 (15.64%) │
 ├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
-│  SYS (full) │               11,969 │          478 (3.99%) │           130 (1.09%) │
+│  SYS (full) │                8,276 │          422 (5.10%) │           119 (1.44%) │
 ├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
-│  SYS (part) │                    - │       4,479 (37.42%) │        3,972 (33.19%) │
+│  SYS (part) │                    - │       4,317 (52.16%) │        3,864 (46.69%) │
 └─────────────┴──────────────────────┴──────────────────────┴───────────────────────┘
 ```
 
-In the output table, we see that up to 41.67% of individual ROP gadgets are portable across all three versions (counting partial matches).
+Note these totals exclude low-quality gadgets (use `--all` flag).
+In the output table, we see that up to 72.02% of individual ROP gadgets, and 15.64% of JOP gadgets, are portable across all three versions (counting partial matches).
 
 ### Acknowledgements
 

@@ -1,4 +1,108 @@
+use xgadget::Binary;
+
 mod common;
+
+fn get_reg_sensitive_data_bin<'a>() -> Binary {
+    #[allow(dead_code)]
+    #[rustfmt::skip]
+    const REG_SENSITIVE_TEST_SET: &[u8] = &[
+        0x48, 0x89, 0xd8,                                       // 0x0: mov rax,rbx
+        0xc3,                                                   // 0x3: ret
+        0x48, 0x81, 0xc1, 0xff, 0x00, 0x00, 0x00,               // 0x4: add rcx,0xff
+        0xc3,                                                   // 0xb: ret
+        0x48, 0x39, 0xc8,                                       // 0xc: cmp rax,rcx
+        0xc3,                                                   // 0xf: ret
+    ];
+
+    Binary::from_bytes("reg_sensitive", &REG_SENSITIVE_TEST_SET).unwrap()
+}
+
+#[test]
+fn test_set_reg_overwrite() {
+    let bins = &[get_reg_sensitive_data_bin()];
+
+    let gadgets =
+        xgadget::find_gadgets(bins, common::MAX_LEN, xgadget::SearchConfig::default()).unwrap();
+
+    let mov_rax_gadget = gadgets
+        .iter()
+        .filter(|g| g.full_matches().contains(&0x0))
+        .collect::<Vec<_>>();
+
+    assert!(mov_rax_gadget.len() == 1);
+    let mov_rax_gadget = mov_rax_gadget.first().unwrap();
+
+    let analysis = xgadget::GadgetAnalysis::new(&mov_rax_gadget);
+    assert!(analysis.regs_overwritten().len() == 1);
+    assert!(analysis
+        .regs_overwritten()
+        .contains(&iced_x86::Register::RAX));
+    assert!(!analysis
+        .regs_overwritten()
+        .contains(&iced_x86::Register::RBX));
+
+    assert!(analysis.regs_read().contains(&iced_x86::Register::RBX));
+    assert!(!analysis.regs_read().contains(&iced_x86::Register::RAX));
+}
+
+#[test]
+fn test_set_reg_read() {
+    let bins = &[get_reg_sensitive_data_bin()];
+
+    let gadgets =
+        xgadget::find_gadgets(bins, common::MAX_LEN, xgadget::SearchConfig::default()).unwrap();
+
+    let cmp_rax_rcx_gadget = gadgets
+        .iter()
+        .filter(|g| g.full_matches().contains(&0xc))
+        .collect::<Vec<_>>();
+
+    assert!(cmp_rax_rcx_gadget.len() == 1);
+    let cmp_rax_rcx = cmp_rax_rcx_gadget.first().unwrap();
+
+    let analysis = xgadget::GadgetAnalysis::new(&cmp_rax_rcx);
+    assert!(analysis.regs_read().len() == 3); // TODO: why RSP?
+
+    assert!(analysis.regs_read().contains(&iced_x86::Register::RAX));
+    assert!(analysis.regs_read().contains(&iced_x86::Register::RCX));
+
+    assert!(!analysis.regs_updated().contains(&iced_x86::Register::RAX));
+    assert!(!analysis.regs_updated().contains(&iced_x86::Register::RCX));
+
+    assert!(!analysis
+        .regs_overwritten()
+        .contains(&iced_x86::Register::RAX));
+    assert!(!analysis
+        .regs_overwritten()
+        .contains(&iced_x86::Register::RCX));
+}
+
+#[test]
+fn test_set_reg_update() {
+    let bins = &[get_reg_sensitive_data_bin()];
+
+    let gadgets =
+        xgadget::find_gadgets(bins, common::MAX_LEN, xgadget::SearchConfig::default()).unwrap();
+
+    let add_rcx_0xff = gadgets
+        .iter()
+        .filter(|g| g.full_matches().contains(&0x4))
+        .collect::<Vec<_>>();
+
+    assert!(add_rcx_0xff.len() == 1);
+    let add_rcx_0xff = add_rcx_0xff.first().unwrap();
+
+    let analysis = xgadget::GadgetAnalysis::new(&add_rcx_0xff);
+
+    assert!(analysis.regs_updated().len() == 2); // TODO: RSP?
+    assert!(analysis.regs_updated().contains(&iced_x86::Register::RCX));
+
+    assert!(analysis.regs_read().contains(&iced_x86::Register::RCX));
+
+    assert!(!analysis
+        .regs_overwritten()
+        .contains(&iced_x86::Register::RCX));
+}
 
 #[test]
 fn test_regs_deref() {
