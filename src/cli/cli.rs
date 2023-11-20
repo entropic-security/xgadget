@@ -20,7 +20,7 @@ enum SummaryItemType {
     Separator,
 }
 
-// TODO: at the UI level, can these be broken up into sub-categories for comprehension?
+// TODO: at the UI level, break these up into sub-categories for comprehension?
 // https://docs.rs/clap/latest/clap/struct.ArgGroup.html
 
 #[derive(Parser, Debug)]

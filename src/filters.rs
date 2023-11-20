@@ -3,8 +3,7 @@
 use rayon::prelude::*;
 use rustc_hash::FxHashSet as HashSet;
 
-use crate::semantics;
-use crate::Gadget;
+use crate::{get_reg_family, semantics, Gadget};
 
 /// Parallel filter to gadgets that write the stack pointer
 pub fn filter_stack_pivot<'a, P>(gadgets: P) -> P
@@ -181,13 +180,16 @@ where
                 .chain(analysis.regs_updated().into_iter())
                 .collect::<HashSet<iced_x86::Register>>();
 
-            // TODO: cargo run --features cli-bin -- /usr/bin/sudo --reg-no-write rax
-            if g.full_matches.contains(&0x000000000178da) {
-                dbg!(&regs_written);
-            }
-
             match opt_regs {
-                Some(regs) => regs.iter().all(|r| !regs_written.contains(r)),
+                Some(regs) => {
+                    let regs = regs
+                        .iter()
+                        .map(|r| get_reg_family(r))
+                        .flatten()
+                        .collect::<Vec<_>>();
+
+                    regs.iter().all(|r| !regs_written.contains(r))
+                }
                 None => regs_written.is_empty(),
             }
         })
@@ -223,7 +225,15 @@ where
         .filter(|g| {
             let regs_read = g.analysis().regs_read();
             match opt_regs {
-                Some(regs) => regs.iter().all(|r| !regs_read.contains(r)),
+                Some(regs) => {
+                    let regs = regs
+                        .iter()
+                        .map(|r| get_reg_family(r))
+                        .flatten()
+                        .collect::<Vec<_>>();
+
+                    regs.iter().all(|r| !regs_read.contains(r))
+                }
                 None => regs_read.is_empty(),
             }
         })

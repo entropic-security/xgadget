@@ -106,6 +106,18 @@ impl GadgetAnalysis {
                 )
             })
             .map(|ur| ur.register())
+            .chain(
+                self.used_mem()
+                    .filter(|um| um.base() != iced_x86::Register::None)
+                    .map(|um| um.base())
+                    .into_iter(),
+            )
+            .chain(
+                self.used_mem()
+                    .filter(|um| um.index() != iced_x86::Register::None)
+                    .map(|um| um.index())
+                    .into_iter(),
+            )
             .collect()
     }
 

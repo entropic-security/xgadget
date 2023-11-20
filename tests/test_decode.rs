@@ -28,6 +28,20 @@ fn test_xor_eax_const() {
 }
 
 #[test]
+fn test_xor_eax_eax() {
+    let xor_eax_eax: [u8; 3] = [0x31, 0xC0, 0xC3];
+    let instr = common::decode_single_x64_instr(0, &xor_eax_eax);
+    let mut info_factory = iced_x86::InstructionInfoFactory::new();
+    let used_regs = info_factory.info(&instr).used_registers();
+
+    dbg_print_instr(&instr);
+    assert!(used_regs
+        .iter()
+        .any(|ur| *ur
+            == iced_x86::UsedRegister::new(iced_x86::Register::RAX, iced_x86::OpAccess::Write)));
+}
+
+#[test]
 fn test_xor_al_ch() {
     let xor_al_ch: [u8; 5] = [0x30, 0xE8, 0xC2, 0x06, 0xFF];
     let instr = common::decode_single_x64_instr(0, &xor_al_ch);
@@ -35,6 +49,9 @@ fn test_xor_al_ch() {
     let _used_regs = info_factory.info(&instr).used_registers();
 
     dbg_print_instr(&instr);
+
+    // TODO: for filters, introduce sub-register concept
+
     /*
     TODO: upstream inconsistency?
     assert!(used_regs
