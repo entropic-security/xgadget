@@ -239,3 +239,22 @@ fn test_gadget_hasher() {
     assert!(g_set_intersect.contains(&g1));
     assert!(!g_set_intersect.contains(&g2));
 }
+
+#[test]
+fn test_ip_read() {
+    let mov_rax_ip_offset: [u8; 7] = [0x48, 0x8B, 0x05, 0xA6, 0x33, 0x02, 0x00];
+    let instr = common::decode_single_x64_instr(0, &mov_rax_ip_offset);
+    let mut info_factory = iced_x86::InstructionInfoFactory::new();
+
+    println!("\nInstruction: {:#x?}", instr);
+    println!(
+        "\nUsed Registers: {:#x?}",
+        info_factory.info(&instr).used_registers()
+    );
+    println!(
+        "\nUsed Memory: {:#x?}",
+        info_factory.info(&instr).used_memory()
+    );
+
+    assert_eq!(instr.memory_base(), iced_x86::Register::RIP)
+}

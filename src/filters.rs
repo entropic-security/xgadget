@@ -14,7 +14,7 @@ where
     gadgets
         .into_par_iter()
         .filter(|g| {
-            let regs_overwritten = g.analysis().regs_overwritten();
+            let regs_overwritten = g.analysis().regs_overwritten(true);
             if regs_overwritten.contains(&iced_x86::Register::RSP)
                 || regs_overwritten.contains(&iced_x86::Register::ESP)
                 || regs_overwritten.contains(&iced_x86::Register::SP)
@@ -132,7 +132,7 @@ where
     gadgets
         .into_par_iter()
         .filter(|g| {
-            let regs_overwritten = g.analysis().regs_overwritten();
+            let regs_overwritten = g.analysis().regs_overwritten(false);
             match opt_regs {
                 Some(regs) => regs.iter().all(|r| regs_overwritten.contains(r)),
                 None => !regs_overwritten.is_empty(),
@@ -152,7 +152,7 @@ where
         .filter(|g| {
             let analysis = g.analysis();
             let regs_written = analysis
-                .regs_overwritten()
+                .regs_overwritten(true)
                 .into_iter()
                 .chain(analysis.regs_updated().into_iter())
                 .collect::<HashSet<iced_x86::Register>>();
@@ -176,10 +176,15 @@ where
         .filter(|g| {
             let analysis = g.analysis();
             let regs_written = analysis
-                .regs_overwritten()
+                .regs_overwritten(true)
                 .into_iter()
                 .chain(analysis.regs_updated().into_iter())
                 .collect::<HashSet<iced_x86::Register>>();
+
+            // TODO: cargo run --features cli-bin -- /usr/bin/sudo --reg-no-write rax
+            if g.full_matches.contains(&0x000000000178da) {
+                dbg!(&regs_written);
+            }
 
             match opt_regs {
                 Some(regs) => regs.iter().all(|r| !regs_written.contains(r)),

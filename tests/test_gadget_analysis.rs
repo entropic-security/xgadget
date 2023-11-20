@@ -33,12 +33,12 @@ fn test_set_reg_overwrite() {
     let mov_rax_gadget = mov_rax_gadget.first().unwrap();
 
     let analysis = mov_rax_gadget.analysis();
-    assert!(analysis.regs_overwritten().len() == 1);
+    assert!(analysis.regs_overwritten(true).len() == 1);
     assert!(analysis
-        .regs_overwritten()
+        .regs_overwritten(true)
         .contains(&iced_x86::Register::RAX));
     assert!(!analysis
-        .regs_overwritten()
+        .regs_overwritten(true)
         .contains(&iced_x86::Register::RBX));
 
     assert!(analysis.regs_read().contains(&iced_x86::Register::RBX));
@@ -70,10 +70,10 @@ fn test_set_reg_read() {
     assert!(!analysis.regs_updated().contains(&iced_x86::Register::RCX));
 
     assert!(!analysis
-        .regs_overwritten()
+        .regs_overwritten(true)
         .contains(&iced_x86::Register::RAX));
     assert!(!analysis
-        .regs_overwritten()
+        .regs_overwritten(true)
         .contains(&iced_x86::Register::RCX));
 }
 
@@ -100,7 +100,7 @@ fn test_set_reg_update() {
     assert!(analysis.regs_read().contains(&iced_x86::Register::RCX));
 
     assert!(!analysis
-        .regs_overwritten()
+        .regs_overwritten(true)
         .contains(&iced_x86::Register::RCX));
 }
 
@@ -176,9 +176,9 @@ fn test_regs_overwritten() {
 
     let analysis = gadgets[0].analysis();
 
-    assert!(analysis.regs_overwritten().len() == 1);
+    assert!(analysis.regs_overwritten(true).len() == 1);
     assert!(analysis
-        .regs_overwritten()
+        .regs_overwritten(true)
         .contains(&iced_x86::Register::RAX));
 }
 

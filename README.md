@@ -57,6 +57,10 @@ To the best of our knowledge, `xgadget` is the first gadget search tool to be:
 
     * `--reg-overwrite [<OPT_REG(S)>...]` - filter to gadgets that control any reg (no args) or specific regs (flag args)
 
+    * `--reg-no-write [<OPT_REG(S)>...]` - filter to gadgets that don't write any reg (no args) or specific regs (flag args)
+
+    * `--reg-read [<OPT_REG(S)>...]` - filter to gadgets that read any regs (no args) or specific regs (flag args)
+
     * `--reg-no-read [<OPT_REG(S)>...]` - filter to gadgets that don't read any regs (no args) or specific regs (flag args)
 
 * **JOP-efficient**: JOP search uses instruction semantics - not hardcoded regex for individual encodings
@@ -178,7 +182,7 @@ where
     gadgets
         .into_par_iter()
         .filter(|g| {
-            let regs_overwritten = g.analysis().regs_overwritten();
+            let regs_overwritten = g.analysis().regs_overwritten(true);
             if regs_overwritten.contains(&iced_x86::Register::RSP)
                 || regs_overwritten.contains(&iced_x86::Register::ESP)
                 || regs_overwritten.contains(&iced_x86::Register::SP)

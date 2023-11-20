@@ -368,7 +368,7 @@ impl fmt::Display for CLIOpts {
                         // Note: leak on rare case to avoid alloc on common case
                         search_mode.push(Box::leak(format!(
                             "Reg-no-write-{{{}}}",
-                            self.reg_overwrite.iter()
+                            self.reg_no_write.iter()
                                 .map(|r| r.to_lowercase())
                                 .collect::<Vec<_>>()
                                 .join(&comma_sep)
@@ -382,7 +382,7 @@ impl fmt::Display for CLIOpts {
                         // Note: leak on rare case to avoid alloc on common case
                         search_mode.push(Box::leak(format!(
                             "Reg-read-{{{}}}",
-                            self.reg_no_read.iter()
+                            self.reg_read.iter()
                                 .map(|r| r.to_lowercase())
                                 .collect::<Vec<_>>()
                                 .join(&comma_sep)
