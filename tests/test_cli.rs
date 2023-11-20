@@ -886,7 +886,7 @@ fn test_readme_5() {
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat") // http may not be installed
-            .arg("--imports")
+            .arg("--symbols")
             .output()
             .unwrap()
             .stdout,

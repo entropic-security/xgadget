@@ -130,10 +130,10 @@ xgadget /usr/bin/sudo --rop --reg-overwrite rdi --reg-no-read rsi rdx --bad-byte
 xgadget /usr/bin/sudo /usr/sbin/lighttpd --check-sec
 ```
 
-* **Example:** List imported symbols for `lighttpd`:
+* **Example:** List imported and internal symbols for `lighttpd`:
 
 ```bash
-xgadget /usr/sbin/lighttpd --imports
+xgadget /usr/sbin/lighttpd --symbols
 ```
 
 ### API Usage

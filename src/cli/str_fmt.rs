@@ -211,10 +211,10 @@ gen_help_str!(
         "Compute Fast Exploit Similarity Score (FESS) table for 2+ binaries",
     ),
     (
-        HELP_IMPORTS,
+        HELP_SYMBOLS,
         false,
         false,
-        "List imported symbols in 1+ binaries",
+        "List imported and internal symbols in 1+ binaries",
     ),
 );
 

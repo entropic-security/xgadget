@@ -8,7 +8,7 @@ use rayon::prelude::*;
 use rustc_hash::FxHashSet as HashSet;
 
 use super::checksec_fmt::CustomCheckSecResults;
-use super::imports;
+use super::symbols;
 
 use crate::str_fmt::*;
 
@@ -112,7 +112,7 @@ pub(crate) struct CLIOpts {
     #[arg(help = HELP_CHECKSEC.as_str(), short, long, conflicts_with_all = &[
         "arch", "att", "extended_fmt", "max_len",
         "rop", "jop", "sys", "partial_match",
-        "stack_pivot", "dispatcher", "reg_pop", "usr_regex", "fess", "imports"
+        "stack_pivot", "dispatcher", "reg_pop", "usr_regex", "fess", "symbols"
     ])]
     pub(crate) check_sec: bool,
 
@@ -120,16 +120,16 @@ pub(crate) struct CLIOpts {
     #[arg(help = HELP_FESS.as_str(), long, conflicts_with_all = &[
         "arch", "att", "extended_fmt", "max_len",
         "rop", "jop", "sys", "partial_match",
-        "stack_pivot", "dispatcher", "reg_pop", "usr_regex", "check_sec", "imports"
+        "stack_pivot", "dispatcher", "reg_pop", "usr_regex", "check_sec", "symbols"
     ])]
     pub(crate) fess: bool,
 
-    #[arg(help = HELP_IMPORTS.as_str(), long, conflicts_with_all = &[
+    #[arg(help = HELP_SYMBOLS.as_str(), long, conflicts_with_all = &[
         "arch", "att", "extended_fmt", "max_len",
         "rop", "jop", "sys", "partial_match",
         "stack_pivot", "dispatcher", "reg_pop", "usr_regex", "check_sec", "fess"
     ])]
-    pub(crate) imports: bool,
+    pub(crate) symbols: bool,
 }
 
 impl CLIOpts {
@@ -228,7 +228,7 @@ impl CLIOpts {
     }
 
     // Helper for printing imports from requested binaries
-    pub(crate) fn run_imports(&self, bins: &[xgadget::Binary]) {
+    pub(crate) fn run_symbols(&self, bins: &[xgadget::Binary]) {
         for (idx, path) in self.bin_paths.iter().enumerate() {
             println!("\nTARGET {} - {} \n", format!("{}", idx).red(), bins[idx]);
 
@@ -237,13 +237,13 @@ impl CLIOpts {
             let buf = fs::read(path).unwrap();
             match Object::parse(&buf).unwrap() {
                 // TODO: update imports to remove no-color
-                Object::Elf(elf) => imports::dump_elf_imports(&elf),
-                Object::PE(pe) => imports::dump_pe_imports(&pe),
+                Object::Elf(elf) => symbols::dump_elf_imports(&elf),
+                Object::PE(pe) => symbols::dump_pe_imports(&pe),
                 Object::Mach(mach) => match mach {
-                    goblin::mach::Mach::Binary(macho) => imports::dump_macho_imports(&macho),
+                    goblin::mach::Mach::Binary(macho) => symbols::dump_macho_imports(&macho),
                     goblin::mach::Mach::Fat(fat) => {
                         let macho = xgadget::get_supported_macho(&fat).unwrap();
-                        imports::dump_macho_imports(&macho)
+                        symbols::dump_macho_imports(&macho)
                     }
                 },
                 _ => panic!("Only ELF, PE, and Mach-O binaries currently supported!"),

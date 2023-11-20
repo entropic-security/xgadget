@@ -19,7 +19,7 @@ use cli::{
 
 mod checksec_fmt;
 
-mod imports;
+mod symbols;
 
 // Driver --------------------------------------------------------------------------------------------------------------
 
@@ -52,8 +52,8 @@ fn main() -> Result<()> {
 
     // Imports requested -----------------------------------------------------------------------------------------------
 
-    if cli.imports {
-        cli.run_imports(&bins);
+    if cli.symbols {
+        cli.run_symbols(&bins);
         std::process::exit(0);
     }
 
