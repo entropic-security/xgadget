@@ -157,6 +157,12 @@ gen_help_str!(
         "Filter to 'pop {reg} * 1+, {ret or ctrl-ed jmp/call}' gadgets (otherwise: all)",
     ),
     (
+        HELP_REG_ONLY,
+        false,
+        false,
+        "Filter to gadgets with all-register operands, no constants (otherwise: all)",
+    ),
+    (
         HELP_REG_OVERWRITE,
         false,
         false,

@@ -36,6 +36,7 @@ pub static X64_MACHO_PARAM_REGS: &[iced_x86::Register] = &[
 // TODO: shouldn't be necessary, see `test_xor_al_ch`
 pub(crate) fn get_reg_family(reg: &iced_x86::Register) -> impl Iterator<Item = iced_x86::Register> {
     use iced_x86::Register as Reg;
+    // See: https://upload.wikimedia.org/wikipedia/commons/3/3e/X86_64-registers.svg
     match reg {
         // RAX family
         Reg::RAX => vec![Reg::RAX, Reg::EAX, Reg::AX, Reg::AH, Reg::AL].into_iter(),
@@ -62,8 +63,8 @@ pub(crate) fn get_reg_family(reg: &iced_x86::Register) -> impl Iterator<Item = i
         Reg::EBP => vec![Reg::EBP, Reg::BP, Reg::BPL].into_iter(),
         Reg::BP => vec![Reg::BP, Reg::BPL].into_iter(),
 
-        // RSL?
-        // RDL?
+        // TODO: RSL?
+        // TODO: RDL?
 
         // RSP family
         Reg::RSP => vec![Reg::RSP, Reg::ESP, Reg::SP, Reg::SPL].into_iter(),

@@ -94,6 +94,10 @@ fn main() -> Result<()> {
         gadgets = xgadget::filter_reg_pop_only(gadgets);
     }
 
+    if cli.reg_only {
+        gadgets = xgadget::filter_reg_only(gadgets);
+    }
+
     if is_env_resident(&[REG_OVERWRITE_FLAG]) {
         let regs = cli
             .reg_overwrite

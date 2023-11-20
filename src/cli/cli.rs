@@ -88,6 +88,9 @@ pub(crate) struct CLIOpts {
     #[arg(help = HELP_REG_POP.as_str(), long, conflicts_with = "dispatcher")]
     pub(crate) reg_pop: bool,
 
+    #[arg(help = HELP_REG_ONLY.as_str(), long)]
+    pub(crate) reg_only: bool,
+
     #[arg(help = HELP_REG_OVERWRITE.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
     pub(crate) reg_overwrite: Vec<String>,
 
@@ -345,6 +348,9 @@ impl fmt::Display for CLIOpts {
                 };
                 if self.reg_pop {
                     search_mode.push("Reg-pop");
+                };
+                if self.reg_only {
+                    search_mode.push("Reg-only");
                 };
                 if self.param_ctrl {
                     search_mode.push("Param-ctrl");

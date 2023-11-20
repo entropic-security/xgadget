@@ -61,8 +61,6 @@ pub fn is_gadget_body(instr: &iced_x86::Instruction, all: bool) -> bool {
     !is_gadget_tail(instr)
 }
 
-// TODO: should these be made private? Which should be removed entirely? What about trait impls for public APIs?
-
 // General Instruction Categorization ----------------------------------------------------------------------------------
 
 /// Check if call instruction with register-controlled target

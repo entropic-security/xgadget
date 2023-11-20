@@ -85,6 +85,22 @@ where
         .collect()
 }
 
+/// Parallel filter to gadgets with only register operands (no constants)
+pub fn filter_reg_only<'a, P>(gadgets: P) -> P
+where
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
+{
+    gadgets
+        .into_par_iter()
+        .filter(|g| {
+            g.analysis().used_mem().all(|um| um.displacement() == 0x0)
+                && g.instrs
+                    .iter()
+                    .all(|instr| semantics::is_reg_ops_only(instr))
+        })
+        .collect()
+}
+
 /// Parallel filter to gadgets that write parameter registers or stack push any register
 pub fn filter_set_params<'a, P>(gadgets: P, param_regs: &[iced_x86::Register]) -> P
 where
