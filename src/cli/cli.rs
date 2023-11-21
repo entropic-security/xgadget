@@ -7,9 +7,7 @@ use num_format::{Locale, ToFormattedString};
 use rayon::prelude::*;
 use rustc_hash::FxHashSet as HashSet;
 
-use super::checksec_fmt::CustomCheckSecResults;
-use super::symbols;
-
+use super::{checksec_fmt::CustomCheckSecResults, symbols};
 use crate::str_fmt::*;
 
 // Arg parse -----------------------------------------------------------------------------------------------------------

@@ -2,9 +2,7 @@
 
 use rustc_hash::FxHashSet as HashSet;
 
-use crate::binary;
-use crate::gadget;
-use crate::semantics;
+use crate::{binary, gadget, semantics};
 
 #[cfg(feature = "cli-bin")]
 use crate::Error;

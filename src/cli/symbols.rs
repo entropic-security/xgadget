@@ -1,5 +1,6 @@
-use colored::Colorize;
 use std::{cmp, fmt};
+
+use colored::Colorize;
 
 #[derive(Default, Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
 struct Import {

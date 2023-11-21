@@ -1,13 +1,13 @@
-use core::marker::Send;
-use std::cmp::Ordering;
-use std::collections::{BTreeMap, BTreeSet};
-use std::hash::{Hash, Hasher};
-use std::sync::OnceLock;
+use core::{cmp::Ordering, marker::Send};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    hash::{Hash, Hasher},
+    sync::OnceLock,
+};
 
 use iced_x86::FormatterOutput;
 
-use super::fmt;
-use super::fmt::DisplayLen;
+use super::{fmt, fmt::DisplayLen};
 use crate::{binary, GadgetAnalysis};
 
 // TODO: implement Ord for binary, use BTReeSet instead of Vector to maintain sorted order on insertion

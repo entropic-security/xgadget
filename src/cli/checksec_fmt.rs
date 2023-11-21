@@ -1,4 +1,5 @@
 //! This module provides a multi-line, optional-color alternative to checksec's single line print.
+
 use std::fmt;
 
 use checksec::{colorize_bool, elf, macho, pe};

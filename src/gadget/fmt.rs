@@ -1,6 +1,4 @@
-use std::collections::BTreeMap;
-use std::fmt::Display;
-use std::hash::Hasher;
+use std::{collections::BTreeMap, fmt::Display, hash::Hasher};
 
 use colored::Colorize;
 use rayon::prelude::*;

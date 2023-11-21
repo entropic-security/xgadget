@@ -1,14 +1,12 @@
-use std::fmt;
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::{
+    fmt, fs,
+    path::{Path, PathBuf},
+};
 
 use colored::Colorize;
 use rustc_hash::FxHashSet as HashSet;
 
-use super::arch::Arch;
-use super::consts::*;
-use super::file_format::Format;
-use super::segment::Segment;
+use super::{arch::Arch, consts::*, file_format::Format, segment::Segment};
 use crate::error::Error;
 
 // Binary --------------------------------------------------------------------------------------------------------------
