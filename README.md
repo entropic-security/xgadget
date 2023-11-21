@@ -33,7 +33,7 @@ xgadget --help                              # List available command line option
 <i><b>ROP</b> Attack Model (recreated from:<a href="https://www.comp.nus.edu.sg/~liangzk/papers/asiaccs11.pdf"> Bletsch et. al.</a>)</i>
 </p>
 
-* **Jump Oriented Programming (JOP)** is a newer code reuse method which, unlike ROP, doesn't rely on stack control. And thus bypasses hardware-assisted shadow-stack implementations and prototype-insensitive indirect branch checks (e.g. Intel CET). JOP allows storing a table of gadget addresses in any `READ`/`WRITE` memory location. Instead of piggy-backing on call-return semantics to execute a gadget list, a "dispatch" gadget (e.g. `add rax, 8; jmp [rax]`) controls table indexing. Chaining happens if each gadget ends with a `jmp` back to the dispatcher (instead of a `ret`).
+* **Jump Oriented Programming (JOP)** is a newer code reuse method which, unlike ROP, doesn't rely on stack control. The attack *bypasses* hardware-assisted shadow-stack implementations (e.g. Intel CET's shadow stack), and is *limited* but *not prevented* by prototype-insensitive indirect target checks (e.g. Intel CET's IBT). JOP allows storing a table of gadget addresses in any `READ`/`WRITE` memory location. Instead of piggy-backing on call-return semantics to execute a gadget list, a "dispatch" gadget (e.g. `add rax, 8; jmp [rax]`) controls table indexing. Chaining happens if each gadget ends with a `jmp` back to the dispatcher (instead of a `ret`).
 
 <p style="text-align: center;" align="center">
     <img src="https://raw.githubusercontent.com/tnballo/high-assurance-rust/main/src/chp4/exploit_jop_model.svg" width="100%" alt="jop model">
@@ -53,13 +53,17 @@ It's a fast, multi-threaded alternative to awesome tools like [`ROPGadget`](http
 The goal is supporting practical usage while simultaneously exploring unique and experimental features.
 To the best of our knowledge, `xgadget` is the first gadget search tool to be:
 
-* **Register-sensitive:** Finds gadgets based on register usage behavior - not just matches for a given regex
+* **Fast-register-sensitive**: Filters gadgets by register usage behavior, not just matches for a given regex, without SMT solving (more powerful, but often impractical).
 
-    * Use `--reg-ctrl [<OPT_REG(S)>...]` flag for register overwrites
+    * `--reg-overwrite [<OPT_REG(S)>...]` - control any reg (no args) or specific regs (flag args)
 
-    * Use `--no-deref [<OPT_REG(S)>...]` flag for no-deference search
+    * `--reg-no-write [<OPT_REG(S)>...]` - don't write any reg (no args) or specific regs (flag args)
 
-* **JOP-efficient**: JOP search uses instruction semantics - not hardcoded regex for individual encodings
+    * `--reg-read [<OPT_REG(S)>...]` - read any regs (no args) or specific regs (flag args)
+
+    * `--reg-no-read [<OPT_REG(S)>...]` - don't read any regs (no args) or specific regs (flag args)
+
+* **JOP-efficient**: JOP search uses instruction semantics - not hardcoded regex for individual encodings.
 
     * Optionally filter to JOP "dispatcher" gadgets with flag `--dispatcher`
 
@@ -100,11 +104,23 @@ Other features include:
 
 * Supports ELF32, ELF64, PE32, PE32+, Mach-O, and raw files
 * Parallel across available cores, whether searching a single binary or multiple variants
-* Currently 8086/x86/x64 only, uses a speed-optimized, arch-specific disassembler
+* Currently 8086/x86/x64 only (uses a speed-optimized, arch-specific disassembler)
 
 ### CLI Examples
 
-Run `xgadget --help` to enumerate available commands.
+Run `xgadget --help` to enumerate available options.
+
+* **Example:** Search `/usr/bin/sudo` for reliable ways to control `rdi`:
+
+```bash
+xgadget /usr/bin/sudo --reg-only --reg-overwrite rdi
+```
+
+* **Example:** Search for ROP gadgets that control the value of `rdi`, never read `rsi` or `rdx`, and occur at addresses that don't contain bytes `0x32` or `0x0d`:
+
+```bash
+xgadget /usr/bin/sudo --rop --reg-overwrite rdi --reg-no-read rsi rdx --bad-bytes 0x32 0x0d
+```
 
 * **Example:** Search `/usr/bin/sudo` for "pop, pop, {jmp,call}" gadgets up to 10 instructions long, print results using AT&T syntax:
 
@@ -118,22 +134,16 @@ xgadget /usr/bin/sudo --jop --reg-pop --att --max-len 10
 xgadget /usr/bin/sudo --regex-filter "^(?:pop)(?:.*(?:pop))*.*(?:call|jmp)" --att --max-len 10
 ```
 
-* **Example:** Search for ROP gadgets that control the value of `rdi`, never dereference `rsi` or `rdx`, and occur at addresses that don't contain bytes `0x32` or `0x0d`:
-
-```bash
-xgadget /usr/bin/sudo --rop --reg-ctrl rdi --no-deref rsi rdx --bad-bytes 0x32 0x0d
-```
-
 * **Example:** Examine the exploit mitigations binaries `sudo` and `lighttpd` have been compiled with:
 
 ```bash
 xgadget /usr/bin/sudo /usr/sbin/lighttpd --check-sec
 ```
 
-* **Example:** List imported symbols for `lighttpd`:
+* **Example:** List imported and internal symbols for `lighttpd`:
 
 ```bash
-xgadget /usr/sbin/lighttpd --imports
+xgadget /usr/sbin/lighttpd --symbols
 ```
 
 ### API Usage
@@ -178,7 +188,7 @@ where
     gadgets
         .into_par_iter()
         .filter(|g| {
-            let regs_overwritten = GadgetAnalysis::new(g).regs_overwritten();
+            let regs_overwritten = g.analysis().regs_overwritten(true);
             if regs_overwritten.contains(&iced_x86::Register::RSP)
                 || regs_overwritten.contains(&iced_x86::Register::ESP)
                 || regs_overwritten.contains(&iced_x86::Register::SP)
@@ -250,28 +260,29 @@ To view similarity scores for kernel versions `5.0.1`, `5.0.5`, and `5.0.10` wit
 ```bash
 root@container# cd ./benches/kernels/
 root@container# xgadget vmlinux-5.0.1 vmlinux-5.0.5 vmlinux-5.0.10 --fess
-TARGET 0 - 'vmlinux-5.0.1': ELF-X64, 0x00000001000000 entry, 21065728/2 exec bytes/segments
-TARGET 1 - 'vmlinux-5.0.5': ELF-X64, 0x00000001000000 entry, 21069824/2 exec bytes/segments
-TARGET 2 - 'vmlinux-5.0.10': ELF-X64, 0x00000001000000 entry, 21069824/2 exec bytes/segments
+TARGET 0 - [ name: 'vmlinux-5.0.1' | fmt-arch: ELF-X64 | entry: 0x00000001000000 | exec bytes/segments: 21,065,728/2 ]
+TARGET 1 - [ name: 'vmlinux-5.0.5' | fmt-arch: ELF-X64 | entry: 0x00000001000000 | exec bytes/segments: 21,069,824/2 ]
+TARGET 2 - [ name: 'vmlinux-5.0.10' | fmt-arch: ELF-X64 | entry: 0x00000001000000 | exec bytes/segments: 21,069,824/2 ]
 
 ┌─────────────┬──────────────────────┬──────────────────────┬───────────────────────┐
 │ Gadget Type │ vmlinux-5.0.1 (base) │ vmlinux-5.0.5 (diff) │ vmlinux-5.0.10 (diff) │
 ├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
-│  ROP (full) │              175,739 │       11,124 (6.33%) │           699 (0.40%) │
+│  ROP (full) │              108,380 │        7,351 (6.78%) │           556 (0.51%) │
 ├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
-│  ROP (part) │                    - │      85,717 (48.78%) │       79,367 (45.16%) │
+│  ROP (part) │                    - │      80,783 (74.54%) │       78,053 (72.02%) │
 ├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
-│  JOP (full) │               97,239 │        1,093 (1.12%) │           277 (0.28%) │
+│  JOP (full) │               79,685 │        1,007 (1.26%) │           276 (0.35%) │
 ├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
-│  JOP (part) │                    - │      16,792 (17.27%) │       12,635 (12.99%) │
+│  JOP (part) │                    - │      16,458 (20.65%) │       12,461 (15.64%) │
 ├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
-│  SYS (full) │                   81 │          20 (24.69%) │           20 (24.69%) │
+│  SYS (full) │                8,276 │          422 (5.10%) │           119 (1.44%) │
 ├─────────────┼──────────────────────┼──────────────────────┼───────────────────────┤
-│  SYS (part) │                    - │          59 (72.84%) │           58 (71.60%) │
+│  SYS (part) │                    - │       4,317 (52.16%) │        3,864 (46.69%) │
 └─────────────┴──────────────────────┴──────────────────────┴───────────────────────┘
 ```
 
-In the output table, we see that up to 45.16% of individual ROP gadgets are portable across all three versions (counting partial matches).
+Note these totals exclude low-quality gadgets (use `--all` flag to include).
+In the output table, we see that up to 72.02% of individual ROP gadgets, and 15.64% of JOP gadgets, are portable across all three versions (counting partial matches).
 
 ### Acknowledgements
 

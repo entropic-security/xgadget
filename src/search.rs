@@ -3,14 +3,11 @@ use std::collections::BTreeSet;
 use rayon::prelude::*;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use crate::binary;
-use crate::error::Error;
-use crate::fess::FESSColumn;
-use crate::gadget;
-use crate::semantics;
+use crate::{binary, error::Error, fess::FESSColumn, gadget, semantics};
 
+// TODO: add to semantics backend trait?
 /// Max instruction size in bytes
-pub const X86_MAX_INSTR_BYTE_CNT: usize = 15;
+pub(crate) const X86_MAX_INSTR_BYTE_CNT: usize = 15;
 
 // Search Flags --------------------------------------------------------------------------------------------------------
 
@@ -24,12 +21,10 @@ bitflags! {
         const JOP   = 0b0000_0010;
         /// Include SYSCALL gadgets in search
         const SYS   = 0b0000_0100;
-        /// Include ROP gadgets in search
+        /// Include partial (same gadget, different address) cross-variant matches
         const PART  = 0b0000_1000;
-        /// Include ROP gadgets with '{ret, ret far} imm16' (e.g. add to stack ptr) tails
-        const IMM16 = 0b0001_0000;
-        /// Include JOP gadgets containing a non-tail call
-        const CALL  = 0b0010_0000;
+        /// Include low-quality gadgets (containing branches, calls, interrupts, etc)
+        const ALL   = 0b0001_0000;
     }
 }
 
@@ -78,7 +73,7 @@ pub(crate) fn find_gadgets_multi_bin<'a>(
         Some((first_result, remaining_results)) => {
             let (first_bin, first_set) = first_result;
             let mut common_gadgets = first_set.clone();
-            let base_count = FESSColumn::get_totals(first_bin, &common_gadgets);
+            let base_count = FESSColumn::get_totals(&common_gadgets);
 
             // Compute 1st FESS table column
             if let Some(&mut ref mut fess) = fess_tbl {
@@ -86,7 +81,7 @@ pub(crate) fn find_gadgets_multi_bin<'a>(
             }
 
             for (idx, (next_bin, next_set)) in remaining_results.iter().enumerate() {
-                // Filter common gadgets (set intersection)
+                // Filter common gadgets (set intersection, in-place)
                 common_gadgets.retain(|g| next_set.contains(g));
 
                 // Update full and partial matches
@@ -102,7 +97,7 @@ pub(crate) fn find_gadgets_multi_bin<'a>(
                                     .copied()
                                     .collect();
 
-                                // Short-circuit if no full matches and partial collector if not requested
+                                // Short-circuit - no full matches and partial collector wasn't requested
                                 if (!s_config.intersects(SearchConfig::PART))
                                     && full_matches.is_empty()
                                 {
@@ -123,19 +118,19 @@ pub(crate) fn find_gadgets_multi_bin<'a>(
                                     }
 
                                     for addr in &next_set_g.full_matches {
-                                        match updated_g.partial_matches.get_mut(addr) {
-                                            Some(bin_ref_vec) => bin_ref_vec.push(*next_bin),
-                                            None => {
-                                                updated_g
-                                                    .partial_matches
-                                                    .insert(*addr, vec![next_bin]);
-                                            }
-                                        }
+                                        updated_g
+                                            .partial_matches
+                                            .entry(*addr)
+                                            .and_modify(|bin_ref_vec| {
+                                                bin_ref_vec.push(*next_bin);
+                                            })
+                                            .or_insert(vec![next_bin]);
                                     }
                                 }
 
                                 Some(updated_g)
                             }
+                            // SAFETY: set intersection, entry to this loop
                             None => unreachable!(),
                         }
                     })
@@ -160,76 +155,83 @@ pub(crate) fn find_gadgets_multi_bin<'a>(
 
 // Private API ---------------------------------------------------------------------------------------------------------
 
-#[derive(Debug)]
-struct DecodeConfig<'a> {
-    bin: &'a binary::Binary,
-    seg: &'a binary::Segment,
-    s_config: SearchConfig,
-    stop_idx: usize,
-    flow_op_idx: usize,
-    max_len: usize,
+// Valid gadget decoded
+struct GadgetFound {
+    start_addr: u64,
+    instrs: Vec<iced_x86::Instruction>,
 }
 
-impl<'a> DecodeConfig<'a> {
+#[derive(Debug)]
+struct DisassemblyConfig<'a> {
+    bin: &'a binary::Binary,
+    seg: &'a binary::Segment,
+    search_conf: SearchConfig,
+    decode_opts: u32,
+    stop_idx: usize,
+    flow_op_idx: usize,
+    max_gadget_len: usize,
+}
+
+impl<'a> DisassemblyConfig<'a> {
     // Setup search parameters
     fn new(
         bin: &'a binary::Binary,
         seg: &'a binary::Segment,
-        s_config: SearchConfig,
+        search_conf: SearchConfig,
         flow_op_idx: usize,
-        max_len: usize,
-    ) -> DecodeConfig<'a> {
+        max_gadget_len: usize,
+    ) -> DisassemblyConfig<'a> {
         let mut stop_idx = 0;
 
         // Optional early stop
-        let ret_prefix_size = max_len * X86_MAX_INSTR_BYTE_CNT;
-        if (max_len != 0) && (flow_op_idx > ret_prefix_size) {
+        let ret_prefix_size = max_gadget_len * X86_MAX_INSTR_BYTE_CNT;
+        if (max_gadget_len != 0) && (flow_op_idx > ret_prefix_size) {
             stop_idx = flow_op_idx - ret_prefix_size;
         }
 
-        DecodeConfig {
+        DisassemblyConfig {
             bin,
             seg,
-            s_config,
+            search_conf,
+            decode_opts: Self::get_opts(),
             stop_idx,
             flow_op_idx,
-            max_len,
+            max_gadget_len,
         }
+    }
+
+    // Get decoder options
+    const fn get_opts() -> u32 {
+        iced_x86::DecoderOptions::AMD | iced_x86::DecoderOptions::UDBG
     }
 }
 
 // Get offsets of all potential gadget tails within a segment.
-// Maximizes accuracy by checking every possible instruction in parallel
+// Maximizes accuracy by checking every possible instruction in parallel.
 fn get_gadget_tail_offsets(
     bin: &binary::Binary,
     seg: &binary::Segment,
     s_config: SearchConfig,
 ) -> Vec<usize> {
-    (1..seg.bytes.len())
+    (0..seg.bytes.len())
         .into_par_iter()
         .filter(|offset| {
-            let offset = *offset;
-            let mut decoder = iced_x86::Decoder::new(
+            let instr = iced_x86::Decoder::with_ip(
                 bin.bits(),
-                &seg.bytes[(offset)..],
-                iced_x86::DecoderOptions::NONE,
-            );
-            decoder.set_ip(seg.addr + (offset as u64));
-            let instr = decoder.decode();
+                &seg.bytes[*offset..],
+                seg.addr + (*offset as u64),
+                DisassemblyConfig::get_opts(),
+            )
+            .decode();
 
             // ROP tail
+            // Does more filtering than the `semantics::is_rop_gadget` public API: accept `ret`, reject `ret imm16`
             (s_config.intersects(SearchConfig::ROP)
-                && semantics::is_ret(&instr)
-                && !semantics::is_ret_imm16(&instr))
-
-                // ROP tail changing stack pointer (typically not desirable)
-                || (s_config.intersects(SearchConfig::IMM16)
-                    && semantics::is_ret_imm16(&instr))
+                && semantics::is_ret(&instr, s_config.intersects(SearchConfig::ALL)))
 
                 // JOP tail
                 || (s_config.intersects(SearchConfig::JOP)
                     && semantics::is_jop_gadget_tail(&instr))
-
 
                 // SYS tail
                 || (s_config.intersects(SearchConfig::SYS)
@@ -239,66 +241,56 @@ fn get_gadget_tail_offsets(
 }
 
 /// Iterative search backwards from instance of gadget tail instruction
-fn iterative_decode(d_config: &DecodeConfig) -> Vec<(Vec<iced_x86::Instruction>, u64)> {
-    let mut instr_sequences = Vec::new();
+fn iterative_decode(d_config: &DisassemblyConfig) -> Vec<GadgetFound> {
+    let mut gadgets_found = Vec::new();
+    let all_flag = d_config.search_conf.intersects(SearchConfig::ALL);
 
     for offset in (d_config.stop_idx..=d_config.flow_op_idx).rev() {
         let mut instrs = Vec::new();
         let buf_start_addr = d_config.seg.addr + offset as u64;
         let tail_addr = d_config.seg.addr + d_config.flow_op_idx as u64;
 
-        let mut decoder = iced_x86::Decoder::new(
+        let mut decoder = iced_x86::Decoder::with_ip(
             d_config.bin.bits(),
             &d_config.seg.bytes[offset..],
-            iced_x86::DecoderOptions::NONE,
+            buf_start_addr,
+            d_config.decode_opts,
         );
-        decoder.set_ip(buf_start_addr);
 
-        for i in &mut decoder {
+        for i in decoder.iter() {
             // Early stop if invalid encoding
             if i.code() == iced_x86::Code::INVALID {
                 break;
             }
 
-            // Early decode stop if control flow doesn't reach gadget tail
-            let pc = i.ip();
-            if (pc > tail_addr)
-                || ((pc != tail_addr) && semantics::is_gadget_tail(&i))
-                || (semantics::is_direct_call(&i)
-                    && !d_config.s_config.intersects(SearchConfig::CALL))
-                || (semantics::is_uncond_fixed_jmp(&i))
-                || (semantics::is_int(&i))
+            // Early stop if past tail or undesirable body
+            if (i.ip() > tail_addr)
+                || ((i.ip() != tail_addr) && !semantics::is_gadget_body(&i, all_flag))
             {
                 break;
             }
 
             instrs.push(i);
 
-            // Early decode stop if length limit hit
-            if (d_config.max_len != 0) && (instrs.len() == d_config.max_len) {
+            // Early stop if instr length limit hit
+            if (d_config.max_gadget_len != 0) && (instrs.len() == d_config.max_gadget_len) {
                 break;
             }
         }
 
         // Find gadgets. Awww yisss.
         if let Some(i) = instrs.last() {
-            // ROP
-            // Note: 1 instr gadget (e.g. "ret;") for 16 byte re-alignment of stack pointer (avoid movaps segfault)
-            if (semantics::is_ret(i))
-
-                // JOP
-                || (semantics::is_jop_gadget_tail(i))
-
-                // SYS
-                || (semantics::is_sys_gadget_tail_bin_sensitive(i, d_config.bin))
-            {
+            if semantics::is_gadget_tail(i) {
                 debug_assert!(instrs[0].ip() == buf_start_addr);
-                instr_sequences.push((instrs, buf_start_addr));
+                gadgets_found.push(GadgetFound {
+                    start_addr: buf_start_addr,
+                    instrs,
+                });
             }
         }
     }
 
-    instr_sequences
+    gadgets_found
 }
 
 /// Search a binary for gadgets
@@ -308,30 +300,26 @@ fn find_gadgets_single_bin(
     bin_cnt: usize,
     s_config: SearchConfig,
 ) -> HashSet<gadget::Gadget> {
+    // Map: gadget instr sequence -> gadget occurrence addresses
     let mut gadget_collector: HashMap<Vec<iced_x86::Instruction>, BTreeSet<u64>> =
         HashMap::default();
 
     for seg in bin.segments() {
-        // Search backward for all potential tails (possible duplicates)
-        let parallel_results: Vec<(Vec<iced_x86::Instruction>, u64)> =
-            get_gadget_tail_offsets(bin, seg, s_config)
-                .par_iter()
-                .map(|&offset| DecodeConfig::new(bin, seg, s_config, offset, max_len))
-                .flat_map(|d_config| iterative_decode(&d_config))
-                .collect();
+        // Search backward from every potential tail (duplicate gadgets possible)
+        let parallel_results: Vec<GadgetFound> = get_gadget_tail_offsets(bin, seg, s_config)
+            .par_iter()
+            .map(|&offset| DisassemblyConfig::new(bin, seg, s_config, offset, max_len))
+            .flat_map(|d_config| iterative_decode(&d_config))
+            .collect();
 
         // Running consolidation of parallel results (de-dup instr sequences, aggregate occurrence addrs)
-        for (instrs, addr) in parallel_results {
-            match gadget_collector.get_mut(&instrs) {
-                Some(addrs) => {
-                    addrs.insert(addr);
-                }
-                _ => {
-                    let mut addrs = BTreeSet::new();
-                    addrs.insert(addr);
-                    gadget_collector.insert(instrs, addrs);
-                }
-            }
+        for GadgetFound { start_addr, instrs } in parallel_results {
+            gadget_collector
+                .entry(instrs)
+                .and_modify(|addr_set| {
+                    addr_set.insert(start_addr);
+                })
+                .or_insert(BTreeSet::from([start_addr]));
         }
     }
 

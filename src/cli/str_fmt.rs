@@ -31,6 +31,7 @@ lazy_static! {
             .collect()
     };
 }
+
 lazy_static! {
     pub static ref VERSION_STR: String = format!("v{}", clap::crate_version!());
 }
@@ -126,16 +127,10 @@ gen_help_str!(
         "Search for SYSCALL gadgets only (otherwise ROP, JOP, and SYSCALL)",
     ),
     (
-        HELP_INC_IMM16,
+        HELP_ALL,
         false,
         false,
-        "Include '{ret, ret far} imm16', e.g. add to stack ptr (otherwise don't include)",
-    ),
-    (
-        HELP_CALL,
-        false,
-        false,
-        "Include gadgets containing a call (otherwise don't include)",
+        "Include low-quality gadgets (containing branches, calls, interrupts, etc)",
     ),
     (
         HELP_PARTIAL_MACH,
@@ -162,16 +157,34 @@ gen_help_str!(
         "Filter to 'pop {reg} * 1+, {ret or ctrl-ed jmp/call}' gadgets (otherwise: all)",
     ),
     (
-        HELP_NO_DEREF,
+        HELP_REG_ONLY,
         false,
         false,
-        "Filter to gadgets that don't deref any regs (no args) or specific regs (flag args)",
+        "Filter to gadgets with all-register operands, no constants (otherwise: all)",
     ),
     (
-        HELP_REG_CTRL,
+        HELP_REG_OVERWRITE,
         false,
         false,
         "Filter to gadgets that control any reg (no args) or specific regs (flag args)",
+    ),
+    (
+        HELP_REG_NO_WRITE,
+        false,
+        false,
+        "Filter to gadgets that don't write any reg (no args) or specific regs (flag args)",
+    ),
+    (
+        HELP_REG_READ,
+        false,
+        false,
+        "Filter to gadgets that read any regs (no args) or specific regs (flag args)",
+    ),
+    (
+        HELP_REG_NO_READ,
+        false,
+        false,
+        "Filter to gadgets that don't read any regs (no args) or specific regs (flag args)",
     ),
     (
         HELP_PARAM_CTRL,
@@ -204,10 +217,10 @@ gen_help_str!(
         "Compute Fast Exploit Similarity Score (FESS) table for 2+ binaries",
     ),
     (
-        HELP_IMPORTS,
+        HELP_SYMBOLS,
         false,
         false,
-        "List imported symbols in 1+ binaries",
+        "List imported and internal symbols in 1+ binaries",
     ),
 );
 
@@ -300,8 +313,12 @@ pub fn cli_rule_fmt(help_desc: &str, has_default: bool, fess_entry: bool) -> Str
 #[cfg(test)]
 mod tests {
     use super::*;
-    use xgadget::ICED_X86_REG_TOTAL;
-    use xgadget::ICED_X86_REG_TOTAL_UNIQUE;
+
+    /// Total number of named registers
+    const ICED_X86_REG_TOTAL: usize = 256;
+
+    /// Total number of unique named registers
+    const ICED_X86_REG_TOTAL_UNIQUE: usize = 248;
 
     #[test]
     fn test_reg_strs() {

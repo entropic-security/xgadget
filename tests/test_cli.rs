@@ -79,19 +79,19 @@ fn test_conflicting_flags_dispatcher_stack_set_reg() {
 
 #[test]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_conflicting_flags_imm16_jop() {
+fn test_conflicting_flags_fess_checksec() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
     xgadget_bin
         .arg("/usr/bin/some_file_83bb57de34d8713f6e4940b4bdda4bea")
-        .arg("--inc-imm16")
-        .arg("-j");
+        .arg("--fess")
+        .arg("--check-sec");
 
     xgadget_bin
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "the argument '--inc-imm16' cannot be used with '--jop'",
+            "the argument '--fess' cannot be used with '--check-sec'",
         ));
 }
 
@@ -119,7 +119,10 @@ fn test_invalid_bad_bytes() {
 fn test_invalid_reg_name() {
     let mut xgadget_bin = Command::cargo_bin("xgadget").unwrap();
 
-    xgadget_bin.arg("/bin/cat").arg("--reg-ctrl").arg("r42");
+    xgadget_bin
+        .arg("/bin/cat")
+        .arg("--reg-overwrite")
+        .arg("r42");
 
     xgadget_bin
         .assert()
@@ -203,10 +206,21 @@ fn test_checksec() {
 #[cfg(target_os = "linux")]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_search_args() {
-    let output_all = String::from_utf8(
+    let output_rop_jop_sys = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    let output_rop_jop_sys_all = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/bin/cat")
+            .arg("--all")
             .output()
             .unwrap()
             .stdout,
@@ -218,30 +232,6 @@ fn test_search_args() {
             .unwrap()
             .arg("/bin/cat")
             .arg("-r")
-            .output()
-            .unwrap()
-            .stdout,
-    )
-    .unwrap();
-
-    let output_rop_imm16 = String::from_utf8(
-        Command::cargo_bin("xgadget")
-            .unwrap()
-            .arg("/bin/cat")
-            .arg("-r")
-            .arg("--inc-imm16")
-            .output()
-            .unwrap()
-            .stdout,
-    )
-    .unwrap();
-
-    let output_rop_call = String::from_utf8(
-        Command::cargo_bin("xgadget")
-            .unwrap()
-            .arg("/bin/cat")
-            .arg("-r")
-            .arg("--inc-call")
             .output()
             .unwrap()
             .stdout,
@@ -281,12 +271,11 @@ fn test_search_args() {
     )
     .unwrap();
 
-    assert!(output_all.len() >= output_rop.len());
-    assert!(output_all.len() >= output_jop.len());
-    assert!(output_all.len() >= output_sys.len());
-    assert!(output_all.len() >= output_stack_pivot.len());
-    assert!(output_rop_imm16.len() >= output_rop.len());
-    assert!(output_rop_call.len() >= output_rop.len());
+    assert!(output_rop_jop_sys_all.len() >= output_rop_jop_sys.len());
+    assert!(output_rop_jop_sys.len() >= output_rop.len());
+    assert!(output_rop_jop_sys.len() >= output_jop.len());
+    assert!(output_rop_jop_sys.len() >= output_sys.len());
+    assert!(output_rop_jop_sys.len() >= output_stack_pivot.len());
 }
 
 #[test]
@@ -511,12 +500,12 @@ fn test_param_ctrl_filter() {
 #[test]
 #[cfg(target_os = "linux")]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_no_deref_filter_1() {
-    let output_no_deref_rax_filter = String::from_utf8(
+fn test_reg_no_read_filter_1() {
+    let output_reg_no_read_rax_filter = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
-            .arg("--no-deref")
+            .arg("--reg-no-read")
             .arg(REG_NAME)
             .output()
             .unwrap()
@@ -524,35 +513,35 @@ fn test_no_deref_filter_1() {
     )
     .unwrap();
 
-    let output_no_deref_all_regs_filter = String::from_utf8(
+    let output_reg_no_read_all_regs_filter = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
-            .arg("--no-deref")
+            .arg("--reg-no-read")
             .output()
             .unwrap()
             .stdout,
     )
     .unwrap();
 
-    println!("NO_DEREF_RAX: {}", output_no_deref_rax_filter);
-    println!("NO_DEREF: {}", output_no_deref_all_regs_filter);
-    assert!(output_no_deref_rax_filter.len() >= output_no_deref_all_regs_filter.len());
+    println!("REG_NO_READ_RAX: {}", output_reg_no_read_rax_filter);
+    println!("REG_NO_READ: {}", output_reg_no_read_all_regs_filter);
+    assert!(output_reg_no_read_rax_filter.len() >= output_reg_no_read_all_regs_filter.len());
 }
 
 #[test]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_no_deref_filter_2() {
+fn test_reg_no_read_filter_2() {
     let mut raw_file = NamedTempFile::new().unwrap();
     raw_file
-        .write_all(common::FILTERS_NO_DEREF_AND_REG_CTRL)
+        .write_all(common::FILTERS_REG_NO_DEREF_AND_REG_WRITE)
         .unwrap();
 
-    let no_deref_1_reg = String::from_utf8(
+    let reg_no_read_1_reg = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg(raw_file.path())
-            .arg("--no-deref")
+            .arg("--reg-no-read")
             .arg("rdi")
             .output()
             .unwrap()
@@ -560,11 +549,11 @@ fn test_no_deref_filter_2() {
     )
     .unwrap();
 
-    let no_deref_2_regs = String::from_utf8(
+    let reg_no_read_2_regs = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg(raw_file.path())
-            .arg("--no-deref")
+            .arg("--reg-no-read")
             .arg("rdi")
             .arg("rsi")
             .output()
@@ -573,40 +562,39 @@ fn test_no_deref_filter_2() {
     )
     .unwrap();
 
-    let no_deref_any_regs = String::from_utf8(
+    let reg_no_read_any_regs = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg(raw_file.path())
-            .arg("--no-deref")
+            .arg("--reg-no-read")
             .output()
             .unwrap()
             .stdout,
     )
     .unwrap();
 
-    println!("NO_DEREF_1_REG: {}", no_deref_1_reg);
-    println!("NO_DEREF_2_REGS: {}", no_deref_2_regs);
-    println!("NO_DEREF_ANY_REGS: {}", no_deref_any_regs);
-    assert!(no_deref_1_reg.lines().count() >= no_deref_2_regs.lines().count());
-    assert!(no_deref_2_regs.lines().count() >= no_deref_any_regs.lines().count());
+    println!("REG_NO_READ_1_REG: {}", reg_no_read_1_reg);
+    println!("REG_NO_READ_2_REGS: {}", reg_no_read_2_regs);
+    println!("REG_NO_READ_ANY_REGS: {}", reg_no_read_any_regs);
+    assert!(reg_no_read_1_reg.lines().count() >= reg_no_read_2_regs.lines().count());
+    assert!(reg_no_read_2_regs.lines().count() >= reg_no_read_any_regs.lines().count());
 
-    assert!(no_deref_2_regs.contains("pop rsi; pop rdi; ret;"));
-    assert!(no_deref_1_reg.contains("pop rsi; pop rdi; ret;"));
-    assert!(no_deref_any_regs.contains("pop rsi; pop rdi; ret;"));
+    assert!(reg_no_read_2_regs.contains("pop rsi; pop rdi; ret;"));
+    assert!(reg_no_read_1_reg.contains("pop rsi; pop rdi; ret;"));
 
-    assert!(no_deref_1_reg.contains("add r8, [rsi]; add r8, [rdx]; pop rsi; pop rdi; ret;"));
-    assert!(no_deref_2_regs.contains("add r8, [rdx]; pop rsi; pop rdi; ret;"));
+    assert!(reg_no_read_1_reg.contains("add r8, [rsi]; add r8, [rdx]; pop rsi; pop rdi; ret;"));
+    assert!(reg_no_read_2_regs.contains("add r8, [rdx]; pop rsi; pop rdi; ret;"));
 }
 
 #[test]
 #[cfg(target_os = "linux")]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_reg_ctrl_filter_1() {
-    let output_reg_ctrl_rax_filter = String::from_utf8(
+fn test_reg_overwrite_filter_1() {
+    let output_reg_write_rax_filter = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
-            .arg("--reg-ctrl")
+            .arg("--reg-overwrite")
             .arg(REG_NAME)
             .output()
             .unwrap()
@@ -614,35 +602,35 @@ fn test_reg_ctrl_filter_1() {
     )
     .unwrap();
 
-    let output_reg_ctrl_all_regs_filter = String::from_utf8(
+    let output_reg_write_all_regs_filter = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
-            .arg("--reg-ctrl")
+            .arg("--reg-overwrite")
             .output()
             .unwrap()
             .stdout,
     )
     .unwrap();
 
-    println!("REG_CTRL_RAX: {}", output_reg_ctrl_rax_filter);
-    println!("REG_CTRL_ALL: {}", output_reg_ctrl_all_regs_filter);
-    assert!(output_reg_ctrl_all_regs_filter.len() >= output_reg_ctrl_rax_filter.len());
+    println!("REG_WRITE_RAX: {}", output_reg_write_rax_filter);
+    println!("REG_WRITE_ALL: {}", output_reg_write_all_regs_filter);
+    assert!(output_reg_write_all_regs_filter.len() >= output_reg_write_rax_filter.len());
 }
 
 #[test]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
-fn test_reg_ctrl_filter_2() {
+fn test_reg_overwrite_filter_2() {
     let mut raw_file = NamedTempFile::new().unwrap();
     raw_file
-        .write_all(common::FILTERS_NO_DEREF_AND_REG_CTRL)
+        .write_all(common::FILTERS_REG_NO_DEREF_AND_REG_WRITE)
         .unwrap();
 
     let ctrl_1_reg = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg(raw_file.path())
-            .arg("--reg-ctrl")
+            .arg("--reg-overwrite")
             .arg("rsi")
             .arg("--max-len")
             .arg("25")
@@ -656,7 +644,7 @@ fn test_reg_ctrl_filter_2() {
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg(raw_file.path())
-            .arg("--reg-ctrl")
+            .arg("--reg-overwrite")
             .arg("rsi")
             .arg("rdi")
             .arg("--max-len")
@@ -671,7 +659,7 @@ fn test_reg_ctrl_filter_2() {
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg(raw_file.path())
-            .arg("--reg-ctrl")
+            .arg("--reg-overwrite")
             .arg("--max-len")
             .arg("25")
             .output()
@@ -732,11 +720,11 @@ fn test_bad_bytes_filter() {
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_reg_equivalence() {
-    let no_deref_r8l_filter = String::from_utf8(
+    let reg_no_deref_r8l_filter = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
-            .arg("--no-deref")
+            .arg("--reg-no-read")
             .arg("r8l")
             .output()
             .unwrap()
@@ -744,11 +732,11 @@ fn test_reg_equivalence() {
     )
     .unwrap();
 
-    let no_deref_r8b_filter = String::from_utf8(
+    let reg_no_deref_r8b_filter = String::from_utf8(
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat")
-            .arg("--no-deref")
+            .arg("--reg-no-read")
             .arg("r8b")
             .output()
             .unwrap()
@@ -756,11 +744,43 @@ fn test_reg_equivalence() {
     )
     .unwrap();
 
-    println!("NO_DEREF_R8L: {}", no_deref_r8l_filter);
-    println!("NO_DEREF_R8B: {}", no_deref_r8b_filter);
-    assert!(no_deref_r8l_filter.lines().count() == no_deref_r8b_filter.lines().count());
+    println!("REG_NO_DEREF_R8L: {}", reg_no_deref_r8l_filter);
+    println!("REG_NO_DEREF_R8B: {}", reg_no_deref_r8b_filter);
+    assert!(reg_no_deref_r8l_filter.lines().count() == reg_no_deref_r8b_filter.lines().count());
 }
 
+#[test]
+#[cfg(target_os = "linux")]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
+fn test_readme_0() {
+    let output_all = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/usr/bin/sudo")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    let output_readme = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/usr/bin/sudo")
+            .arg("--reg-only")
+            .arg("--reg-overwrite")
+            .arg("rdi")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    println!("ALL: {}", output_all);
+    println!("README_0: {}", output_readme);
+    assert!(!output_readme.is_empty());
+    assert!(output_all.len() >= output_readme.len());
+}
 #[test]
 #[cfg(target_os = "linux")]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
@@ -850,9 +870,9 @@ fn test_readme_3() {
             .unwrap()
             .arg("/usr/bin/sudo")
             .arg("--rop")
-            .arg("--reg-ctrl")
+            .arg("--reg-overwrite")
             .arg("rdi")
-            .arg("--no-deref")
+            .arg("--reg-no-read")
             .arg("rsi")
             .arg("rdx")
             .arg("--bad-bytes")
@@ -898,7 +918,7 @@ fn test_readme_5() {
         Command::cargo_bin("xgadget")
             .unwrap()
             .arg("/bin/cat") // http may not be installed
-            .arg("--imports")
+            .arg("--symbols")
             .output()
             .unwrap()
             .stdout,

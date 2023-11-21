@@ -1,4 +1,5 @@
 //! This module provides a multi-line, optional-color alternative to checksec's single line print.
+
 use std::fmt;
 
 use checksec::{colorize_bool, elf, macho, pe};
@@ -12,19 +13,30 @@ pub enum CustomCheckSecResults {
 }
 
 impl CustomCheckSecResults {
-    pub fn new(bytes: &[u8], path: &str) -> Self {
+    pub fn new(bytes: &[u8], path: &str) -> Vec<Self> {
         match Object::parse(bytes).unwrap() {
-            Object::Elf(elf) => Self::Elf(elf::CheckSecResults::parse(&elf)),
+            Object::Elf(elf) => vec![Self::Elf(elf::CheckSecResults::parse(&elf))],
             Object::PE(pe) => {
                 let mm_buf =
                     unsafe { memmap::Mmap::map(&std::fs::File::open(path).unwrap()).unwrap() };
-                Self::Pe(pe::CheckSecResults::parse(&pe, &mm_buf))
+                vec![Self::Pe(pe::CheckSecResults::parse(&pe, &mm_buf))]
             }
             Object::Mach(mach) => match mach {
                 checksec_goblin::mach::Mach::Binary(macho) => {
-                    Self::MachO(macho::CheckSecResults::parse(&macho))
+                    vec![Self::MachO(macho::CheckSecResults::parse(&macho))]
                 }
-                _ => panic!("Checksec supports only single-arch Mach-O!"),
+                checksec_goblin::mach::Mach::Fat(fat_mach) => fat_mach
+                    .arches()
+                    .unwrap()
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(idx, _)| {
+                        fat_mach
+                            .get(idx)
+                            .map(|macho| Self::MachO(macho::CheckSecResults::parse(&macho)))
+                            .ok()
+                    })
+                    .collect::<Vec<_>>(),
             },
             _ => panic!("Only ELF, PE, and Mach-O checksec currently supported!"),
         }

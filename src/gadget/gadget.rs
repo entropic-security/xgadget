@@ -1,13 +1,14 @@
-use std::cmp::Ordering;
-use std::collections::{BTreeMap, BTreeSet};
-use std::hash::{Hash, Hasher};
-use std::marker::Send;
+use core::{cmp::Ordering, marker::Send};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    hash::{Hash, Hasher},
+    sync::OnceLock,
+};
 
 use iced_x86::FormatterOutput;
 
-use super::fmt;
-use super::fmt::DisplayLen;
-use crate::binary;
+use super::{fmt, fmt::DisplayLen};
+use crate::{binary, GadgetAnalysis};
 
 // TODO: implement Ord for binary, use BTReeSet instead of Vector to maintain sorted order on insertion
 // will have nicer output at partial match at cost of speed (how much?)
@@ -24,6 +25,7 @@ pub struct Gadget<'a> {
     pub(crate) instrs: Vec<iced_x86::Instruction>,
     pub(crate) full_matches: BTreeSet<u64>,
     pub(crate) partial_matches: BTreeMap<u64, Vec<&'a binary::Binary>>,
+    analysis: OnceLock<GadgetAnalysis>,
 }
 
 impl<'a> Gadget<'a> {
@@ -41,6 +43,7 @@ impl<'a> Gadget<'a> {
             instrs,
             full_matches: occurrence_addrs,
             partial_matches: BTreeMap::new(),
+            analysis: OnceLock::new(),
         }
     }
 
@@ -61,7 +64,13 @@ impl<'a> Gadget<'a> {
             instrs,
             full_matches,
             partial_matches: BTreeMap::new(),
+            analysis: OnceLock::new(),
         }
+    }
+
+    /// Get analysis
+    pub fn analysis(&self) -> &GadgetAnalysis {
+        self.analysis.get_or_init(|| GadgetAnalysis::new(&self))
     }
 
     /// Get a instructions
@@ -176,7 +185,6 @@ impl<'a> Gadget<'a> {
     // Private API -----------------------------------------------------------------------------------------------------
 
     // Ord helper: Lowest gadget occurrence address, full matches preferred
-    #[inline]
     fn min_addr(&self) -> Option<&u64> {
         if let Some(min_full) = self.full_matches.iter().next() {
             Some(min_full)
@@ -187,7 +195,6 @@ impl<'a> Gadget<'a> {
         }
     }
 
-    #[inline]
     fn write_instrs_internal(&self, att_syntax: bool) -> String {
         let mut formatter = fmt::get_formatter(att_syntax);
         let mut output = String::new();
@@ -199,7 +206,6 @@ impl<'a> Gadget<'a> {
     }
 
     // Partial match format helper, shrinks a working set
-    #[inline]
     fn fmt_partial_matches_internal(
         match_str: &mut impl iced_x86::FormatterOutput,
         partial_matches: &mut BTreeMap<u64, Vec<&binary::Binary>>,
@@ -251,7 +257,6 @@ impl<'a> Gadget<'a> {
         fmted_bin_cnt
     }
 
-    #[inline]
     fn write_bin_name(name: &str, output: &mut impl iced_x86::FormatterOutput) {
         output.write("'", iced_x86::FormatterTextKind::Punctuation);
         output.write(name, iced_x86::FormatterTextKind::Text);

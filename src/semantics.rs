@@ -1,99 +1,125 @@
 //! Determine attack-relevant instruction semantics
 
-use crate::binary;
-
-// Constructs for attacker control -------------------------------------------------------------------------------------
+// Instruction Categorization for Attacker Use -------------------------------------------------------------------------
 
 /// Check if instruction is a ROP/JOP/SYS gadget tail
-#[inline(always)]
 pub fn is_gadget_tail(instr: &iced_x86::Instruction) -> bool {
-    is_ret(instr) || is_jop_gadget_tail(instr) || is_sys_gadget_tail(instr)
+    is_rop_gadget_tail(instr) || is_jop_gadget_tail(instr) || is_sys_gadget_tail(instr)
+}
+
+/// Check if instruction is a ROP gadget tail
+pub fn is_rop_gadget_tail(instr: &iced_x86::Instruction) -> bool {
+    is_ret(instr, true)
 }
 
 /// Check if instruction is a JOP gadget tail
-#[inline(always)]
 pub fn is_jop_gadget_tail(instr: &iced_x86::Instruction) -> bool {
-    is_reg_indirect_call(instr) || is_reg_indirect_jmp(instr)
+    is_indirect_call(instr) || is_indirect_jmp(instr)
 }
 
 /// Check if instruction is a SYS gadget tail, in general
-#[inline(always)]
 pub fn is_sys_gadget_tail(instr: &iced_x86::Instruction) -> bool {
-    is_syscall(instr) || is_legacy_linux_syscall(instr)
+    is_syscall(instr) || is_sysret(instr)
 }
 
-/// Check if instruction is a SYS gadget tail, for a specific binary
-pub fn is_sys_gadget_tail_bin_sensitive(
-    instr: &iced_x86::Instruction,
-    binary: &binary::Binary,
-) -> bool {
-    is_syscall(instr)
-        || (is_legacy_linux_syscall(instr) && (binary.format() == binary::Format::ELF))
+/// Check if instruction should exist in a gadget body.
+/// If `all == false`, the following instructions are excluded for cleaner output:
+///
+/// * Direct branches
+/// * Direct calls
+/// * Returns
+/// * Interrupts
+/// * Repetition pre-fixed instructions
+pub fn is_gadget_body(instr: &iced_x86::Instruction, all: bool) -> bool {
+    let instr_flow = instr.flow_control();
+
+    // Invalid instruction
+    if instr_flow == iced_x86::FlowControl::Exception {
+        return false;
+    }
+
+    if !all {
+        // Flow control doesn't reach gadget tail
+        if matches!(
+            instr_flow,
+            iced_x86::FlowControl::UnconditionalBranch
+                | iced_x86::FlowControl::ConditionalBranch
+                | iced_x86::FlowControl::Call
+                | iced_x86::FlowControl::Return
+                | iced_x86::FlowControl::Interrupt
+        ) {
+            return false;
+        }
+
+        // Prefixes which repeat instruction, making the gadget hard to reason about
+        // See: https://wiki.osdev.org/X86-64_Instruction_Encoding#Legacy_Prefixes
+        if instr.has_rep_prefix() || instr.has_repe_prefix() || instr.has_repne_prefix() {
+            return false;
+        }
+    }
+
+    !is_gadget_tail(instr)
 }
 
-// Categorization ------------------------------------------------------------------------------------------------------
+// General Instruction Categorization ----------------------------------------------------------------------------------
 
 /// Check if call instruction with register-controlled target
-#[inline(always)]
-pub fn is_reg_indirect_call(instr: &iced_x86::Instruction) -> bool {
-    (instr.flow_control() == iced_x86::FlowControl::IndirectCall) && (has_ctrled_ops_only(instr))
+pub fn is_indirect_call(instr: &iced_x86::Instruction) -> bool {
+    (instr.flow_control() == iced_x86::FlowControl::IndirectCall) && (is_reg_ops_only(instr))
 }
 
 /// Check if jump instruction with register-controlled target
-#[inline(always)]
-pub fn is_reg_indirect_jmp(instr: &iced_x86::Instruction) -> bool {
-    (instr.flow_control() == iced_x86::FlowControl::IndirectBranch) && (has_ctrled_ops_only(instr))
-}
-
-/// Check if return instruction
-#[inline(always)]
-pub fn is_ret(instr: &iced_x86::Instruction) -> bool {
-    (instr.mnemonic() == iced_x86::Mnemonic::Ret) || (instr.mnemonic() == iced_x86::Mnemonic::Retf)
-}
-
-/// Check if return instruction that adds to stack pointer
-#[inline(always)]
-pub fn is_ret_imm16(instr: &iced_x86::Instruction) -> bool {
-    is_ret(instr) && (instr.op_count() != 0)
-}
-
-/// Check if direct call instruction
-#[inline(always)]
-pub fn is_direct_call(instr: &iced_x86::Instruction) -> bool {
-    (instr.mnemonic() == iced_x86::Mnemonic::Call) && (!is_reg_indirect_call(instr))
-}
-
-/// Check if unconditional jmp instruction
-pub fn is_uncond_fixed_jmp(instr: &iced_x86::Instruction) -> bool {
-    (instr.mnemonic() == iced_x86::Mnemonic::Jmp) && (!is_reg_indirect_jmp(instr))
-}
-
-/// Check if interrupt instruction
-#[inline(always)]
-pub fn is_int(instr: &iced_x86::Instruction) -> bool {
-    instr.flow_control() == iced_x86::FlowControl::Interrupt
+pub fn is_indirect_jmp(instr: &iced_x86::Instruction) -> bool {
+    (instr.flow_control() == iced_x86::FlowControl::IndirectBranch) && (is_reg_ops_only(instr))
 }
 
 /// Check if syscall/sysenter instruction
-#[inline(always)]
 pub fn is_syscall(instr: &iced_x86::Instruction) -> bool {
-    (instr.mnemonic() == iced_x86::Mnemonic::Syscall)
-        || (instr.mnemonic() == iced_x86::Mnemonic::Sysenter)
-}
-
-/// Check if legacy Linux syscall
-#[inline(always)]
-pub fn is_legacy_linux_syscall(instr: &iced_x86::Instruction) -> bool {
-    match instr.try_immediate(0) {
-        Ok(imm) => (imm == 0x80) && (instr.mnemonic() == iced_x86::Mnemonic::Int),
+    match instr.mnemonic() {
+        // `int 0x80` -> 32-bit Linux
+        // `int 0x2e` -> 32-bit Windows
+        // For API simplicity, don't take `Binary` as an argument to make this result OS/bit-ness sensitive.
+        // False positives should be rare enough these days :)
+        iced_x86::Mnemonic::Int => matches!(instr.try_immediate(0), Ok(0x80) | Ok(0x2e)),
+        iced_x86::Mnemonic::Syscall | iced_x86::Mnemonic::Sysenter => true,
         _ => false,
     }
 }
 
-// Properties ----------------------------------------------------------------------------------------------------------
+/// Check if sysret/sysexit instruction
+pub fn is_sysret(instr: &iced_x86::Instruction) -> bool {
+    match instr.mnemonic() {
+        iced_x86::Mnemonic::Iret
+        | iced_x86::Mnemonic::Iretd
+        | iced_x86::Mnemonic::Iretq
+        | iced_x86::Mnemonic::Sysexit
+        | iced_x86::Mnemonic::Sysexitq
+        | iced_x86::Mnemonic::Sysret
+        | iced_x86::Mnemonic::Sysretq => true,
+        _ => false,
+    }
+}
+
+/// Check if return instruction.
+/// * x86: if `all == true` include return instructions that add to stack pointer.
+pub fn is_ret(instr: &iced_x86::Instruction, all: bool) -> bool {
+    if !matches!(
+        instr.mnemonic(),
+        iced_x86::Mnemonic::Ret | iced_x86::Mnemonic::Retf
+    ) {
+        return false;
+    }
+
+    if (!all) && (instr.op_count() > 0) {
+        return false;
+    }
+
+    true
+}
+
+// Register usage ------------------------------------------------------------------------------------------------------
 
 /// Check if instruction both reads and writes the same register
-#[inline(always)]
 pub fn is_reg_rw(instr: &iced_x86::Instruction, reg: &iced_x86::Register) -> bool {
     let mut info_factory = iced_x86::InstructionInfoFactory::new();
     let info = info_factory.info_options(instr, iced_x86::InstructionInfoOptions::NO_MEMORY_USAGE);
@@ -103,18 +129,17 @@ pub fn is_reg_rw(instr: &iced_x86::Instruction, reg: &iced_x86::Register) -> boo
 }
 
 /// Check if sets register from another register or stack (e.g. exclude constant write)
-#[inline(always)]
 pub fn is_reg_set(instr: &iced_x86::Instruction, reg: &iced_x86::Register) -> bool {
     let mut info_factory = iced_x86::InstructionInfoFactory::new();
     let info = info_factory.info_options(instr, iced_x86::InstructionInfoOptions::NO_MEMORY_USAGE);
     let reg_w = iced_x86::UsedRegister::new(*reg, iced_x86::OpAccess::Write);
 
-    let reg_read = |ur: iced_x86::UsedRegister| {
-        ur.access() == iced_x86::OpAccess::Read || ur.access() == iced_x86::OpAccess::ReadWrite
-    };
-
-    if info.used_registers().iter().any(|ur| reg_read(*ur))
-        && info.used_registers().contains(&reg_w)
+    if info.used_registers().iter().any(|ur| {
+        matches!(
+            ur.access(),
+            iced_x86::OpAccess::Read | iced_x86::OpAccess::ReadWrite
+        )
+    }) && info.used_registers().contains(&reg_w)
     {
         return true;
     }
@@ -122,21 +147,26 @@ pub fn is_reg_set(instr: &iced_x86::Instruction, reg: &iced_x86::Register) -> bo
     false
 }
 
-/// Check if instruction has controllable operands only
-#[inline(always)]
-pub fn has_ctrled_ops_only(instr: &iced_x86::Instruction) -> bool {
+/// Check if instruction has register (controllable) operands only
+pub fn is_reg_ops_only(instr: &iced_x86::Instruction) -> bool {
     let op_cnt = instr.op_count();
     for op_idx in 0..op_cnt {
         match instr.try_op_kind(op_idx) {
             Ok(kind) => match kind {
-                iced_x86::OpKind::Register => continue,
-                iced_x86::OpKind::Memory => match instr.memory_base() {
-                    iced_x86::Register::None => return false,
-                    iced_x86::Register::RIP => return false,
-                    iced_x86::Register::EIP => return false,
-                    //iced_x86::Register::IP => false, // TODO: why missing?
-                    _ => continue,
-                },
+                // Direct register use
+                iced_x86::OpKind::Register => {}
+                // Register dereference
+                iced_x86::OpKind::Memory => {
+                    if matches!(
+                        instr.memory_base(),
+                        iced_x86::Register::None
+                            // | iced_x86::Register::IP // TODO: why missing?
+                            | iced_x86::Register::EIP
+                            | iced_x86::Register::RIP
+                    ) {
+                        return false;
+                    }
+                }
                 _ => return false,
             },
             _ => return false,

@@ -137,7 +137,7 @@ pub const FILTERS_X64: &[u8] = &[
 
 #[allow(dead_code)]
 #[rustfmt::skip]
-pub const FILTERS_NO_DEREF_AND_REG_CTRL: &[u8] = &[
+pub const FILTERS_REG_NO_DEREF_AND_REG_WRITE: &[u8] = &[
     0x4c, 0x03, 0x07,                                       // add    r8,QWORD PTR [rdi]
     0x4c, 0x03, 0x06,                                       // add    r8,QWORD PTR [rsi]
     0x4c, 0x03, 0x02,                                       // add    r8,QWORD PTR [rdx]
@@ -194,7 +194,7 @@ pub fn decode_single_x64_instr(ip: u64, bytes: &[u8]) -> iced_x86::Instruction {
 pub fn get_raw_bin(name: &str, bytes: &[u8]) -> xgadget::Binary {
     let mut bin = xgadget::Binary::from_bytes(name, bytes).unwrap();
     assert_eq!(bin.format(), xgadget::Format::Raw);
-    assert_eq!(bin.arch(), xgadget::Arch::Unknown);
+    assert_eq!(bin.arch(), xgadget::Arch::X64); // Default unless caller updates
     bin.set_arch(xgadget::Arch::X64);
 
     bin

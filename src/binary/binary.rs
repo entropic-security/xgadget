@@ -1,14 +1,12 @@
-use std::fmt;
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::{
+    fmt, fs,
+    path::{Path, PathBuf},
+};
 
 use colored::Colorize;
 use rustc_hash::FxHashSet as HashSet;
 
-use super::arch::Arch;
-use super::consts::*;
-use super::file_format::Format;
-use super::segment::Segment;
+use super::{arch::Arch, consts::*, file_format::Format, segment::Segment};
 use crate::error::Error;
 
 // Binary --------------------------------------------------------------------------------------------------------------
@@ -258,11 +256,16 @@ impl Binary {
         Ok(bin)
     }
 
-    // Raw bytes -> Binary, Unknown arch to be updated by caller
+    // Raw bytes -> Binary
+    //
+    // ### WARNING:
+    //
+    // This defaults `arch` to [Arch::X64], caller must update if incorrect.
     fn from_raw(name: &str, bytes: &[u8]) -> Binary {
         let mut bin = Binary {
             name: name.to_string(),
             format: Format::Raw,
+            arch: Arch::X64,
             ..Default::default()
         };
 
@@ -310,7 +313,20 @@ impl Default for Binary {
 // Summary print
 impl fmt::Display for Binary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let color_punctuation = |s: &str| s.bright_magenta();
+        let color_punctuation = |s: &str| s.bold().bright_magenta();
+
+        let num_fmt = |n: usize| {
+            #[cfg(feature = "cli-bin")]
+            {
+                use num_format::{Locale, ToFormattedString};
+                n.to_formatted_string(&Locale::en)
+            }
+
+            #[cfg(not(feature = "cli-bin"))]
+            {
+                n.to_string()
+            }
+        };
 
         let seg_cnt = self.segments.len();
 
@@ -322,26 +338,35 @@ impl fmt::Display for Binary {
         let single_quote = color_punctuation("'");
         let forward_slash = color_punctuation("/");
         let dash = color_punctuation("-");
+        let open_bracket = color_punctuation("[");
+        let close_bracket = color_punctuation("]");
         let colon = color_punctuation(":");
-        let comma = color_punctuation(",");
+        let pipe = color_punctuation("|");
 
         write!(
             f,
-            "{}{}{}{} {}{}{}{} {} entry{} {}{}{} exec bytes{}segments",
+            "{} name{} {}{}{} {} fmt{}arch{} {}{}{} {} entry{} {} {} exec bytes{}segments{} {}{}{} {}",
+            open_bracket,
+            colon,
             single_quote,
             self.name.cyan(),
             single_quote,
+            pipe,
+            dash,
             colon,
             format!("{:?}", self.format).yellow(),
             dash,
             format!("{:?}", self.arch).yellow(),
-            comma,
+            pipe,
+            colon,
             format!("{:#016x}", self.entry).green(),
-            comma,
-            format!("{}", bytes).bright_blue(),
+            pipe,
             forward_slash,
-            format!("{}", seg_cnt).bright_blue(),
+            colon,
+            format!("{}", num_fmt(bytes)).bright_blue(),
             forward_slash,
+            format!("{}", num_fmt(seg_cnt)).bright_blue(),
+            close_bracket,
         )
     }
 }

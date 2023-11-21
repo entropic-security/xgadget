@@ -54,7 +54,7 @@ fn test_x64_adjacent_ret() {
     let gadgets = xgadget::find_gadgets(
         &bins,
         common::MAX_LEN,
-        xgadget::SearchConfig::default() | xgadget::SearchConfig::IMM16,
+        xgadget::SearchConfig::default() | xgadget::SearchConfig::ALL,
     )
     .unwrap();
     let gadget_strs = common::get_gadget_strs(&gadgets, false);
@@ -97,7 +97,7 @@ fn test_x64_adjacent_call() {
     let gadgets = xgadget::find_gadgets(
         &bins,
         common::MAX_LEN,
-        xgadget::SearchConfig::default() | xgadget::SearchConfig::IMM16,
+        xgadget::SearchConfig::default() | xgadget::SearchConfig::ALL,
     )
     .unwrap();
     let gadget_strs = common::get_gadget_strs(&gadgets, false);
@@ -161,8 +161,12 @@ fn test_x64_adjacent_call() {
 fn test_x64_adjacent_jmp() {
     let bin_jmp = common::get_raw_bin("bin_jmp", common::ADJACENT_JMP_X64);
     let bins = vec![bin_jmp];
-    let gadgets =
-        xgadget::find_gadgets(&bins, common::MAX_LEN, xgadget::SearchConfig::default()).unwrap();
+    let gadgets = xgadget::find_gadgets(
+        &bins,
+        common::MAX_LEN,
+        xgadget::SearchConfig::default() | xgadget::SearchConfig::ALL,
+    )
+    .unwrap();
     let gadget_strs = common::get_gadget_strs(&gadgets, false);
     common::print_gadget_strs(&gadget_strs);
 

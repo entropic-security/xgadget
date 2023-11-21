@@ -2,9 +2,7 @@
 
 use rustc_hash::FxHashSet as HashSet;
 
-use crate::binary;
-use crate::gadget;
-use crate::semantics;
+use crate::{binary, gadget, semantics};
 
 #[cfg(feature = "cli-bin")]
 use crate::Error;
@@ -75,17 +73,14 @@ pub(crate) struct FESSColumn {
 }
 
 impl FESSColumn {
-    pub(crate) fn get_totals(
-        bin: &binary::Binary,
-        gadget_set: &HashSet<gadget::Gadget>,
-    ) -> GadgetTotals {
+    pub(crate) fn get_totals(gadget_set: &HashSet<gadget::Gadget>) -> GadgetTotals {
         let mut totals = GadgetTotals::default();
 
         for g in gadget_set {
             if let Some(i) = g.last_instr() {
                 // TODO: should this tagging logic stored in Gadget obj instead of re-computed here?
                 // Or maybe split out into a function used by both this and iterative_decode?
-                if semantics::is_ret(i) {
+                if semantics::is_rop_gadget_tail(i) {
                     if !g.full_matches.is_empty() {
                         totals.rop_full_cnt += 1;
                     }
@@ -99,7 +94,7 @@ impl FESSColumn {
                     if !g.partial_matches.is_empty() {
                         totals.jop_part_cnt += 1;
                     }
-                } else if semantics::is_sys_gadget_tail_bin_sensitive(i, bin) {
+                } else if semantics::is_sys_gadget_tail(i) {
                     if !g.full_matches.is_empty() {
                         totals.sys_full_cnt += 1;
                     }
@@ -116,12 +111,12 @@ impl FESSColumn {
     pub(crate) fn from_gadget_list(
         _idx: usize,
         _base_count: Option<GadgetTotals>,
-        bin: &binary::Binary,
+        _bin: &binary::Binary,
         gadget_set: &HashSet<gadget::Gadget>,
     ) -> Self {
         let mut fess_data = FESSColumn {
             #[cfg(feature = "cli-bin")]
-            bin_name: bin.name().to_string(),
+            bin_name: _bin.name().to_string(),
             #[cfg(feature = "cli-bin")]
             base: _base_count,
             #[cfg(feature = "cli-bin")]
@@ -136,7 +131,7 @@ impl FESSColumn {
             jop_part_cnt,
             sys_full_cnt,
             sys_part_cnt,
-        } = FESSColumn::get_totals(bin, gadget_set);
+        } = FESSColumn::get_totals(gadget_set);
 
         fess_data.rop_full_cnt = rop_full_cnt;
         fess_data.rop_part_cnt = rop_part_cnt;

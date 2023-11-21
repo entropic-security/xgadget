@@ -1,9 +1,9 @@
 //! Filter gadget lists in parallel
 
 use rayon::prelude::*;
+use rustc_hash::FxHashSet as HashSet;
 
-use crate::semantics;
-use crate::{Gadget, GadgetAnalysis};
+use crate::{get_reg_family, semantics, Gadget};
 
 /// Parallel filter to gadgets that write the stack pointer
 pub fn filter_stack_pivot<'a, P>(gadgets: P) -> P
@@ -13,7 +13,7 @@ where
     gadgets
         .into_par_iter()
         .filter(|g| {
-            let regs_overwritten = GadgetAnalysis::new(g).regs_overwritten();
+            let regs_overwritten = g.analysis().regs_overwritten(true);
             if regs_overwritten.contains(&iced_x86::Register::RSP)
                 || regs_overwritten.contains(&iced_x86::Register::ESP)
                 || regs_overwritten.contains(&iced_x86::Register::SP)
@@ -58,7 +58,8 @@ where
         .into_par_iter()
         .filter(|g| {
             if let Some((tail_instr, mut preceding_instrs)) = g.instrs.split_last() {
-                if (semantics::is_ret(tail_instr) || semantics::is_jop_gadget_tail(tail_instr))
+                if (semantics::is_rop_gadget_tail(tail_instr)
+                    || semantics::is_jop_gadget_tail(tail_instr))
                     && (!preceding_instrs.is_empty())
                 {
                     // Allow "leave" preceding tail, if any
@@ -80,6 +81,22 @@ where
                 }
             }
             false
+        })
+        .collect()
+}
+
+/// Parallel filter to gadgets with only register operands (no constants)
+pub fn filter_reg_only<'a, P>(gadgets: P) -> P
+where
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
+{
+    gadgets
+        .into_par_iter()
+        .filter(|g| {
+            g.analysis().used_mem().all(|um| um.displacement() == 0x0)
+                && g.instrs
+                    .iter()
+                    .all(|instr| instr.op_count() == 0 || semantics::is_reg_ops_only(instr))
         })
         .collect()
 }
@@ -121,17 +138,135 @@ where
         .collect()
 }
 
-/// Parallel filter to gadgets that don't dereference any registers (if `opt_regs.is_none()`),
-/// or don't dereference specific registers (if `opt_regs.is_some()`).
-/// Doesn't count the stack pointer unless explicitly provided in `opt_regs`.
-pub fn filter_no_deref<'a, P>(gadgets: P, opt_regs: Option<&[iced_x86::Register]>) -> P
+/// Parallel filter to gadgets that overwrite any register (if `opt_regs.is_none()`),
+/// or write specific registers (if `opt_regs.is_some()`).
+pub fn filter_regs_overwritten<'a, P>(gadgets: P, opt_regs: Option<&[iced_x86::Register]>) -> P
 where
     P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
 {
     gadgets
         .into_par_iter()
         .filter(|g| {
-            let mut regs_derefed = GadgetAnalysis::new(g).regs_dereferenced();
+            let regs_overwritten = g.analysis().regs_overwritten(false);
+            match opt_regs {
+                Some(regs) => regs.iter().all(|r| regs_overwritten.contains(r)),
+                None => !regs_overwritten.is_empty(),
+            }
+        })
+        .collect()
+}
+
+/// Parallel filter to gadgets that write any register (if `opt_regs.is_none()`),
+/// or write specific registers (if `opt_regs.is_some()`).
+pub fn filter_regs_written<'a, P>(gadgets: P, opt_regs: Option<&[iced_x86::Register]>) -> P
+where
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
+{
+    gadgets
+        .into_par_iter()
+        .filter(|g| {
+            let analysis = g.analysis();
+            let regs_written = analysis
+                .regs_overwritten(true)
+                .into_iter()
+                .chain(analysis.regs_updated().into_iter())
+                .collect::<HashSet<iced_x86::Register>>();
+
+            match opt_regs {
+                Some(regs) => regs.iter().all(|r| regs_written.contains(r)),
+                None => !regs_written.is_empty(),
+            }
+        })
+        .collect()
+}
+
+/// Parallel filter to gadgets that do not write any register (if `opt_regs.is_none()`),
+/// or write specific registers (if `opt_regs.is_some()`).
+pub fn filter_regs_not_written<'a, P>(gadgets: P, opt_regs: Option<&[iced_x86::Register]>) -> P
+where
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
+{
+    gadgets
+        .into_par_iter()
+        .filter(|g| {
+            let analysis = g.analysis();
+            let regs_written = analysis
+                .regs_overwritten(true)
+                .into_iter()
+                .chain(analysis.regs_updated().into_iter())
+                .collect::<HashSet<iced_x86::Register>>();
+
+            match opt_regs {
+                Some(regs) => {
+                    let regs = regs
+                        .iter()
+                        .map(|r| get_reg_family(r))
+                        .flatten()
+                        .collect::<Vec<_>>();
+
+                    regs.iter().all(|r| !regs_written.contains(r))
+                }
+                None => regs_written.is_empty(),
+            }
+        })
+        .collect()
+}
+
+/// Parallel filter to gadgets that read any register (if `opt_regs.is_none()`),
+/// or write specific registers (if `opt_regs.is_some()`).
+pub fn filter_regs_read<'a, P>(gadgets: P, opt_regs: Option<&[iced_x86::Register]>) -> P
+where
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
+{
+    gadgets
+        .into_par_iter()
+        .filter(|g| {
+            let regs_read = g.analysis().regs_read();
+            match opt_regs {
+                Some(regs) => regs.iter().all(|r| regs_read.contains(r)),
+                None => !regs_read.is_empty(),
+            }
+        })
+        .collect()
+}
+
+/// Parallel filter to gadgets that do not read any register (if `opt_regs.is_none()`),
+/// or write specific registers (if `opt_regs.is_some()`).
+pub fn filter_regs_not_read<'a, P>(gadgets: P, opt_regs: Option<&[iced_x86::Register]>) -> P
+where
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
+{
+    gadgets
+        .into_par_iter()
+        .filter(|g| {
+            let regs_read = g.analysis().regs_read();
+            match opt_regs {
+                Some(regs) => {
+                    let regs = regs
+                        .iter()
+                        .map(|r| get_reg_family(r))
+                        .flatten()
+                        .collect::<Vec<_>>();
+
+                    regs.iter().all(|r| !regs_read.contains(r))
+                }
+                None => regs_read.is_empty(),
+            }
+        })
+        .collect()
+}
+
+/// Parallel filter to gadgets that don't dereference any registers (if `opt_regs.is_none()`),
+/// or don't dereference specific registers (if `opt_regs.is_some()`).
+/// Doesn't count the stack pointer unless explicitly provided in `opt_regs`.
+pub fn filter_reg_no_deref<'a, P>(gadgets: P, opt_regs: Option<&[iced_x86::Register]>) -> P
+where
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
+{
+    gadgets
+        .into_par_iter()
+        .filter(|g| {
+            let mut regs_derefed = g.analysis().regs_dereferenced();
             match opt_regs {
                 Some(regs) => regs.iter().all(|r| !regs_derefed.contains(r)),
                 None => {
@@ -142,24 +277,6 @@ where
 
                     regs_derefed.is_empty()
                 }
-            }
-        })
-        .collect()
-}
-
-/// Parallel filter to gadgets that write any register (if `opt_regs.is_none()`),
-/// or write specific registers (if `opt_regs.is_some()`).
-pub fn filter_regs_overwritten<'a, P>(gadgets: P, opt_regs: Option<&[iced_x86::Register]>) -> P
-where
-    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
-{
-    gadgets
-        .into_par_iter()
-        .filter(|g| {
-            let regs_overwritten = GadgetAnalysis::new(g).regs_overwritten();
-            match opt_regs {
-                Some(regs) => regs.iter().all(|r| regs_overwritten.contains(r)),
-                None => !regs_overwritten.is_empty(),
             }
         })
         .collect()

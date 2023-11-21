@@ -1,21 +1,14 @@
-use std::{cell::OnceCell, fmt, fs, sync::Mutex, time};
+use std::{fmt, fs, time};
 
 use clap::Parser;
 use colored::Colorize;
 use goblin::Object;
 use num_format::{Locale, ToFormattedString};
+use rayon::prelude::*;
 use rustc_hash::FxHashSet as HashSet;
 
-use super::checksec_fmt::CustomCheckSecResults;
-use super::imports;
-
+use super::{checksec_fmt::CustomCheckSecResults, symbols};
 use crate::str_fmt::*;
-
-// External init -------------------------------------------------------------------------------------------------------
-
-// `CLIOpts` shouldn't re-{read,parse} binaries from `self.bin_paths` to `Display` this info
-pub(crate) static ARCHS_PROCESSED: Mutex<OnceCell<HashSet<xgadget::Arch>>> =
-    Mutex::new(OnceCell::new());
 
 // Arg parse -----------------------------------------------------------------------------------------------------------
 
@@ -25,7 +18,7 @@ enum SummaryItemType {
     Separator,
 }
 
-// TODO: at the UI level, can these be broken up into sub-categories for comprehension?
+// TODO: at the UI level, break these up into sub-categories for comprehension?
 // https://docs.rs/clap/latest/clap/struct.ArgGroup.html
 
 #[derive(Parser, Debug)]
@@ -38,6 +31,14 @@ enum SummaryItemType {
     next_line_help = false,
 )]
 pub(crate) struct CLIOpts {
+    // Internal state --------------------------------------------------------------------------------------------------
+
+    // Set via `Self::parse_binaries`
+    // `CLIOpts` shouldn't re-{read,parse} binaries from `self.bin_paths` to `Display` this info
+    #[arg(skip)]
+    pub(crate) processed_arches: HashSet<xgadget::Arch>,
+
+    // Parsed args -----------------------------------------------------------------------------------------------------
     #[arg(help = HELP_BIN_PATHS.as_str(), required = true, num_args = 1.., value_name = "FILE(S)")]
     pub(crate) bin_paths: Vec<String>,
 
@@ -70,11 +71,8 @@ pub(crate) struct CLIOpts {
     #[arg(help = HELP_SYS.as_str(), short, long, conflicts_with = "jop")]
     pub(crate) sys: bool,
 
-    #[arg(help = HELP_INC_IMM16.as_str(), long, conflicts_with = "jop")]
-    pub(crate) inc_imm16: bool,
-
-    #[arg(help = HELP_CALL.as_str(), long)]
-    pub(crate) inc_call: bool,
+    #[arg(help = HELP_ALL.as_str(), long)]
+    pub(crate) all: bool,
 
     #[arg(help = HELP_PARTIAL_MACH.as_str(), short = 'm', long)]
     pub(crate) partial_match: bool,
@@ -88,11 +86,20 @@ pub(crate) struct CLIOpts {
     #[arg(help = HELP_REG_POP.as_str(), long, conflicts_with = "dispatcher")]
     pub(crate) reg_pop: bool,
 
-    #[arg(help = HELP_NO_DEREF.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
-    pub(crate) no_deref: Vec<String>,
+    #[arg(help = HELP_REG_ONLY.as_str(), long)]
+    pub(crate) reg_only: bool,
 
-    #[arg(help = HELP_REG_CTRL.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
-    pub(crate) reg_ctrl: Vec<String>,
+    #[arg(help = HELP_REG_OVERWRITE.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
+    pub(crate) reg_overwrite: Vec<String>,
+
+    #[arg(help = HELP_REG_NO_WRITE.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
+    pub(crate) reg_no_write: Vec<String>,
+
+    #[arg(help = HELP_REG_READ.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
+    pub(crate) reg_read: Vec<String>,
+
+    #[arg(help = HELP_REG_NO_READ.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
+    pub(crate) reg_no_read: Vec<String>,
 
     #[arg(help = HELP_PARAM_CTRL.as_str(), long)]
     pub(crate) param_ctrl: bool,
@@ -105,28 +112,52 @@ pub(crate) struct CLIOpts {
 
     #[arg(help = HELP_CHECKSEC.as_str(), short, long, conflicts_with_all = &[
         "arch", "att", "extended_fmt", "max_len",
-        "rop", "jop", "sys", "inc_imm16", "partial_match",
-        "stack_pivot", "dispatcher", "reg_pop", "usr_regex", "fess", "imports"
+        "rop", "jop", "sys", "partial_match",
+        "stack_pivot", "dispatcher", "reg_pop", "usr_regex", "fess", "symbols"
     ])]
     pub(crate) check_sec: bool,
 
     // TODO: conflict list gen by removal
     #[arg(help = HELP_FESS.as_str(), long, conflicts_with_all = &[
         "arch", "att", "extended_fmt", "max_len",
-        "rop", "jop", "sys", "inc_imm16", "partial_match",
-        "stack_pivot", "dispatcher", "reg_pop", "usr_regex", "check_sec", "imports"
+        "rop", "jop", "sys", "partial_match",
+        "stack_pivot", "dispatcher", "reg_pop", "usr_regex", "check_sec", "symbols"
     ])]
     pub(crate) fess: bool,
 
-    #[arg(help = HELP_IMPORTS.as_str(), long, conflicts_with_all = &[
+    #[arg(help = HELP_SYMBOLS.as_str(), long, conflicts_with_all = &[
         "arch", "att", "extended_fmt", "max_len",
-        "rop", "jop", "sys", "inc_imm16", "partial_match",
+        "rop", "jop", "sys", "partial_match",
         "stack_pivot", "dispatcher", "reg_pop", "usr_regex", "check_sec", "fess"
     ])]
-    pub(crate) imports: bool,
+    pub(crate) symbols: bool,
 }
 
 impl CLIOpts {
+    // Parse input binaries.
+    // This has the important side-effect of updating data used for `Display`.
+    pub(crate) fn parse_binaries(&mut self) -> Vec<xgadget::Binary> {
+        let bins: Vec<xgadget::Binary> = self.bin_paths
+            .par_iter()
+            .map(|path| xgadget::Binary::from_path(path).unwrap())
+            .map(|mut binary| {
+                if binary.arch() == xgadget::Arch::Unknown {
+                    binary.set_arch(self.arch); // Set user value if cannot auto-determine
+                    assert!(
+                        binary.arch() != xgadget::Arch::Unknown,
+                        "Please set \'--arch\' to \'x8086\' (16-bit), \'x86\' (32-bit), or \'x64\' (64-bit). \
+                        It couldn't be determined automatically."
+                    );
+                }
+                binary
+            })
+            .collect();
+
+        self.processed_arches = bins.iter().map(|b| b.arch()).collect::<HashSet<_>>();
+
+        bins
+    }
+
     // User flags -> Search config bitfield
     pub(crate) fn get_search_config(&self) -> xgadget::SearchConfig {
         let mut search_config = xgadget::SearchConfig::default();
@@ -135,11 +166,8 @@ impl CLIOpts {
         if self.partial_match {
             search_config |= xgadget::SearchConfig::PART;
         }
-        if self.inc_imm16 {
-            search_config |= xgadget::SearchConfig::IMM16;
-        }
-        if self.inc_call {
-            search_config |= xgadget::SearchConfig::CALL;
+        if self.all {
+            search_config |= xgadget::SearchConfig::ALL;
         }
 
         // Subtract from default
@@ -188,7 +216,10 @@ impl CLIOpts {
                     bin,
                 );
                 let buf = fs::read(path).unwrap();
-                println!("{}", CustomCheckSecResults::new(&buf, path_str));
+
+                for res in CustomCheckSecResults::new(&buf, path_str) {
+                    print!("{}\n\n", res);
+                }
 
                 debug_assert!(self
                     .bin_paths
@@ -201,7 +232,7 @@ impl CLIOpts {
     }
 
     // Helper for printing imports from requested binaries
-    pub(crate) fn run_imports(&self, bins: &[xgadget::Binary]) {
+    pub(crate) fn run_symbols(&self, bins: &[xgadget::Binary]) {
         for (idx, path) in self.bin_paths.iter().enumerate() {
             println!("\nTARGET {} - {} \n", format!("{}", idx).red(), bins[idx]);
 
@@ -210,13 +241,13 @@ impl CLIOpts {
             let buf = fs::read(path).unwrap();
             match Object::parse(&buf).unwrap() {
                 // TODO: update imports to remove no-color
-                Object::Elf(elf) => imports::dump_elf_imports(&elf),
-                Object::PE(pe) => imports::dump_pe_imports(&pe),
+                Object::Elf(elf) => symbols::dump_elf_imports(&elf),
+                Object::PE(pe) => symbols::dump_pe_imports(&pe),
                 Object::Mach(mach) => match mach {
-                    goblin::mach::Mach::Binary(macho) => imports::dump_macho_imports(&macho),
+                    goblin::mach::Mach::Binary(macho) => symbols::dump_macho_imports(&macho),
                     goblin::mach::Mach::Fat(fat) => {
                         let macho = xgadget::get_supported_macho(&fat).unwrap();
-                        imports::dump_macho_imports(&macho)
+                        symbols::dump_macho_imports(&macho)
                     }
                 },
                 _ => panic!("Only ELF, PE, and Mach-O binaries currently supported!"),
@@ -277,21 +308,21 @@ impl fmt::Display for CLIOpts {
         let colon = self.fmt_summary_item(":", SummaryItemType::Separator);
         write!(
             f,
-            "{} {} arch{colon} {} {pipe_sep} search{colon} {} {pipe_sep} x_match{colon} \
-            {} {pipe_sep} max_len{colon} {} {pipe_sep} syntax{colon} {} {pipe_sep} regex{colon} {} {}",
+            "{} {} arch{colon} {} {pipe_sep} search{colon} {} {pipe_sep} max_len{colon} \
+            {} {pipe_sep} syntax{colon} {} {pipe_sep} regex{colon} {} {pipe_sep} x_match{colon} {} {}",
             { self.fmt_summary_item("CONFIG", SummaryItemType::Header) },
             self.fmt_summary_item("[", SummaryItemType::Separator),
             {
-                match ARCHS_PROCESSED.lock().unwrap().get() {
-                    Some(arches) => {
-                        let arch_list = arches.iter()
-                            .map(|a| format!("{}", a))
+                if !self.processed_arches.is_empty() {
+                    cli_rule_fmt(
+                        &self.processed_arches.iter().map(|a| format!("{}", a))
                             .collect::<Vec<_>>()
-                            .join(&comma_sep);
-
-                        cli_rule_fmt(&arch_list, false, false)
-                    },
-                    None => self.fmt_summary_item("undetermined", SummaryItemType::Data).to_string(),
+                            .join(&comma_sep),
+                        false,
+                        false,
+                    )
+                } else {
+                    self.fmt_summary_item("undetermined", SummaryItemType::Data).to_string()
                 }
             },
             {
@@ -319,35 +350,66 @@ impl fmt::Display for CLIOpts {
                 if self.reg_pop {
                     search_mode.push("Reg-pop");
                 };
+                if self.reg_only {
+                    search_mode.push("Reg-only");
+                };
                 if self.param_ctrl {
                     search_mode.push("Param-ctrl");
                 };
-                if is_env_resident(&[REG_CTRL_FLAG]) {
-                    if !self.reg_ctrl.is_empty() {
+                if is_env_resident(&[REG_OVERWRITE_FLAG]) {
+                    if !self.reg_overwrite.is_empty() {
                         // Note: leak on rare case to avoid alloc on common case
                         search_mode.push(Box::leak(format!(
-                            "Reg-ctrl-{{{}}}",
-                            self.reg_ctrl.iter()
+                            "Reg-overwrite-{{{}}}",
+                            self.reg_overwrite.iter()
                                 .map(|r| r.to_lowercase())
                                 .collect::<Vec<_>>()
                                 .join(&comma_sep)
                         ).into_boxed_str()));
                     } else {
-                        search_mode.push("Reg-ctrl");
+                        search_mode.push("Reg-overwrite");
                     }
                 };
-                if is_env_resident(&[NO_DEREF_FLAG]) {
-                    if !self.no_deref.is_empty() {
+                if is_env_resident(&[REG_NO_WRITE_FLAG]) {
+                    if !self.reg_no_write.is_empty() {
                         // Note: leak on rare case to avoid alloc on common case
                         search_mode.push(Box::leak(format!(
-                            "No-deref-{{{}}}",
-                            self.no_deref.iter()
+                            "Reg-no-write-{{{}}}",
+                            self.reg_no_write.iter()
                                 .map(|r| r.to_lowercase())
                                 .collect::<Vec<_>>()
                                 .join(&comma_sep)
                         ).into_boxed_str()));
                     } else {
-                        search_mode.push("No-deref");
+                        search_mode.push("Reg-no-write");
+                    }
+                };
+                if is_env_resident(&[REG_READ_FLAG]) {
+                    if !self.reg_read.is_empty() {
+                        // Note: leak on rare case to avoid alloc on common case
+                        search_mode.push(Box::leak(format!(
+                            "Reg-read-{{{}}}",
+                            self.reg_read.iter()
+                                .map(|r| r.to_lowercase())
+                                .collect::<Vec<_>>()
+                                .join(&comma_sep)
+                        ).into_boxed_str()));
+                    } else {
+                        search_mode.push("Reg-read");
+                    }
+                };
+                if is_env_resident(&[REG_NO_READ_FLAG]) {
+                    if !self.reg_no_read.is_empty() {
+                        // Note: leak on rare case to avoid alloc on common case
+                        search_mode.push(Box::leak(format!(
+                            "Reg-no-read-{{{}}}",
+                            self.reg_no_read.iter()
+                                .map(|r| r.to_lowercase())
+                                .collect::<Vec<_>>()
+                                .join(&comma_sep)
+                        ).into_boxed_str()));
+                    } else {
+                        search_mode.push("Reg-no-read");
                     }
                 };
                 cli_rule_fmt(
@@ -355,17 +417,6 @@ impl fmt::Display for CLIOpts {
                     false,
                     false
                 ).bold()
-            },
-            {
-                let x_match = if self.bin_paths.len() == 1 {
-                    "none"
-                } else if self.partial_match || self.fess {
-                    "full-and-partial"
-                } else {
-                    "full"
-                };
-
-                self.fmt_summary_item(x_match, SummaryItemType::Data)
             },
             { self.fmt_summary_item(&format!("{}", self.max_len), SummaryItemType::Data) },
             {
@@ -382,18 +433,31 @@ impl fmt::Display for CLIOpts {
 
                 self.fmt_summary_item(&regex, SummaryItemType::Data)
             },
+            {
+                let x_match = if self.bin_paths.len() == 1 {
+                    "none"
+                } else if self.partial_match || self.fess {
+                    "full-and-partial"
+                } else {
+                    "full"
+                };
+
+                self.fmt_summary_item(x_match, SummaryItemType::Data)
+            },
             "]".bright_magenta(),
         )
     }
 }
 
-// Misc ----------------------------------------------------------------------------------------------------------------
+// Dirty Hacks ---------------------------------------------------------------------------------------------------------
 
 // XXX: We hardcode these to support modifying runtime behavior on presence or absence
-pub(crate) const REG_CTRL_FLAG: &str = "--reg-ctrl";
-pub(crate) const NO_DEREF_FLAG: &str = "--no-deref";
+pub(crate) const REG_OVERWRITE_FLAG: &str = "--reg-overwrite";
+pub(crate) const REG_NO_WRITE_FLAG: &str = "--reg-no-write";
+pub(crate) const REG_READ_FLAG: &str = "--reg-read";
+pub(crate) const REG_NO_READ_FLAG: &str = "--reg-no-read";
 
-// Runtime reflection, underpins `--reg-ctrl` and `--no-deref` flag behavior.
+// Runtime reflection, underpins register behavior flag functionality.
 // XXX: more idiomatic alternative with `clap`?
 pub(crate) fn is_env_resident(clap_args: &[&str]) -> bool {
     std::env::args_os().any(|a| {
