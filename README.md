@@ -33,7 +33,7 @@ xgadget --help                              # List available command line option
 <i><b>ROP</b> Attack Model (recreated from:<a href="https://www.comp.nus.edu.sg/~liangzk/papers/asiaccs11.pdf"> Bletsch et. al.</a>)</i>
 </p>
 
-* **Jump Oriented Programming (JOP)** is a newer code reuse method which, unlike ROP, doesn't rely on stack control. The attack *bypasses* hardware-assisted shadow-stack implementations (e.g. Intel CET's shadow stack), and is *limited* but *not prevented* by prototype-insensitive indirect location checks (e.g. Intel CET's IBT). JOP allows storing a table of gadget addresses in any `READ`/`WRITE` memory location. Instead of piggy-backing on call-return semantics to execute a gadget list, a "dispatch" gadget (e.g. `add rax, 8; jmp [rax]`) controls table indexing. Chaining happens if each gadget ends with a `jmp` back to the dispatcher (instead of a `ret`).
+* **Jump Oriented Programming (JOP)** is a newer code reuse method which, unlike ROP, doesn't rely on stack control. The attack *bypasses* hardware-assisted shadow-stack implementations (e.g. Intel CET's shadow stack), and is *limited* but *not prevented* by prototype-insensitive indirect target checks (e.g. Intel CET's IBT). JOP allows storing a table of gadget addresses in any `READ`/`WRITE` memory location. Instead of piggy-backing on call-return semantics to execute a gadget list, a "dispatch" gadget (e.g. `add rax, 8; jmp [rax]`) controls table indexing. Chaining happens if each gadget ends with a `jmp` back to the dispatcher (instead of a `ret`).
 
 <p style="text-align: center;" align="center">
     <img src="https://raw.githubusercontent.com/tnballo/high-assurance-rust/main/src/chp4/exploit_jop_model.svg" width="100%" alt="jop model">
@@ -110,6 +110,18 @@ Other features include:
 
 Run `xgadget --help` to enumerate available options.
 
+* **Example:** Search `/usr/bin/sudo` for reliable ways to control `rdi`:
+
+```bash
+xgadget /usr/bin/sudo --reg-only --reg-overwrite rdi
+```
+
+* **Example:** Search for ROP gadgets that control the value of `rdi`, never read `rsi` or `rdx`, and occur at addresses that don't contain bytes `0x32` or `0x0d`:
+
+```bash
+xgadget /usr/bin/sudo --rop --reg-overwrite rdi --reg-no-read rsi rdx --bad-bytes 0x32 0x0d
+```
+
 * **Example:** Search `/usr/bin/sudo` for "pop, pop, {jmp,call}" gadgets up to 10 instructions long, print results using AT&T syntax:
 
 ```bash
@@ -120,12 +132,6 @@ xgadget /usr/bin/sudo --jop --reg-pop --att --max-len 10
 
 ```bash
 xgadget /usr/bin/sudo --regex-filter "^(?:pop)(?:.*(?:pop))*.*(?:call|jmp)" --att --max-len 10
-```
-
-* **Example:** Search for ROP gadgets that control the value of `rdi`, never read `rsi` or `rdx`, and occur at addresses that don't contain bytes `0x32` or `0x0d`:
-
-```bash
-xgadget /usr/bin/sudo --rop --reg-overwrite rdi --reg-no-read rsi rdx --bad-bytes 0x32 0x0d
 ```
 
 * **Example:** Examine the exploit mitigations binaries `sudo` and `lighttpd` have been compiled with:

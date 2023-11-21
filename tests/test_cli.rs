@@ -752,6 +752,38 @@ fn test_reg_equivalence() {
 #[test]
 #[cfg(target_os = "linux")]
 #[cfg_attr(not(feature = "cli-bin"), ignore)]
+fn test_readme_0() {
+    let output_all = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/usr/bin/sudo")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    let output_readme = String::from_utf8(
+        Command::cargo_bin("xgadget")
+            .unwrap()
+            .arg("/usr/bin/sudo")
+            .arg("--reg-only")
+            .arg("--reg-overwrite")
+            .arg("rdi")
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+
+    println!("ALL: {}", output_all);
+    println!("README_0: {}", output_readme);
+    assert!(!output_readme.is_empty());
+    assert!(output_all.len() >= output_readme.len());
+}
+#[test]
+#[cfg(target_os = "linux")]
+#[cfg_attr(not(feature = "cli-bin"), ignore)]
 fn test_readme_1() {
     let output_all = String::from_utf8(
         Command::cargo_bin("xgadget")

@@ -96,7 +96,7 @@ where
             g.analysis().used_mem().all(|um| um.displacement() == 0x0)
                 && g.instrs
                     .iter()
-                    .all(|instr| semantics::is_reg_ops_only(instr))
+                    .all(|instr| instr.op_count() == 0 || semantics::is_reg_ops_only(instr))
         })
         .collect()
 }

@@ -14,6 +14,18 @@ fn dbg_print_instr(instr: &iced_x86::Instruction) {
 }
 
 #[test]
+fn test_xchg_rsp_rax() {
+    let xchg_rsp_rax: [u8; 2] = [0x48, 0x94];
+    let instr = common::decode_single_x64_instr(0, &xchg_rsp_rax);
+    let mut info_factory = iced_x86::InstructionInfoFactory::new();
+    let used_regs = info_factory.info(&instr).used_registers();
+
+    dbg_print_instr(&instr);
+    assert!(used_regs.iter().any(|ur| *ur
+        == iced_x86::UsedRegister::new(iced_x86::Register::RAX, iced_x86::OpAccess::ReadWrite)));
+}
+
+#[test]
 fn test_xor_eax_const() {
     let xor_eax_const: [u8; 5] = [0x35, 0x0B, 0xE3, 0xFF, 0xFF];
     let instr = common::decode_single_x64_instr(0, &xor_eax_const);

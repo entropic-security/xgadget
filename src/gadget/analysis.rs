@@ -12,6 +12,7 @@ use super::gadget::Gadget;
 struct InstrInfo {
     op_regs: HashSet<iced_x86::Register>,
     mem_base: iced_x86::Register,
+    mnemonic: iced_x86::Mnemonic,
     used_regs: HashSet<iced_x86::UsedRegister>,
     used_mem: HashSet<iced_x86::UsedMemory>,
 }
@@ -58,6 +59,7 @@ impl GadgetAnalysis {
                         used_regs: info.used_registers().into_iter().cloned().collect(),
                         used_mem: info.used_memory().into_iter().cloned().collect(),
                         mem_base: instr.memory_base(),
+                        mnemonic: instr.mnemonic(),
                         op_regs,
                     }
                 })
@@ -131,7 +133,8 @@ impl GadgetAnalysis {
                 info.used_regs
                     .iter()
                     .filter(move |ur| {
-                        ur.access() == iced_x86::OpAccess::Write
+                        ((ur.access() == iced_x86::OpAccess::ReadWrite && info.mnemonic == iced_x86::Mnemonic::Xchg)
+                        || (ur.access() == iced_x86::OpAccess::Write))
                             && !matches!(
                                 info.mem_base,
                                 iced_x86::Register::RIP | iced_x86::Register::EIP,
