@@ -212,6 +212,32 @@ where
         .collect()
 }
 
+/// Parallel filter to gadgets that write memory indexed by any register (if `opt_regs.is_none()`),
+/// or by a specific registers (if `opt_regs.is_some()`).
+/// Doesn't count the stack pointer unless explicitly provided in `opt_regs`.
+pub fn filter_regs_deref_write<'a, P>(gadgets: P, opt_regs: Option<&[iced_x86::Register]>) -> P
+where
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
+{
+    gadgets
+        .into_par_iter()
+        .filter(|g| {
+            let mut regs_derefed_write = g.analysis().regs_dereferenced_write();
+            match opt_regs {
+                Some(regs) => regs.iter().all(|r| regs_derefed_write.contains(r)),
+                None => {
+                    // Don't count stack pointer
+                    regs_derefed_write.retain(|r| r != &iced_x86::Register::RSP);
+                    regs_derefed_write.retain(|r| r != &iced_x86::Register::ESP);
+                    regs_derefed_write.retain(|r| r != &iced_x86::Register::SP);
+
+                    !regs_derefed_write.is_empty()
+                }
+            }
+        })
+        .collect()
+}
+
 /// Parallel filter to gadgets that read any register (if `opt_regs.is_none()`),
 /// or write specific registers (if `opt_regs.is_some()`).
 pub fn filter_regs_read<'a, P>(gadgets: P, opt_regs: Option<&[iced_x86::Register]>) -> P
@@ -251,6 +277,32 @@ where
                     regs.iter().all(|r| !regs_read.contains(r))
                 }
                 None => regs_read.is_empty(),
+            }
+        })
+        .collect()
+}
+
+/// Parallel filter to gadgets that read memory indexed by any register (if `opt_regs.is_none()`),
+/// or by a specific registers (if `opt_regs.is_some()`).
+/// Doesn't count the stack pointer unless explicitly provided in `opt_regs`.
+pub fn filter_regs_deref_read<'a, P>(gadgets: P, opt_regs: Option<&[iced_x86::Register]>) -> P
+where
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
+{
+    gadgets
+        .into_par_iter()
+        .filter(|g| {
+            let mut regs_derefed_read = g.analysis().regs_dereferenced_read();
+            match opt_regs {
+                Some(regs) => regs.iter().all(|r| regs_derefed_read.contains(r)),
+                None => {
+                    // Don't count stack pointer
+                    regs_derefed_read.retain(|r| r != &iced_x86::Register::RSP);
+                    regs_derefed_read.retain(|r| r != &iced_x86::Register::ESP);
+                    regs_derefed_read.retain(|r| r != &iced_x86::Register::SP);
+
+                    !regs_derefed_read.is_empty()
+                }
             }
         })
         .collect()

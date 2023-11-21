@@ -46,10 +46,9 @@ pub const X_RET_AFTER_JNE_AND_ADJACENT_CALL_MIX_MATCH_X64: &[u8] = &[
 ];
 
 fn get_raw_bin(name: &str, bytes: &[u8]) -> xgadget::Binary {
-    let mut bin = xgadget::Binary::from_bytes(name, bytes).unwrap();
+    let bin = xgadget::Binary::from_bytes(name, bytes).unwrap();
     assert_eq!(bin.format(), xgadget::Format::Raw);
-    assert_eq!(bin.arch(), xgadget::Arch::Unknown);
-    bin.set_arch(xgadget::Arch::X64);
+    assert_eq!(bin.arch(), xgadget::Arch::X64);
 
     bin
 }

@@ -7,9 +7,10 @@ use super::gadget::Gadget;
 
 // Gadget Analysis -----------------------------------------------------------------------------------------------------
 
-// Internal per-instruction information
+// Internal per-instruction meta-information.
+// Populated at construction time.
 #[derive(Clone, Debug)]
-struct InstrInfo {
+struct InstrMetaInfo {
     op_regs: HashSet<iced_x86::Register>,
     mem_base: iced_x86::Register,
     mnemonic: iced_x86::Mnemonic,
@@ -18,18 +19,21 @@ struct InstrInfo {
 }
 
 /// Determines gadget register usage properties.
-/// Lazy construct by calling [`Gadget::analysis`].
+/// Lazy construct by calling [`Gadget::analysis`] (cache initial analysis for multiple usages/filters).
+/// Internal lazy-eval for state common to queries (cache post-analysis operations for multiple public API calls).
 ///
+/// TODO: update
 /// * Registers overwritten (written without reading previous value)
 /// * Registers updated (read and then written, within single instruction)
 /// * Registers dereferenced for read
 /// * Registers dereferenced for write
 ///
 /// # Limitations
+///
 /// * Current logic does not account for all cases of conditional behavior
 #[derive(Clone, Debug)]
 pub struct GadgetAnalysis {
-    instr_info: Vec<InstrInfo>,
+    instr_info: Vec<InstrMetaInfo>,
     total_used_regs: OnceLock<HashSet<iced_x86::UsedRegister>>,
     total_used_mem: OnceLock<HashSet<iced_x86::UsedMemory>>,
 }
@@ -55,7 +59,7 @@ impl GadgetAnalysis {
                         }
                     }
 
-                    InstrInfo {
+                    InstrMetaInfo {
                         used_regs: info.used_registers().into_iter().cloned().collect(),
                         used_mem: info.used_memory().into_iter().cloned().collect(),
                         mem_base: instr.memory_base(),

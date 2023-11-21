@@ -175,6 +175,12 @@ gen_help_str!(
         "Filter to gadgets that don't write any reg (no args) or specific regs (flag args)",
     ),
     (
+        HELP_REG_MEM_WRITE,
+        false,
+        false,
+        "Filter to gadgets that write memory via any base reg (no args) or specific regs (flag args)",
+    ),
+    (
         HELP_REG_READ,
         false,
         false,
@@ -185,6 +191,12 @@ gen_help_str!(
         false,
         false,
         "Filter to gadgets that don't read any regs (no args) or specific regs (flag args)",
+    ),
+    (
+        HELP_REG_MEM_READ,
+        false,
+        false,
+        "Filter to gadgets that read memory via any base reg (no args) or specific regs (flag args)",
     ),
     (
         HELP_PARAM_CTRL,

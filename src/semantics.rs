@@ -23,6 +23,7 @@ pub fn is_sys_gadget_tail(instr: &iced_x86::Instruction) -> bool {
 }
 
 /// Check if instruction should exist in a gadget body.
+///
 /// If `all == false`, the following instructions are excluded for cleaner output:
 ///
 /// * Direct branches
