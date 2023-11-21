@@ -218,7 +218,10 @@ impl CLIOpts {
                     bin,
                 );
                 let buf = fs::read(path).unwrap();
-                println!("{}", CustomCheckSecResults::new(&buf, path_str));
+
+                for res in CustomCheckSecResults::new(&buf, path_str) {
+                    print!("{}\n\n", res);
+                }
 
                 debug_assert!(self
                     .bin_paths

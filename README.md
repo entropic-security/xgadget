@@ -53,17 +53,17 @@ It's a fast, multi-threaded alternative to awesome tools like [`ROPGadget`](http
 The goal is supporting practical usage while simultaneously exploring unique and experimental features.
 To the best of our knowledge, `xgadget` is the first gadget search tool to be:
 
-* **Fast-register-sensitive**: Filters gadgets by register usage behavior, not just matches for a given regex, without SMT solving (more powerful, but often impractical)
+* **Fast-register-sensitive**: Filters gadgets by register usage behavior, not just matches for a given regex, without SMT solving (more powerful, but often impractical).
 
-    * `--reg-overwrite [<OPT_REG(S)>...]` - filter to gadgets that control any reg (no args) or specific regs (flag args)
+    * `--reg-overwrite [<OPT_REG(S)>...]` - control any reg (no args) or specific regs (flag args)
 
-    * `--reg-no-write [<OPT_REG(S)>...]` - filter to gadgets that don't write any reg (no args) or specific regs (flag args)
+    * `--reg-no-write [<OPT_REG(S)>...]` - don't write any reg (no args) or specific regs (flag args)
 
-    * `--reg-read [<OPT_REG(S)>...]` - filter to gadgets that read any regs (no args) or specific regs (flag args)
+    * `--reg-read [<OPT_REG(S)>...]` - read any regs (no args) or specific regs (flag args)
 
-    * `--reg-no-read [<OPT_REG(S)>...]` - filter to gadgets that don't read any regs (no args) or specific regs (flag args)
+    * `--reg-no-read [<OPT_REG(S)>...]` - don't read any regs (no args) or specific regs (flag args)
 
-* **JOP-efficient**: JOP search uses instruction semantics - not hardcoded regex for individual encodings
+* **JOP-efficient**: JOP search uses instruction semantics - not hardcoded regex for individual encodings.
 
     * Optionally filter to JOP "dispatcher" gadgets with flag `--dispatcher`
 
@@ -104,11 +104,11 @@ Other features include:
 
 * Supports ELF32, ELF64, PE32, PE32+, Mach-O, and raw files
 * Parallel across available cores, whether searching a single binary or multiple variants
-* Currently 8086/x86/x64 only, uses a speed-optimized, arch-specific disassembler
+* Currently 8086/x86/x64 only (uses a speed-optimized, arch-specific disassembler)
 
 ### CLI Examples
 
-Run `xgadget --help` to enumerate available commands.
+Run `xgadget --help` to enumerate available options.
 
 * **Example:** Search `/usr/bin/sudo` for "pop, pop, {jmp,call}" gadgets up to 10 instructions long, print results using AT&T syntax:
 
@@ -275,7 +275,7 @@ TARGET 2 - [ name: 'vmlinux-5.0.10' | fmt-arch: ELF-X64 | entry: 0x0000000100000
 └─────────────┴──────────────────────┴──────────────────────┴───────────────────────┘
 ```
 
-Note these totals exclude low-quality gadgets (use `--all` flag).
+Note these totals exclude low-quality gadgets (use `--all` flag to include).
 In the output table, we see that up to 72.02% of individual ROP gadgets, and 15.64% of JOP gadgets, are portable across all three versions (counting partial matches).
 
 ### Acknowledgements
