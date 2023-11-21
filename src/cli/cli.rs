@@ -1,7 +1,7 @@
 use std::{fmt, fs, time};
 
 use clap::Parser;
-use colored::Colorize;
+use colored::{ColoredString, Colorize};
 use goblin::Object;
 use num_format::{Locale, ToFormattedString};
 use rayon::prelude::*;
@@ -305,6 +305,35 @@ impl CLIOpts {
             SummaryItemType::Separator => item.trim().bold().bright_magenta(),
         }
     }
+
+    // Helper for search config display append
+    fn fmt_append_reg_sensitive_flag<'a>(
+        search_mode: &mut Vec<&'a str>,
+        flag_literal: &str,
+        flag_reg_args: &Vec<String>,
+        flag_display: &'a str,
+        sep: &ColoredString,
+    ) {
+        if is_env_resident(&[flag_literal]) {
+            if !flag_reg_args.is_empty() {
+                // Note: leak on rare case to avoid alloc on common case
+                search_mode.push(Box::leak(
+                    format!(
+                        "{}-{{{}}}",
+                        flag_display,
+                        flag_reg_args
+                            .iter()
+                            .map(|r| r.to_lowercase())
+                            .collect::<Vec<_>>()
+                            .join(sep)
+                    )
+                    .into_boxed_str(),
+                ));
+            } else {
+                search_mode.push(flag_display);
+            }
+        };
+    }
 }
 
 impl fmt::Display for CLIOpts {
@@ -362,90 +391,12 @@ impl fmt::Display for CLIOpts {
                 if self.param_ctrl {
                     search_mode.push("Param-ctrl");
                 };
-                if is_env_resident(&[REG_OVERWRITE_FLAG]) {
-                    if !self.reg_overwrite.is_empty() {
-                        // Note: leak on rare case to avoid alloc on common case
-                        search_mode.push(Box::leak(format!(
-                            "Reg-overwrite-{{{}}}",
-                            self.reg_overwrite.iter()
-                                .map(|r| r.to_lowercase())
-                                .collect::<Vec<_>>()
-                                .join(&comma_sep)
-                        ).into_boxed_str()));
-                    } else {
-                        search_mode.push("Reg-overwrite");
-                    }
-                };
-                if is_env_resident(&[REG_NO_WRITE_FLAG]) {
-                    if !self.reg_no_write.is_empty() {
-                        // Note: leak on rare case to avoid alloc on common case
-                        search_mode.push(Box::leak(format!(
-                            "Reg-no-write-{{{}}}",
-                            self.reg_no_write.iter()
-                                .map(|r| r.to_lowercase())
-                                .collect::<Vec<_>>()
-                                .join(&comma_sep)
-                        ).into_boxed_str()));
-                    } else {
-                        search_mode.push("Reg-no-write");
-                    }
-                };
-                if is_env_resident(&[REG_MEM_WRITE_FLAG]) {
-                    if !self.reg_mem_write.is_empty() {
-                        // Note: leak on rare case to avoid alloc on common case
-                        search_mode.push(Box::leak(format!(
-                            "Reg-mem-write-{{{}}}",
-                            self.reg_mem_write.iter()
-                                .map(|r| r.to_lowercase())
-                                .collect::<Vec<_>>()
-                                .join(&comma_sep)
-                        ).into_boxed_str()));
-                    } else {
-                        search_mode.push("Reg-mem-write");
-                    }
-                };
-                if is_env_resident(&[REG_READ_FLAG]) {
-                    if !self.reg_read.is_empty() {
-                        // Note: leak on rare case to avoid alloc on common case
-                        search_mode.push(Box::leak(format!(
-                            "Reg-read-{{{}}}",
-                            self.reg_read.iter()
-                                .map(|r| r.to_lowercase())
-                                .collect::<Vec<_>>()
-                                .join(&comma_sep)
-                        ).into_boxed_str()));
-                    } else {
-                        search_mode.push("Reg-read");
-                    }
-                };
-                if is_env_resident(&[REG_NO_READ_FLAG]) {
-                    if !self.reg_no_read.is_empty() {
-                        // Note: leak on rare case to avoid alloc on common case
-                        search_mode.push(Box::leak(format!(
-                            "Reg-no-read-{{{}}}",
-                            self.reg_no_read.iter()
-                                .map(|r| r.to_lowercase())
-                                .collect::<Vec<_>>()
-                                .join(&comma_sep)
-                        ).into_boxed_str()));
-                    } else {
-                        search_mode.push("Reg-no-read");
-                    }
-                };
-                if is_env_resident(&[REG_MEM_READ_FLAG]) {
-                    if !self.reg_mem_read.is_empty() {
-                        // Note: leak on rare case to avoid alloc on common case
-                        search_mode.push(Box::leak(format!(
-                            "Reg-mem-read-{{{}}}",
-                            self.reg_mem_read.iter()
-                                .map(|r| r.to_lowercase())
-                                .collect::<Vec<_>>()
-                                .join(&comma_sep)
-                        ).into_boxed_str()));
-                    } else {
-                        search_mode.push("Reg-mem-read");
-                    }
-                };
+                Self::fmt_append_reg_sensitive_flag(&mut search_mode, REG_OVERWRITE_FLAG, &self.reg_overwrite, "Reg-overwrite", &comma_sep);
+                Self::fmt_append_reg_sensitive_flag(&mut search_mode, REG_NO_WRITE_FLAG, &self.reg_no_write, "Reg-no-write", &comma_sep);
+                Self::fmt_append_reg_sensitive_flag(&mut search_mode, REG_MEM_WRITE_FLAG, &self.reg_mem_write, "Reg-mem-write", &comma_sep);
+                Self::fmt_append_reg_sensitive_flag(&mut search_mode, REG_READ_FLAG, &self.reg_read, "Reg-read", &comma_sep);
+                Self::fmt_append_reg_sensitive_flag(&mut search_mode, REG_NO_READ_FLAG, &self.reg_no_read, "Reg-no-read", &comma_sep);
+                Self::fmt_append_reg_sensitive_flag(&mut search_mode, REG_MEM_READ_FLAG, &self.reg_mem_read, "Reg-mem-read", &comma_sep);
                 cli_rule_fmt(
                     &self.fmt_summary_item(&search_mode.join(&comma_sep), SummaryItemType::Data),
                     false,
