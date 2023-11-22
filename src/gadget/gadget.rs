@@ -70,7 +70,7 @@ impl<'a> Gadget<'a> {
 
     /// Get analysis
     pub fn analysis(&self) -> &GadgetAnalysis {
-        self.analysis.get_or_init(|| GadgetAnalysis::new(&self))
+        self.analysis.get_or_init(|| GadgetAnalysis::new(self))
     }
 
     /// Get a instructions

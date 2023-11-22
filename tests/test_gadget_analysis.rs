@@ -14,7 +14,7 @@ fn get_reg_sensitive_data_bin<'a>() -> Binary {
         0xc3,                                                   // 0xf: ret
     ];
 
-    Binary::from_bytes("reg_sensitive", &REG_SENSITIVE_TEST_SET).unwrap()
+    Binary::from_bytes("reg_sensitive", REG_SENSITIVE_TEST_SET).unwrap()
 }
 
 #[test]
@@ -128,20 +128,20 @@ fn test_regs_deref() {
         .regs_dereferenced()
         .contains(&iced_x86::Register::RSP));
 
-    assert!(analysis.regs_dereferenced_write().len() == 2);
+    assert!(analysis.regs_dereferenced_mem_write().len() == 2);
     assert!(analysis
-        .regs_dereferenced_write()
+        .regs_dereferenced_mem_write()
         .contains(&iced_x86::Register::RAX));
     assert!(analysis
-        .regs_dereferenced_write()
+        .regs_dereferenced_mem_write()
         .contains(&iced_x86::Register::RCX));
 
-    assert!(analysis.regs_dereferenced_read().len() == 2);
+    assert!(analysis.regs_dereferenced_mem_read().len() == 2);
     assert!(analysis
-        .regs_dereferenced_read()
+        .regs_dereferenced_mem_read()
         .contains(&iced_x86::Register::RCX));
     assert!(analysis
-        .regs_dereferenced_read()
+        .regs_dereferenced_mem_read()
         .contains(&iced_x86::Register::RSP));
 }
 

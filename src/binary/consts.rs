@@ -115,6 +115,6 @@ pub(crate) fn get_reg_family(reg: &iced_x86::Register) -> impl Iterator<Item = i
         Reg::RIP => vec![Reg::RIP, Reg::EIP].into_iter(),
 
         // No family relation
-        _ => vec![reg.clone()].into_iter(),
+        _ => vec![*reg].into_iter(),
     }
 }

@@ -8,7 +8,7 @@ use rayon::prelude::*;
 use rustc_hash::FxHashSet as HashSet;
 
 use super::{checksec_fmt::CustomCheckSecResults, symbols};
-use crate::str_fmt::*;
+use crate::{str_fmt::*, Gadget};
 
 // Arg parse -----------------------------------------------------------------------------------------------------------
 
@@ -146,6 +146,8 @@ pub(crate) struct ArgGroupRegSensitve {
 }
 
 impl CLIOpts {
+    // CLI Crate API ---------------------------------------------------------------------------------------------------
+
     // Parse input binaries.
     // This has the important side-effect of updating data used for `Display`.
     pub(crate) fn parse_binaries(&mut self) -> Vec<xgadget::Binary> {
@@ -303,6 +305,8 @@ impl CLIOpts {
         )
     }
 
+    // CLI Private API -------------------------------------------------------------------------------------------------
+
     // Helper for summary print
     fn fmt_summary_item(&self, item: &str, ty: SummaryItemType) -> colored::ColoredString {
         match ty {
@@ -310,35 +314,6 @@ impl CLIOpts {
             SummaryItemType::Data => item.trim().bold().bright_blue(),
             SummaryItemType::Separator => item.trim().bold().bright_magenta(),
         }
-    }
-
-    // Helper for search config display append
-    fn fmt_append_reg_sensitive_flag<'a>(
-        search_mode: &mut Vec<&'a str>,
-        flag_literal: &str,
-        flag_reg_args: &Vec<String>,
-        flag_display: &'a str,
-        sep: &ColoredString,
-    ) {
-        if is_env_resident(&[flag_literal]) {
-            if !flag_reg_args.is_empty() {
-                // Note: leak on rare case to avoid alloc on common case
-                search_mode.push(Box::leak(
-                    format!(
-                        "{}-{{{}}}",
-                        flag_display,
-                        flag_reg_args
-                            .iter()
-                            .map(|r| r.to_lowercase())
-                            .collect::<Vec<_>>()
-                            .join(sep)
-                    )
-                    .into_boxed_str(),
-                ));
-            } else {
-                search_mode.push(flag_display);
-            }
-        };
     }
 }
 
@@ -397,12 +372,12 @@ impl fmt::Display for CLIOpts {
                 if self.param_ctrl {
                     search_mode.push("Param-ctrl");
                 };
-                Self::fmt_append_reg_sensitive_flag(&mut search_mode, REG_OVERWRITE_FLAG, &self.reg.reg_overwrite, "Reg-overwrite", &comma_sep);
-                Self::fmt_append_reg_sensitive_flag(&mut search_mode, REG_MEM_WRITE_FLAG, &self.reg.reg_mem_write, "Reg-mem-write", &comma_sep);
-                Self::fmt_append_reg_sensitive_flag(&mut search_mode, REG_NO_WRITE_FLAG, &self.reg.reg_no_write, "Reg-no-write", &comma_sep);
-                Self::fmt_append_reg_sensitive_flag(&mut search_mode, REG_READ_FLAG, &self.reg.reg_read, "Reg-read", &comma_sep);
-                Self::fmt_append_reg_sensitive_flag(&mut search_mode, REG_MEM_READ_FLAG, &self.reg.reg_mem_read, "Reg-mem-read", &comma_sep);
-                Self::fmt_append_reg_sensitive_flag(&mut search_mode, REG_NO_READ_FLAG, &self.reg.reg_no_read, "Reg-no-read", &comma_sep);
+                fmt_append_reg_sensitive_flag(&mut search_mode, REG_OVERWRITE_FLAG, &self.reg.reg_overwrite, "Reg-overwrite", &comma_sep);
+                fmt_append_reg_sensitive_flag(&mut search_mode, REG_MEM_WRITE_FLAG, &self.reg.reg_mem_write, "Reg-mem-write", &comma_sep);
+                fmt_append_reg_sensitive_flag(&mut search_mode, REG_NO_WRITE_FLAG, &self.reg.reg_no_write, "Reg-no-write", &comma_sep);
+                fmt_append_reg_sensitive_flag(&mut search_mode, REG_READ_FLAG, &self.reg.reg_read, "Reg-read", &comma_sep);
+                fmt_append_reg_sensitive_flag(&mut search_mode, REG_MEM_READ_FLAG, &self.reg.reg_mem_read, "Reg-mem-read", &comma_sep);
+                fmt_append_reg_sensitive_flag(&mut search_mode, REG_NO_READ_FLAG, &self.reg.reg_no_read, "Reg-no-read", &comma_sep);
                 cli_rule_fmt(
                     &self.fmt_summary_item(&search_mode.join(&comma_sep), SummaryItemType::Data),
                     false,
@@ -461,4 +436,59 @@ pub(crate) fn is_env_resident(clap_args: &[&str]) -> bool {
         }
         false
     })
+}
+
+// Helper for reg-sensitive flags that follow the same pattern
+pub(crate) fn filter_reg_sensitive_flag<'a, P>(
+    gadgets: P,
+    flag_literal: &str,
+    flag_reg_args: &[String],
+    filter_func: impl Fn(P, Option<&[iced_x86::Register]>) -> P,
+) -> P
+where
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
+{
+    if is_env_resident(&[flag_literal]) {
+        let regs = flag_reg_args
+            .iter()
+            .map(|r| str_to_reg(r).unwrap_or_else(|| panic!("Invalid register: {:?}", r)))
+            .collect::<Vec<_>>();
+
+        if regs.is_empty() {
+            filter_func(gadgets, None)
+        } else {
+            filter_func(gadgets, Some(&regs))
+        }
+    } else {
+        gadgets
+    }
+}
+
+// Helper for search config display append
+fn fmt_append_reg_sensitive_flag<'a>(
+    search_mode: &mut Vec<&'a str>,
+    flag_literal: &str,
+    flag_reg_args: &[String],
+    flag_display: &'a str,
+    sep: &ColoredString,
+) {
+    if is_env_resident(&[flag_literal]) {
+        if !flag_reg_args.is_empty() {
+            // Note: leak on rare case to avoid alloc on common case
+            search_mode.push(Box::leak(
+                format!(
+                    "{}-{{{}}}",
+                    flag_display,
+                    flag_reg_args
+                        .iter()
+                        .map(|r| r.to_lowercase())
+                        .collect::<Vec<_>>()
+                        .join(sep)
+                )
+                .into_boxed_str(),
+            ));
+        } else {
+            search_mode.push(flag_display);
+        }
+    };
 }

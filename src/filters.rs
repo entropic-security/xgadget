@@ -71,8 +71,10 @@ where
 
                     // Preceded exclusively by pop instrs
                     let pop_chain = preceding_instrs.iter().all(|instr| {
-                        instr.mnemonic() == iced_x86::Mnemonic::Pop
-                            || instr.mnemonic() == iced_x86::Mnemonic::Popa
+                        matches!(
+                            instr.mnemonic(),
+                            iced_x86::Mnemonic::Pop | iced_x86::Mnemonic::Popa
+                        )
                     });
 
                     if pop_chain && !preceding_instrs.is_empty() {
@@ -111,9 +113,10 @@ where
         .filter(|g| {
             for instr in &g.instrs {
                 // Stack push all regs
-                if instr.mnemonic() == iced_x86::Mnemonic::Pusha
-                    || instr.mnemonic() == iced_x86::Mnemonic::Pushad
-                {
+                if matches!(
+                    instr.mnemonic(),
+                    iced_x86::Mnemonic::Pusha | iced_x86::Mnemonic::Pushad
+                ) {
                     return true;
                 }
 
@@ -169,7 +172,7 @@ where
             let regs_written = analysis
                 .regs_overwritten(true)
                 .into_iter()
-                .chain(analysis.regs_updated().into_iter())
+                .chain(analysis.regs_updated())
                 .collect::<HashSet<iced_x86::Register>>();
 
             match opt_regs {
@@ -193,16 +196,12 @@ where
             let regs_written = analysis
                 .regs_overwritten(true)
                 .into_iter()
-                .chain(analysis.regs_updated().into_iter())
+                .chain(analysis.regs_updated())
                 .collect::<HashSet<iced_x86::Register>>();
 
             match opt_regs {
                 Some(regs) => {
-                    let regs = regs
-                        .iter()
-                        .map(|r| get_reg_family(r))
-                        .flatten()
-                        .collect::<Vec<_>>();
+                    let regs = regs.iter().flat_map(get_reg_family).collect::<Vec<_>>();
 
                     regs.iter().all(|r| !regs_written.contains(r))
                 }
@@ -222,7 +221,7 @@ where
     gadgets
         .into_par_iter()
         .filter(|g| {
-            let mut regs_derefed_write = g.analysis().regs_dereferenced_write();
+            let mut regs_derefed_write = g.analysis().regs_dereferenced_mem_write();
             match opt_regs {
                 Some(regs) => regs.iter().all(|r| regs_derefed_write.contains(r)),
                 None => {
@@ -268,11 +267,7 @@ where
             let regs_read = g.analysis().regs_read();
             match opt_regs {
                 Some(regs) => {
-                    let regs = regs
-                        .iter()
-                        .map(|r| get_reg_family(r))
-                        .flatten()
-                        .collect::<Vec<_>>();
+                    let regs = regs.iter().flat_map(get_reg_family).collect::<Vec<_>>();
 
                     regs.iter().all(|r| !regs_read.contains(r))
                 }
@@ -292,7 +287,7 @@ where
     gadgets
         .into_par_iter()
         .filter(|g| {
-            let mut regs_derefed_read = g.analysis().regs_dereferenced_read();
+            let mut regs_derefed_read = g.analysis().regs_dereferenced_mem_read();
             match opt_regs {
                 Some(regs) => regs.iter().all(|r| regs_derefed_read.contains(r)),
                 None => {
