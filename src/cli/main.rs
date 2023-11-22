@@ -87,16 +87,17 @@ fn main() -> Result<()> {
         gadgets = xgadget::filter_dispatcher(gadgets);
     }
 
-    if cli.reg_pop {
+    if cli.reg.reg_pop {
         gadgets = xgadget::filter_reg_pop_only(gadgets);
     }
 
-    if cli.reg_only {
+    if cli.reg.reg_only {
         gadgets = xgadget::filter_reg_only(gadgets);
     }
 
     if is_env_resident(&[REG_OVERWRITE_FLAG]) {
         let regs = cli
+            .reg
             .reg_overwrite
             .iter()
             .map(|r| str_to_reg(r).unwrap_or_else(|| panic!("Invalid register: {:?}", r)))
@@ -111,6 +112,7 @@ fn main() -> Result<()> {
 
     if is_env_resident(&[REG_NO_WRITE_FLAG]) {
         let regs = cli
+            .reg
             .reg_no_write
             .iter()
             .map(|r| str_to_reg(r).unwrap_or_else(|| panic!("Invalid register: {:?}", r)))
@@ -125,6 +127,7 @@ fn main() -> Result<()> {
 
     if is_env_resident(&[REG_MEM_WRITE_FLAG]) {
         let regs = cli
+            .reg
             .reg_mem_write
             .iter()
             .map(|r| str_to_reg(r).unwrap_or_else(|| panic!("Invalid register: {:?}", r)))
@@ -139,6 +142,7 @@ fn main() -> Result<()> {
 
     if is_env_resident(&[REG_READ_FLAG]) {
         let regs = cli
+            .reg
             .reg_read
             .iter()
             .map(|r| str_to_reg(r).unwrap_or_else(|| panic!("Invalid register: {:?}", r)))
@@ -153,6 +157,7 @@ fn main() -> Result<()> {
 
     if is_env_resident(&[REG_NO_READ_FLAG]) {
         let regs = cli
+            .reg
             .reg_no_read
             .iter()
             .map(|r| str_to_reg(r).unwrap_or_else(|| panic!("Invalid register: {:?}", r)))
@@ -167,6 +172,7 @@ fn main() -> Result<()> {
 
     if is_env_resident(&[REG_MEM_READ_FLAG]) {
         let regs = cli
+            .reg
             .reg_mem_read
             .iter()
             .map(|r| str_to_reg(r).unwrap_or_else(|| panic!("Invalid register: {:?}", r)))

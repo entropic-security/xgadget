@@ -57,9 +57,13 @@ To the best of our knowledge, `xgadget` is the first gadget search tool to be:
 
     * `--reg-overwrite [<OPT_REG(S)>...]` - control any reg (no args) or specific regs (flag args)
 
+    * `--reg-mem-write [<OPT_REG(S)>...]` - write memory indexed via any reg (no args) or specific regs (flag args)
+
     * `--reg-no-write [<OPT_REG(S)>...]` - don't write any reg (no args) or specific regs (flag args)
 
     * `--reg-read [<OPT_REG(S)>...]` - read any regs (no args) or specific regs (flag args)
+
+    * `--reg-mem-read [<OPT_REG(S)>...]` - read memory indexed via any reg (no args) or specific regs (flag args)
 
     * `--reg-no-read [<OPT_REG(S)>...]` - don't read any regs (no args) or specific regs (flag args)
 
