@@ -363,9 +363,9 @@ impl fmt::Display for Binary {
             pipe,
             forward_slash,
             colon,
-            format!("{}", num_fmt(bytes)).bright_blue(),
+            num_fmt(bytes).to_string().bright_blue(),
             forward_slash,
-            format!("{}", num_fmt(seg_cnt)).bright_blue(),
+            num_fmt(seg_cnt).to_string().bright_blue(),
             close_bracket,
         )
     }

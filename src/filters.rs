@@ -71,8 +71,10 @@ where
 
                     // Preceded exclusively by pop instrs
                     let pop_chain = preceding_instrs.iter().all(|instr| {
-                        instr.mnemonic() == iced_x86::Mnemonic::Pop
-                            || instr.mnemonic() == iced_x86::Mnemonic::Popa
+                        matches!(
+                            instr.mnemonic(),
+                            iced_x86::Mnemonic::Pop | iced_x86::Mnemonic::Popa
+                        )
                     });
 
                     if pop_chain && !preceding_instrs.is_empty() {
@@ -111,9 +113,10 @@ where
         .filter(|g| {
             for instr in &g.instrs {
                 // Stack push all regs
-                if instr.mnemonic() == iced_x86::Mnemonic::Pusha
-                    || instr.mnemonic() == iced_x86::Mnemonic::Pushad
-                {
+                if matches!(
+                    instr.mnemonic(),
+                    iced_x86::Mnemonic::Pusha | iced_x86::Mnemonic::Pushad
+                ) {
                     return true;
                 }
 
@@ -169,7 +172,7 @@ where
             let regs_written = analysis
                 .regs_overwritten(true)
                 .into_iter()
-                .chain(analysis.regs_updated().into_iter())
+                .chain(analysis.regs_updated())
                 .collect::<HashSet<iced_x86::Register>>();
 
             match opt_regs {
@@ -193,20 +196,42 @@ where
             let regs_written = analysis
                 .regs_overwritten(true)
                 .into_iter()
-                .chain(analysis.regs_updated().into_iter())
+                .chain(analysis.regs_updated())
                 .collect::<HashSet<iced_x86::Register>>();
 
             match opt_regs {
                 Some(regs) => {
-                    let regs = regs
-                        .iter()
-                        .map(|r| get_reg_family(r))
-                        .flatten()
-                        .collect::<Vec<_>>();
+                    let regs = regs.iter().flat_map(get_reg_family).collect::<Vec<_>>();
 
                     regs.iter().all(|r| !regs_written.contains(r))
                 }
                 None => regs_written.is_empty(),
+            }
+        })
+        .collect()
+}
+
+/// Parallel filter to gadgets that write memory indexed by any register (if `opt_regs.is_none()`),
+/// or by a specific registers (if `opt_regs.is_some()`).
+/// Doesn't count the stack pointer unless explicitly provided in `opt_regs`.
+pub fn filter_regs_deref_write<'a, P>(gadgets: P, opt_regs: Option<&[iced_x86::Register]>) -> P
+where
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
+{
+    gadgets
+        .into_par_iter()
+        .filter(|g| {
+            let mut regs_derefed_write = g.analysis().regs_dereferenced_mem_write();
+            match opt_regs {
+                Some(regs) => regs.iter().all(|r| regs_derefed_write.contains(r)),
+                None => {
+                    // Don't count stack pointer
+                    regs_derefed_write.retain(|r| r != &iced_x86::Register::RSP);
+                    regs_derefed_write.retain(|r| r != &iced_x86::Register::ESP);
+                    regs_derefed_write.retain(|r| r != &iced_x86::Register::SP);
+
+                    !regs_derefed_write.is_empty()
+                }
             }
         })
         .collect()
@@ -242,15 +267,37 @@ where
             let regs_read = g.analysis().regs_read();
             match opt_regs {
                 Some(regs) => {
-                    let regs = regs
-                        .iter()
-                        .map(|r| get_reg_family(r))
-                        .flatten()
-                        .collect::<Vec<_>>();
+                    let regs = regs.iter().flat_map(get_reg_family).collect::<Vec<_>>();
 
                     regs.iter().all(|r| !regs_read.contains(r))
                 }
                 None => regs_read.is_empty(),
+            }
+        })
+        .collect()
+}
+
+/// Parallel filter to gadgets that read memory indexed by any register (if `opt_regs.is_none()`),
+/// or by a specific registers (if `opt_regs.is_some()`).
+/// Doesn't count the stack pointer unless explicitly provided in `opt_regs`.
+pub fn filter_regs_deref_read<'a, P>(gadgets: P, opt_regs: Option<&[iced_x86::Register]>) -> P
+where
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
+{
+    gadgets
+        .into_par_iter()
+        .filter(|g| {
+            let mut regs_derefed_read = g.analysis().regs_dereferenced_mem_read();
+            match opt_regs {
+                Some(regs) => regs.iter().all(|r| regs_derefed_read.contains(r)),
+                None => {
+                    // Don't count stack pointer
+                    regs_derefed_read.retain(|r| r != &iced_x86::Register::RSP);
+                    regs_derefed_read.retain(|r| r != &iced_x86::Register::ESP);
+                    regs_derefed_read.retain(|r| r != &iced_x86::Register::SP);
+
+                    !regs_derefed_read.is_empty()
+                }
             }
         })
         .collect()

@@ -23,6 +23,7 @@ pub fn is_sys_gadget_tail(instr: &iced_x86::Instruction) -> bool {
 }
 
 /// Check if instruction should exist in a gadget body.
+///
 /// If `all == false`, the following instructions are excluded for cleaner output:
 ///
 /// * Direct branches
@@ -88,16 +89,16 @@ pub fn is_syscall(instr: &iced_x86::Instruction) -> bool {
 
 /// Check if sysret/sysexit instruction
 pub fn is_sysret(instr: &iced_x86::Instruction) -> bool {
-    match instr.mnemonic() {
+    matches!(
+        instr.mnemonic(),
         iced_x86::Mnemonic::Iret
-        | iced_x86::Mnemonic::Iretd
-        | iced_x86::Mnemonic::Iretq
-        | iced_x86::Mnemonic::Sysexit
-        | iced_x86::Mnemonic::Sysexitq
-        | iced_x86::Mnemonic::Sysret
-        | iced_x86::Mnemonic::Sysretq => true,
-        _ => false,
-    }
+            | iced_x86::Mnemonic::Iretd
+            | iced_x86::Mnemonic::Iretq
+            | iced_x86::Mnemonic::Sysexit
+            | iced_x86::Mnemonic::Sysexitq
+            | iced_x86::Mnemonic::Sysret
+            | iced_x86::Mnemonic::Sysretq
+    )
 }
 
 /// Check if return instruction.

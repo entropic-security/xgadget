@@ -55,13 +55,17 @@ To the best of our knowledge, `xgadget` is the first gadget search tool to be:
 
 * **Fast-register-sensitive**: Filters gadgets by register usage behavior, not just matches for a given regex, without SMT solving (more powerful, but often impractical).
 
-    * `--reg-overwrite [<OPT_REG(S)>...]` - control any reg (no args) or specific regs (flag args)
+    * `--reg-overwrite [<OPT_REG(S)>...]` - control any reg (no args) or specific regs (args)
 
-    * `--reg-no-write [<OPT_REG(S)>...]` - don't write any reg (no args) or specific regs (flag args)
+    * `--reg-mem-write [<OPT_REG(S)>...]` - write mem indexed via any reg (no args) or specific regs (args)
 
-    * `--reg-read [<OPT_REG(S)>...]` - read any regs (no args) or specific regs (flag args)
+    * `--reg-no-write [<OPT_REG(S)>...]` - don't write any reg (no args) or specific regs (args)
 
-    * `--reg-no-read [<OPT_REG(S)>...]` - don't read any regs (no args) or specific regs (flag args)
+    * `--reg-read [<OPT_REG(S)>...]` - read any regs (no args) or specific regs (args)
+
+    * `--reg-mem-read [<OPT_REG(S)>...]` - read mem indexed via any reg (no args) or specific regs (args)
+
+    * `--reg-no-read [<OPT_REG(S)>...]` - don't read any regs (no args) or specific regs (args)
 
 * **JOP-efficient**: JOP search uses instruction semantics - not hardcoded regex for individual encodings.
 

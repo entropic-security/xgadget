@@ -1,14 +1,14 @@
 use std::{fmt, fs, time};
 
-use clap::Parser;
-use colored::Colorize;
+use clap::{Args, Parser};
+use colored::{ColoredString, Colorize};
 use goblin::Object;
 use num_format::{Locale, ToFormattedString};
 use rayon::prelude::*;
 use rustc_hash::FxHashSet as HashSet;
 
 use super::{checksec_fmt::CustomCheckSecResults, symbols};
-use crate::str_fmt::*;
+use crate::{str_fmt::*, Gadget};
 
 // Arg parse -----------------------------------------------------------------------------------------------------------
 
@@ -17,9 +17,6 @@ enum SummaryItemType {
     Data,
     Separator,
 }
-
-// TODO: at the UI level, break these up into sub-categories for comprehension?
-// https://docs.rs/clap/latest/clap/struct.ArgGroup.html
 
 #[derive(Parser, Debug)]
 #[command(
@@ -42,14 +39,14 @@ pub(crate) struct CLIOpts {
     #[arg(help = HELP_BIN_PATHS.as_str(), required = true, num_args = 1.., value_name = "FILE(S)")]
     pub(crate) bin_paths: Vec<String>,
 
-    #[arg(help = HELP_ARCH.as_str(), short, long, default_value = "x64", value_name = "ARCH", env = "XGADGET_ARCH")]
-    pub(crate) arch: xgadget::Arch,
+    #[arg(help = HELP_ROP.as_str(), short, long)]
+    pub(crate) rop: bool,
 
-    #[arg(help = HELP_ATT.as_str(), short = 't', long)]
-    pub(crate) att: bool,
+    #[arg(help = HELP_JOP.as_str(), short, long, conflicts_with = "rop")]
+    pub(crate) jop: bool,
 
-    #[arg(help = HELP_EXTENDED_FMT.as_str(), short, long)]
-    pub(crate) extended_fmt: bool,
+    #[arg(help = HELP_SYS.as_str(), short, long, conflicts_with = "jop")]
+    pub(crate) sys: bool,
 
     #[arg(
         help = HELP_MAX_LEN.as_str(),
@@ -62,20 +59,17 @@ pub(crate) struct CLIOpts {
     )]
     pub(crate) max_len: usize,
 
-    #[arg(help = HELP_ROP.as_str(), short, long)]
-    pub(crate) rop: bool,
-
-    #[arg(help = HELP_JOP.as_str(), short, long, conflicts_with = "rop")]
-    pub(crate) jop: bool,
-
-    #[arg(help = HELP_SYS.as_str(), short, long, conflicts_with = "jop")]
-    pub(crate) sys: bool,
-
     #[arg(help = HELP_ALL.as_str(), long)]
     pub(crate) all: bool,
 
-    #[arg(help = HELP_PARTIAL_MACH.as_str(), short = 'm', long)]
-    pub(crate) partial_match: bool,
+    #[arg(help = HELP_USER_REGEX.as_str(), short = 'f', long = "regex-filter", value_name = "EXPR")]
+    pub(crate) usr_regex: Option<String>,
+
+    #[command(flatten)]
+    pub(crate) reg: ArgGroupRegSensitve,
+
+    #[arg(help = HELP_PARAM_CTRL.as_str(), long)]
+    pub(crate) param_ctrl: bool,
 
     #[arg(help = HELP_STACK_PIVOT.as_str(), short = 'p', long)]
     pub(crate) stack_pivot: bool,
@@ -83,32 +77,14 @@ pub(crate) struct CLIOpts {
     #[arg(help = HELP_DISPATCHER.as_str(), short, long, conflicts_with_all = &["rop", "stack_pivot"])]
     pub(crate) dispatcher: bool,
 
-    #[arg(help = HELP_REG_POP.as_str(), long, conflicts_with = "dispatcher")]
-    pub(crate) reg_pop: bool,
+    #[arg(help = HELP_PARTIAL_MACH.as_str(), short = 'm', long)]
+    pub(crate) partial_match: bool,
 
-    #[arg(help = HELP_REG_ONLY.as_str(), long)]
-    pub(crate) reg_only: bool,
-
-    #[arg(help = HELP_REG_OVERWRITE.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
-    pub(crate) reg_overwrite: Vec<String>,
-
-    #[arg(help = HELP_REG_NO_WRITE.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
-    pub(crate) reg_no_write: Vec<String>,
-
-    #[arg(help = HELP_REG_READ.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
-    pub(crate) reg_read: Vec<String>,
-
-    #[arg(help = HELP_REG_NO_READ.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
-    pub(crate) reg_no_read: Vec<String>,
-
-    #[arg(help = HELP_PARAM_CTRL.as_str(), long)]
-    pub(crate) param_ctrl: bool,
+    #[arg(help = HELP_ARCH.as_str(), short, long, default_value = "x64", value_name = "ARCH", env = "XGADGET_ARCH")]
+    pub(crate) arch: xgadget::Arch,
 
     #[arg(help = HELP_BAD_BYTES.as_str(), short, long, num_args = 1.., value_name = "BYTE(S)")]
     pub(crate) bad_bytes: Vec<String>,
-
-    #[arg(help = HELP_USER_REGEX.as_str(), short = 'f', long = "regex-filter", value_name = "EXPR")]
-    pub(crate) usr_regex: Option<String>,
 
     #[arg(help = HELP_CHECKSEC.as_str(), short, long, conflicts_with_all = &[
         "arch", "att", "extended_fmt", "max_len",
@@ -131,9 +107,47 @@ pub(crate) struct CLIOpts {
         "stack_pivot", "dispatcher", "reg_pop", "usr_regex", "check_sec", "fess"
     ])]
     pub(crate) symbols: bool,
+
+    #[arg(help = HELP_ATT.as_str(), short = 't', long)]
+    pub(crate) att: bool,
+
+    #[arg(help = HELP_EXTENDED_FMT.as_str(), short, long)]
+    pub(crate) extended_fmt: bool,
+}
+
+#[derive(Args, Debug)]
+#[group(id = "Register Sensitive")]
+pub(crate) struct ArgGroupRegSensitve {
+    // Behavior filters ------------------------------------------------------------------------------------------------
+    #[arg(help = HELP_REG_OVERWRITE.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
+    pub(crate) reg_overwrite: Vec<String>,
+
+    #[arg(help = HELP_REG_MEM_WRITE.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
+    pub(crate) reg_mem_write: Vec<String>,
+
+    #[arg(help = HELP_REG_NO_WRITE.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
+    pub(crate) reg_no_write: Vec<String>,
+
+    #[arg(help = HELP_REG_READ.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
+    pub(crate) reg_read: Vec<String>,
+
+    #[arg(help = HELP_REG_MEM_READ.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
+    pub(crate) reg_mem_read: Vec<String>,
+
+    #[arg(help = HELP_REG_NO_READ.as_str(), long, num_args = 0.., value_name = "OPT_REG(S)")]
+    pub(crate) reg_no_read: Vec<String>,
+
+    // Modifiers -------------------------------------------------------------------------------------------------------
+    #[arg(help = HELP_REG_POP.as_str(), long, conflicts_with = "dispatcher")]
+    pub(crate) reg_pop: bool,
+
+    #[arg(help = HELP_REG_ONLY.as_str(), long)]
+    pub(crate) reg_only: bool,
 }
 
 impl CLIOpts {
+    // CLI Crate API ---------------------------------------------------------------------------------------------------
+
     // Parse input binaries.
     // This has the important side-effect of updating data used for `Display`.
     pub(crate) fn parse_binaries(&mut self) -> Vec<xgadget::Binary> {
@@ -291,6 +305,8 @@ impl CLIOpts {
         )
     }
 
+    // CLI Private API -------------------------------------------------------------------------------------------------
+
     // Helper for summary print
     fn fmt_summary_item(&self, item: &str, ty: SummaryItemType) -> colored::ColoredString {
         match ty {
@@ -347,71 +363,21 @@ impl fmt::Display for CLIOpts {
                 if self.dispatcher {
                     search_mode.push("Dispatcher");
                 };
-                if self.reg_pop {
+                if self.reg.reg_pop {
                     search_mode.push("Reg-pop");
                 };
-                if self.reg_only {
+                if self.reg.reg_only {
                     search_mode.push("Reg-only");
                 };
                 if self.param_ctrl {
                     search_mode.push("Param-ctrl");
                 };
-                if is_env_resident(&[REG_OVERWRITE_FLAG]) {
-                    if !self.reg_overwrite.is_empty() {
-                        // Note: leak on rare case to avoid alloc on common case
-                        search_mode.push(Box::leak(format!(
-                            "Reg-overwrite-{{{}}}",
-                            self.reg_overwrite.iter()
-                                .map(|r| r.to_lowercase())
-                                .collect::<Vec<_>>()
-                                .join(&comma_sep)
-                        ).into_boxed_str()));
-                    } else {
-                        search_mode.push("Reg-overwrite");
-                    }
-                };
-                if is_env_resident(&[REG_NO_WRITE_FLAG]) {
-                    if !self.reg_no_write.is_empty() {
-                        // Note: leak on rare case to avoid alloc on common case
-                        search_mode.push(Box::leak(format!(
-                            "Reg-no-write-{{{}}}",
-                            self.reg_no_write.iter()
-                                .map(|r| r.to_lowercase())
-                                .collect::<Vec<_>>()
-                                .join(&comma_sep)
-                        ).into_boxed_str()));
-                    } else {
-                        search_mode.push("Reg-no-write");
-                    }
-                };
-                if is_env_resident(&[REG_READ_FLAG]) {
-                    if !self.reg_read.is_empty() {
-                        // Note: leak on rare case to avoid alloc on common case
-                        search_mode.push(Box::leak(format!(
-                            "Reg-read-{{{}}}",
-                            self.reg_read.iter()
-                                .map(|r| r.to_lowercase())
-                                .collect::<Vec<_>>()
-                                .join(&comma_sep)
-                        ).into_boxed_str()));
-                    } else {
-                        search_mode.push("Reg-read");
-                    }
-                };
-                if is_env_resident(&[REG_NO_READ_FLAG]) {
-                    if !self.reg_no_read.is_empty() {
-                        // Note: leak on rare case to avoid alloc on common case
-                        search_mode.push(Box::leak(format!(
-                            "Reg-no-read-{{{}}}",
-                            self.reg_no_read.iter()
-                                .map(|r| r.to_lowercase())
-                                .collect::<Vec<_>>()
-                                .join(&comma_sep)
-                        ).into_boxed_str()));
-                    } else {
-                        search_mode.push("Reg-no-read");
-                    }
-                };
+                fmt_append_reg_sensitive_flag(&mut search_mode, REG_OVERWRITE_FLAG, &self.reg.reg_overwrite, "Reg-overwrite", &comma_sep);
+                fmt_append_reg_sensitive_flag(&mut search_mode, REG_MEM_WRITE_FLAG, &self.reg.reg_mem_write, "Reg-mem-write", &comma_sep);
+                fmt_append_reg_sensitive_flag(&mut search_mode, REG_NO_WRITE_FLAG, &self.reg.reg_no_write, "Reg-no-write", &comma_sep);
+                fmt_append_reg_sensitive_flag(&mut search_mode, REG_READ_FLAG, &self.reg.reg_read, "Reg-read", &comma_sep);
+                fmt_append_reg_sensitive_flag(&mut search_mode, REG_MEM_READ_FLAG, &self.reg.reg_mem_read, "Reg-mem-read", &comma_sep);
+                fmt_append_reg_sensitive_flag(&mut search_mode, REG_NO_READ_FLAG, &self.reg.reg_no_read, "Reg-no-read", &comma_sep);
                 cli_rule_fmt(
                     &self.fmt_summary_item(&search_mode.join(&comma_sep), SummaryItemType::Data),
                     false,
@@ -453,8 +419,10 @@ impl fmt::Display for CLIOpts {
 
 // XXX: We hardcode these to support modifying runtime behavior on presence or absence
 pub(crate) const REG_OVERWRITE_FLAG: &str = "--reg-overwrite";
+pub(crate) const REG_MEM_WRITE_FLAG: &str = "--reg-mem-write";
 pub(crate) const REG_NO_WRITE_FLAG: &str = "--reg-no-write";
 pub(crate) const REG_READ_FLAG: &str = "--reg-read";
+pub(crate) const REG_MEM_READ_FLAG: &str = "--reg-mem-read";
 pub(crate) const REG_NO_READ_FLAG: &str = "--reg-no-read";
 
 // Runtime reflection, underpins register behavior flag functionality.
@@ -468,4 +436,59 @@ pub(crate) fn is_env_resident(clap_args: &[&str]) -> bool {
         }
         false
     })
+}
+
+// Helper for reg-sensitive flags that follow the same pattern
+pub(crate) fn filter_reg_sensitive_flag<'a, P>(
+    gadgets: P,
+    flag_literal: &str,
+    flag_reg_args: &[String],
+    filter_func: impl Fn(P, Option<&[iced_x86::Register]>) -> P,
+) -> P
+where
+    P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
+{
+    if is_env_resident(&[flag_literal]) {
+        let regs = flag_reg_args
+            .iter()
+            .map(|r| str_to_reg(r).unwrap_or_else(|| panic!("Invalid register: {:?}", r)))
+            .collect::<Vec<_>>();
+
+        if regs.is_empty() {
+            filter_func(gadgets, None)
+        } else {
+            filter_func(gadgets, Some(&regs))
+        }
+    } else {
+        gadgets
+    }
+}
+
+// Helper for search config display append
+fn fmt_append_reg_sensitive_flag<'a>(
+    search_mode: &mut Vec<&'a str>,
+    flag_literal: &str,
+    flag_reg_args: &[String],
+    flag_display: &'a str,
+    sep: &ColoredString,
+) {
+    if is_env_resident(&[flag_literal]) {
+        if !flag_reg_args.is_empty() {
+            // Note: leak on rare case to avoid alloc on common case
+            search_mode.push(Box::leak(
+                format!(
+                    "{}-{{{}}}",
+                    flag_display,
+                    flag_reg_args
+                        .iter()
+                        .map(|r| r.to_lowercase())
+                        .collect::<Vec<_>>()
+                        .join(sep)
+                )
+                .into_boxed_str(),
+            ));
+        } else {
+            search_mode.push(flag_display);
+        }
+    };
 }

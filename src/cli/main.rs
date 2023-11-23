@@ -9,17 +9,16 @@ use regex::Regex;
 // Internal deps -------------------------------------------------------------------------------------------------------
 
 mod str_fmt;
-use str_fmt::{str_to_reg, STR_REG_MAP};
+use str_fmt::STR_REG_MAP;
 
 mod cli;
-use cli::{
-    is_env_resident, CLIOpts, REG_NO_READ_FLAG, REG_NO_WRITE_FLAG, REG_OVERWRITE_FLAG,
-    REG_READ_FLAG,
-};
+use cli::*;
 
 mod checksec_fmt;
 
 mod symbols;
+
+use xgadget::Gadget;
 
 // Driver --------------------------------------------------------------------------------------------------------------
 
@@ -90,68 +89,12 @@ fn main() -> Result<()> {
         gadgets = xgadget::filter_dispatcher(gadgets);
     }
 
-    if cli.reg_pop {
+    if cli.reg.reg_pop {
         gadgets = xgadget::filter_reg_pop_only(gadgets);
     }
 
-    if cli.reg_only {
+    if cli.reg.reg_only {
         gadgets = xgadget::filter_reg_only(gadgets);
-    }
-
-    if is_env_resident(&[REG_OVERWRITE_FLAG]) {
-        let regs = cli
-            .reg_overwrite
-            .iter()
-            .map(|r| str_to_reg(r).unwrap_or_else(|| panic!("Invalid register: {:?}", r)))
-            .collect::<Vec<_>>();
-
-        if regs.is_empty() {
-            gadgets = xgadget::filter_regs_overwritten(gadgets, None);
-        } else {
-            gadgets = xgadget::filter_regs_overwritten(gadgets, Some(&regs))
-        }
-    }
-
-    if is_env_resident(&[REG_NO_WRITE_FLAG]) {
-        let regs = cli
-            .reg_no_write
-            .iter()
-            .map(|r| str_to_reg(r).unwrap_or_else(|| panic!("Invalid register: {:?}", r)))
-            .collect::<Vec<_>>();
-
-        if regs.is_empty() {
-            gadgets = xgadget::filter_regs_not_written(gadgets, None);
-        } else {
-            gadgets = xgadget::filter_regs_not_written(gadgets, Some(&regs))
-        }
-    }
-
-    if is_env_resident(&[REG_READ_FLAG]) {
-        let regs = cli
-            .reg_read
-            .iter()
-            .map(|r| str_to_reg(r).unwrap_or_else(|| panic!("Invalid register: {:?}", r)))
-            .collect::<Vec<_>>();
-
-        if regs.is_empty() {
-            gadgets = xgadget::filter_regs_read(gadgets, None);
-        } else {
-            gadgets = xgadget::filter_regs_read(gadgets, Some(&regs))
-        }
-    }
-
-    if is_env_resident(&[REG_NO_READ_FLAG]) {
-        let regs = cli
-            .reg_no_read
-            .iter()
-            .map(|r| str_to_reg(r).unwrap_or_else(|| panic!("Invalid register: {:?}", r)))
-            .collect::<Vec<_>>();
-
-        if regs.is_empty() {
-            gadgets = xgadget::filter_regs_not_read(gadgets, None);
-        } else {
-            gadgets = xgadget::filter_regs_not_read(gadgets, Some(&regs))
-        }
     }
 
     if cli.param_ctrl {
@@ -169,6 +112,48 @@ fn main() -> Result<()> {
 
         gadgets = xgadget::filter_bad_addr_bytes(gadgets, bytes.as_slice());
     }
+
+    let gadgets = filter_reg_sensitive_flag(
+        gadgets,
+        REG_OVERWRITE_FLAG,
+        &cli.reg.reg_overwrite,
+        xgadget::filter_regs_overwritten,
+    );
+
+    let gadgets = filter_reg_sensitive_flag(
+        gadgets,
+        REG_NO_WRITE_FLAG,
+        &cli.reg.reg_no_write,
+        xgadget::filter_regs_not_written,
+    );
+
+    let gadgets = filter_reg_sensitive_flag(
+        gadgets,
+        REG_MEM_WRITE_FLAG,
+        &cli.reg.reg_mem_write,
+        xgadget::filter_regs_deref_write,
+    );
+
+    let gadgets = filter_reg_sensitive_flag(
+        gadgets,
+        REG_READ_FLAG,
+        &cli.reg.reg_read,
+        xgadget::filter_regs_read,
+    );
+
+    let gadgets = filter_reg_sensitive_flag(
+        gadgets,
+        REG_NO_READ_FLAG,
+        &cli.reg.reg_no_read,
+        xgadget::filter_regs_not_read,
+    );
+
+    let gadgets = filter_reg_sensitive_flag(
+        gadgets,
+        REG_MEM_READ_FLAG,
+        &cli.reg.reg_mem_read,
+        xgadget::filter_regs_deref_read,
+    );
 
     let run_time = start_time.elapsed();
 

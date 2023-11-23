@@ -7,9 +7,10 @@ use super::gadget::Gadget;
 
 // Gadget Analysis -----------------------------------------------------------------------------------------------------
 
-// Internal per-instruction information
+// Internal per-instruction meta-information.
+// Populated at construction time.
 #[derive(Clone, Debug)]
-struct InstrInfo {
+struct InstrMetaInfo {
     op_regs: HashSet<iced_x86::Register>,
     mem_base: iced_x86::Register,
     mnemonic: iced_x86::Mnemonic,
@@ -18,18 +19,12 @@ struct InstrInfo {
 }
 
 /// Determines gadget register usage properties.
-/// Lazy construct by calling [`Gadget::analysis`].
 ///
-/// * Registers overwritten (written without reading previous value)
-/// * Registers updated (read and then written, within single instruction)
-/// * Registers dereferenced for read
-/// * Registers dereferenced for write
-///
-/// # Limitations
-/// * Current logic does not account for all cases of conditional behavior
+/// Lazy construct by calling [`Gadget::analysis`] (cache initial analysis for multiple usages/filters).
+/// Internal lazy-eval for state common to queries (cache post-analysis operations for multiple public API calls).
 #[derive(Clone, Debug)]
 pub struct GadgetAnalysis {
-    instr_info: Vec<InstrInfo>,
+    instr_info: Vec<InstrMetaInfo>,
     total_used_regs: OnceLock<HashSet<iced_x86::UsedRegister>>,
     total_used_mem: OnceLock<HashSet<iced_x86::UsedMemory>>,
 }
@@ -37,7 +32,7 @@ pub struct GadgetAnalysis {
 impl GadgetAnalysis {
     // GadgetAnalysis Public API ---------------------------------------------------------------------------------------
 
-    /// Init gadget analysis
+    /// Init gadget analysis.
     pub(crate) fn new(gadget: &Gadget) -> Self {
         let mut info_factory = iced_x86::InstructionInfoFactory::new();
 
@@ -55,9 +50,9 @@ impl GadgetAnalysis {
                         }
                     }
 
-                    InstrInfo {
-                        used_regs: info.used_registers().into_iter().cloned().collect(),
-                        used_mem: info.used_memory().into_iter().cloned().collect(),
+                    InstrMetaInfo {
+                        used_regs: info.used_registers().iter().cloned().collect(),
+                        used_mem: info.used_memory().iter().cloned().collect(),
                         mem_base: instr.memory_base(),
                         mnemonic: instr.mnemonic(),
                         op_regs,
@@ -69,33 +64,44 @@ impl GadgetAnalysis {
         }
     }
 
-    /// Get register usage info, across all instructions
+    /// Get register usage info, across all instructions.
+    ///
+    /// ## Note
+    ///
+    /// * Lazy - caches result on first call
     pub fn used_regs(&self) -> impl ExactSizeIterator<Item = &iced_x86::UsedRegister> + '_ {
         self.total_used_regs
             .get_or_init(|| {
                 self.instr_info
                     .iter()
-                    .map(|info| info.used_regs.iter().copied())
-                    .flatten()
+                    .flat_map(|info| info.used_regs.iter().copied())
                     .collect::<HashSet<_>>()
             })
             .iter()
     }
 
-    /// Get memory usage info, across all instructions
+    /// Get memory usage info, across all instructions.
+    ///
+    /// ## Note
+    ///
+    /// * Lazy - caches result on first call
     pub fn used_mem(&self) -> impl ExactSizeIterator<Item = &iced_x86::UsedMemory> + '_ {
         self.total_used_mem
             .get_or_init(|| {
                 self.instr_info
                     .iter()
-                    .map(|info| info.used_mem.iter().copied())
-                    .flatten()
+                    .flat_map(|info| info.used_mem.iter().copied())
                     .collect::<HashSet<_>>()
             })
             .iter()
     }
 
-    /// Get registers read by gadget. Includes conditional reads.
+    /// Get registers read by gadget.
+    ///
+    /// ## Note
+    ///
+    /// * Includes conditional reads.
+    /// * Partially lazy - caches part of result calculation on first call.
     pub fn regs_read(&self) -> HashSet<iced_x86::Register> {
         self.used_regs()
             .filter(|ur| {
@@ -111,25 +117,29 @@ impl GadgetAnalysis {
             .chain(
                 self.used_mem()
                     .filter(|um| um.base() != iced_x86::Register::None)
-                    .map(|um| um.base())
-                    .into_iter(),
+                    .map(|um| um.base()),
             )
             .chain(
                 self.used_mem()
                     .filter(|um| um.index() != iced_x86::Register::None)
-                    .map(|um| um.index())
-                    .into_iter(),
+                    .map(|um| um.index()),
             )
             .collect()
     }
 
-    /// Get registers overwritten by gadget (written without reading previous value)
-    /// If `include_sub_regs == true` the smaller variant of a register will count as an overwrite of the larger,
+    /// Get registers overwritten by gadget (written without reading previous value).
+    ///
+    /// * If `include_sub_regs == true` the smaller variant of a register will count as an overwrite of the larger,
     /// e.g. will report `eax`-overwrite for `rax`.
+    ///
+    /// ## Note
+    ///
+    /// * Excludes conditional writes.
+    /// * Partially lazy - caches part of result calculation on first call.
     pub fn regs_overwritten(&self, include_sub_regs: bool) -> HashSet<iced_x86::Register> {
         self.instr_info
             .iter()
-            .map(|info| {
+            .flat_map(|info| {
                 info.used_regs
                     .iter()
                     .filter(move |ur| {
@@ -139,7 +149,8 @@ impl GadgetAnalysis {
                                 info.mem_base,
                                 iced_x86::Register::RIP | iced_x86::Register::EIP,
                             )
-                            // Written directly or via sub-register name
+                            // Written directly or via sub-register name,
+                            // as reported by lib (not `get_reg_family`)
                             && if include_sub_regs {
                                 true
                             // Written directly (named operand)
@@ -149,58 +160,77 @@ impl GadgetAnalysis {
                     })
                     .map(|ur| ur.register())
             })
-            .flatten()
             .collect()
     }
 
-    /// Get registers updated by gadget (read and then written)
+    /// Get registers updated by gadget (read and then written).
+    ///
+    /// ## Note
+    ///
+    /// * Excludes conditional writes.
+    /// * Partially lazy - caches part of result calculation on first call.
     pub fn regs_updated(&self) -> HashSet<iced_x86::Register> {
         self.used_regs()
             .filter(|ur| ur.access() == iced_x86::OpAccess::ReadWrite)
             .map(|ur| ur.register())
-            // TODO: overwrite taking precedence doesn't take into account conditional behavior
             .filter(|r| !self.regs_overwritten(true).contains(r))
             .collect()
     }
 
-    /// Get registers dereferenced by gadget
+    /// Get registers dereferenced by gadget.
+    ///
+    /// ## Note
+    ///
+    /// * Includes conditional writes.
+    /// * Includes conditional reads.
+    /// * Partially lazy - caches part of result calculation on first call.
     pub fn regs_dereferenced(&self) -> HashSet<iced_x86::Register> {
         HashSet::from_iter(
-            self.regs_dereferenced_read()
+            self.regs_dereferenced_mem_read()
                 .into_iter()
-                .chain(self.regs_dereferenced_write()),
+                .chain(self.regs_dereferenced_mem_write()),
         )
     }
 
-    /// Get registers dereferenced for read by gadget
-    pub fn regs_dereferenced_read(&self) -> HashSet<iced_x86::Register> {
-        let mem_reads = self.used_mem().filter(|um| {
-            let access = um.access();
-            (access == iced_x86::OpAccess::Read)
-                || (access == iced_x86::OpAccess::CondRead)
-                || (access == iced_x86::OpAccess::ReadWrite)
-                || (access == iced_x86::OpAccess::ReadCondWrite)
-        });
-
-        Self::unique_regs_dereferenced(mem_reads)
+    /// Get registers dereferenced for memory read by gadget.
+    ///
+    /// ## Note
+    ///
+    /// * Includes conditional reads.
+    /// * Partially lazy - caches part of result calculation on first call.
+    pub fn regs_dereferenced_mem_read(&self) -> HashSet<iced_x86::Register> {
+        Self::unique_regs_dereferenced(self.used_mem().filter(|um| {
+            matches!(
+                um.access(),
+                iced_x86::OpAccess::Read
+                    | iced_x86::OpAccess::CondRead
+                    | iced_x86::OpAccess::ReadWrite
+                    | iced_x86::OpAccess::ReadCondWrite
+            )
+        }))
     }
 
-    /// Get registers dereferenced for write by gadget
-    pub fn regs_dereferenced_write(&self) -> HashSet<iced_x86::Register> {
-        let mem_writes = self.used_mem().filter(|um| {
-            let access = um.access();
-            (access == iced_x86::OpAccess::Write)
-                || (access == iced_x86::OpAccess::CondWrite)
-                || (access == iced_x86::OpAccess::ReadWrite)
-                || (access == iced_x86::OpAccess::ReadCondWrite)
-        });
-
-        Self::unique_regs_dereferenced(mem_writes)
+    /// Get registers dereferenced for memory write by gadget.
+    ///
+    /// ## Note
+    ///
+    /// * Includes conditional writes.
+    /// * Partially lazy - caches part of result calculation on first call.
+    pub fn regs_dereferenced_mem_write(&self) -> HashSet<iced_x86::Register> {
+        Self::unique_regs_dereferenced(self.used_mem().filter(|um| {
+            matches!(
+                um.access(),
+                iced_x86::OpAccess::Write
+                    | iced_x86::OpAccess::CondWrite
+                    | iced_x86::OpAccess::ReadWrite
+                    | iced_x86::OpAccess::ReadCondWrite
+            )
+        }))
     }
 
     // GadgetAnalysis Private API --------------------------------------------------------------------------------------
 
-    // Private helper for deref reg collection
+    // Private helper for deref reg collection.
     fn unique_regs_dereferenced<'a>(
         used_mem: impl Iterator<Item = &'a iced_x86::UsedMemory>,
     ) -> HashSet<iced_x86::Register> {

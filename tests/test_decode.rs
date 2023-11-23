@@ -5,11 +5,11 @@ fn dbg_print_instr(instr: &iced_x86::Instruction) {
     println!("\nInstruction: {:#x?}", instr);
     println!(
         "\nUsed Registers: {:#x?}",
-        info_factory.info(&instr).used_registers()
+        info_factory.info(instr).used_registers()
     );
     println!(
         "\nUsed Memory: {:#x?}",
-        info_factory.info(&instr).used_memory()
+        info_factory.info(instr).used_memory()
     );
 }
 
