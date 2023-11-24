@@ -154,7 +154,7 @@ gen_help_str!(
         HELP_REG_POP,
         false,
         false,
-        "Filter to 'pop {reg} * 1+, {ret or ctrl-ed jmp/call}' gadgets (otherwise: all)",
+        "Filter to 'pop {reg} * 1+, {ret/syscall or ctrl-ed jmp/call}' gadgets (otherwise: all)",
     ),
     (
         HELP_REG_ONLY,
@@ -259,7 +259,7 @@ pub fn cli_rule_fmt(help_desc: &str, has_default: bool, fess_entry: bool) -> Str
             // Flag-like tokens
             "ROP" | "JOP" | "SYS" | "SYSCALL" | "AT&T" | "checksec" => token.green(),
             // Select mnemonics
-            "jmp" | "call" | "ret" | "pop" => token.cyan(),
+            "jmp" | "call" | "ret" | "pop" | "syscall" => token.cyan(),
             // FESS feature advertisement
             "Fast" | "Exploit" | "Similarity" | "Score" => match fess_entry {
                 true => token.red(),

@@ -1,4 +1,4 @@
-use xgadget::Binary;
+use xgadget::{Binary, GadgetType};
 
 mod common;
 
@@ -33,6 +33,7 @@ fn test_set_reg_overwrite() {
     let mov_rax_gadget = mov_rax_gadget.first().unwrap();
 
     let analysis = mov_rax_gadget.analysis();
+    assert_eq!(analysis.ty(), GadgetType::Rop);
     assert!(analysis.regs_overwritten(true).len() == 1);
     assert!(analysis
         .regs_overwritten(true)
@@ -61,6 +62,7 @@ fn test_set_reg_read() {
     let cmp_rax_rcx = cmp_rax_rcx_gadget.first().unwrap();
 
     let analysis = cmp_rax_rcx.analysis();
+    assert_eq!(analysis.ty(), GadgetType::Rop);
     assert!(analysis.regs_read().len() == 3); // TODO: why RSP?
 
     assert!(analysis.regs_read().contains(&iced_x86::Register::RAX));
@@ -93,6 +95,7 @@ fn test_set_reg_update() {
     let add_rcx_0xff = add_rcx_0xff.first().unwrap();
 
     let analysis = add_rcx_0xff.analysis();
+    assert_eq!(analysis.ty(), GadgetType::Rop);
 
     assert!(analysis.regs_updated().len() == 2); // TODO: RSP?
     assert!(analysis.regs_updated().contains(&iced_x86::Register::RCX));

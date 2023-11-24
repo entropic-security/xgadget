@@ -172,7 +172,7 @@ let bins = &[
     Binary::from_path("/path/to/bin_v2").unwrap(),
 ];
 let cross_gadgets =
-    xgadget::find_gadgets(bins, max_gadget_len, SearchConfig::default()).unwrap();
+    xgadget::find_gadgets(bins, max_gadget_len, search_config).unwrap();
 let cross_reg_pop_gadgets = xgadget::filter_reg_pop_only(cross_gadgets);
 ```
 
