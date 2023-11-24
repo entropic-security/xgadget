@@ -36,6 +36,7 @@ where
             if let Some((tail_instr, preceding_instrs)) = g.instrs.split_last() {
                 if semantics::is_jop_gadget_tail(tail_instr) {
                     // Predictable update of dispatch register
+                    debug_assert_eq!(g.analysis().ty(), crate::GadgetType::Jop);
                     let dispatch_reg = tail_instr.op0_register();
                     for i in preceding_instrs {
                         if semantics::is_reg_rw(i, &dispatch_reg) {

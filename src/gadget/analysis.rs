@@ -8,7 +8,7 @@ use crate::semantics;
 
 // Gadget Analysis -----------------------------------------------------------------------------------------------------
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 /// Type of gadget (ROP, JOP, or SYS)
 pub enum GadgetType {
     /// ROP gadget
