@@ -50,8 +50,7 @@ where
         .collect()
 }
 
-// TODO: update for syscalls?
-/// Parallel filter to gadgets of the form "pop {reg} * 1+, {ret or ctrl-ed jmp/call}"
+/// Parallel filter to gadgets of the form "pop {reg} * 1+, {ret/syscall or ctrl-ed jmp/call}"
 pub fn filter_reg_pop_only<'a, P>(gadgets: P) -> P
 where
     P: IntoParallelIterator<Item = Gadget<'a>> + FromParallelIterator<Gadget<'a>>,
@@ -60,10 +59,7 @@ where
         .into_par_iter()
         .filter(|g| {
             if let Some((tail_instr, mut preceding_instrs)) = g.instrs.split_last() {
-                if (semantics::is_rop_gadget_tail(tail_instr)
-                    || semantics::is_jop_gadget_tail(tail_instr))
-                    && (!preceding_instrs.is_empty())
-                {
+                if semantics::is_gadget_tail(tail_instr) && (!preceding_instrs.is_empty()) {
                     // Allow "leave" preceding tail, if any
                     if let Some((second_to_last, remaining)) = preceding_instrs.split_last() {
                         if second_to_last.mnemonic() == iced_x86::Mnemonic::Leave {
