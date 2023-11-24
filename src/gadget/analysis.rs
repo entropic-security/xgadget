@@ -4,18 +4,19 @@ use std::sync::OnceLock;
 use rustc_hash::FxHashSet as HashSet;
 
 use super::gadget::Gadget;
+use crate::semantics;
 
 // Gadget Analysis -----------------------------------------------------------------------------------------------------
 
-// Internal per-instruction meta-information.
-// Populated at construction time.
-#[derive(Clone, Debug)]
-struct InstrMetaInfo {
-    op_regs: HashSet<iced_x86::Register>,
-    mem_base: iced_x86::Register,
-    mnemonic: iced_x86::Mnemonic,
-    used_regs: HashSet<iced_x86::UsedRegister>,
-    used_mem: HashSet<iced_x86::UsedMemory>,
+#[derive(Copy, Clone, Debug)]
+/// Type of gadget (ROP, JOP, or SYS)
+pub enum GadgetType {
+    /// ROP gadget
+    Rop,
+    /// JOP/COP gadget
+    Jop,
+    /// Syscall gadget
+    Sys,
 }
 
 /// Determines gadget register usage properties.
@@ -24,9 +25,10 @@ struct InstrMetaInfo {
 /// Internal lazy-eval for state common to queries (cache post-analysis operations for multiple public API calls).
 #[derive(Clone, Debug)]
 pub struct GadgetAnalysis {
-    instr_info: Vec<InstrMetaInfo>,
+    instr_info: Vec<InstrAndMetaInfo>,
     total_used_regs: OnceLock<HashSet<iced_x86::UsedRegister>>,
     total_used_mem: OnceLock<HashSet<iced_x86::UsedMemory>>,
+    ty: GadgetType,
 }
 
 impl GadgetAnalysis {
@@ -36,32 +38,51 @@ impl GadgetAnalysis {
     pub(crate) fn new(gadget: &Gadget) -> Self {
         let mut info_factory = iced_x86::InstructionInfoFactory::new();
 
+        let ty = match gadget
+            .instrs()
+            .last()
+            // SAFETY: cannot paniceaassuming search logic is correct
+            .expect("Gadget must have at least 1 instruction")
+        {
+            i if semantics::is_rop_gadget_tail(i) => GadgetType::Rop,
+            i if semantics::is_jop_gadget_tail(i) => GadgetType::Jop,
+            i if semantics::is_sys_gadget_tail(i) => GadgetType::Sys,
+            _ => unreachable!(),
+        };
+
+        let instr_info = gadget
+            .instrs()
+            .iter()
+            .map(|instr| {
+                let info = info_factory.info(instr);
+                let mut op_regs = HashSet::default();
+
+                for op_idx in 0..instr.op_count() {
+                    if let Ok(iced_x86::OpKind::Register) = instr.try_op_kind(op_idx) {
+                        op_regs.insert(instr.op_register(op_idx));
+                    }
+                }
+
+                InstrAndMetaInfo {
+                    instr: *instr,
+                    used_regs: info.used_registers().iter().copied().collect(),
+                    used_mem: info.used_memory().iter().copied().collect(),
+                    op_regs,
+                }
+            })
+            .collect();
+
         GadgetAnalysis {
-            instr_info: gadget
-                .instrs
-                .iter()
-                .map(|instr| {
-                    let info = info_factory.info(instr);
-                    let mut op_regs = HashSet::default();
-
-                    for op_idx in 0..instr.op_count() {
-                        if let Ok(iced_x86::OpKind::Register) = instr.try_op_kind(op_idx) {
-                            op_regs.insert(instr.op_register(op_idx));
-                        }
-                    }
-
-                    InstrMetaInfo {
-                        used_regs: info.used_registers().iter().cloned().collect(),
-                        used_mem: info.used_memory().iter().cloned().collect(),
-                        mem_base: instr.memory_base(),
-                        mnemonic: instr.mnemonic(),
-                        op_regs,
-                    }
-                })
-                .collect(),
+            instr_info,
             total_used_regs: OnceLock::new(),
             total_used_mem: OnceLock::new(),
+            ty,
         }
+    }
+
+    /// Get gadget type.
+    pub const fn ty(&self) -> GadgetType {
+        self.ty
     }
 
     /// Get register usage info, across all instructions.
@@ -127,7 +148,8 @@ impl GadgetAnalysis {
             .collect()
     }
 
-    /// Get registers overwritten by gadget (written without reading previous value).
+    /// Get registers overwritten by gadget (either written without reading previous value, or read then written
+    /// from another register).
     ///
     /// * If `include_sub_regs == true` the smaller variant of a register will count as an overwrite of the larger,
     /// e.g. will report `eax`-overwrite for `rax`.
@@ -143,10 +165,21 @@ impl GadgetAnalysis {
                 info.used_regs
                     .iter()
                     .filter(move |ur| {
-                        ((ur.access() == iced_x86::OpAccess::ReadWrite && info.mnemonic == iced_x86::Mnemonic::Xchg)
-                        || (ur.access() == iced_x86::OpAccess::Write))
+                        let is_overwrite = (ur.access() == iced_x86::OpAccess::Write)
+                            || (ur.access() == iced_x86::OpAccess::ReadWrite
+                                && !matches!(
+                                    ur.register(),
+                                    iced_x86::Register::RSP
+                                        | iced_x86::Register::ESP
+                                        | iced_x86::Register::SP
+                                        | iced_x86::Register::RIP
+                                        | iced_x86::Register::EIP
+                                )
+                                && semantics::is_reg_ops_only(&info.instr));
+
+                        is_overwrite
                             && !matches!(
-                                info.mem_base,
+                                info.instr.memory_base(),
                                 iced_x86::Register::RIP | iced_x86::Register::EIP,
                             )
                             // Written directly or via sub-register name,
@@ -173,7 +206,6 @@ impl GadgetAnalysis {
         self.used_regs()
             .filter(|ur| ur.access() == iced_x86::OpAccess::ReadWrite)
             .map(|ur| ur.register())
-            .filter(|r| !self.regs_overwritten(true).contains(r))
             .collect()
     }
 
@@ -250,4 +282,16 @@ impl GadgetAnalysis {
 
         regs
     }
+}
+
+// Private Abstractions ------------------------------------------------------------------------------------------------
+
+// Internal per-instruction meta-information.
+// Populated at construction time.
+#[derive(Clone, Debug)]
+struct InstrAndMetaInfo {
+    instr: iced_x86::Instruction,
+    op_regs: HashSet<iced_x86::Register>,
+    used_regs: HashSet<iced_x86::UsedRegister>,
+    used_mem: HashSet<iced_x86::UsedMemory>,
 }

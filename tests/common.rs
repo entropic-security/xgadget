@@ -238,6 +238,20 @@ pub fn hash<T: Hash>(t: &T) -> u64 {
     s.finish()
 }
 
+#[allow(dead_code)]
+pub fn dbg_print_instr(instr: &iced_x86::Instruction) {
+    let mut info_factory = iced_x86::InstructionInfoFactory::new();
+    println!("\nInstruction: {:#x?}", instr);
+    println!(
+        "\nUsed Registers: {:#x?}",
+        info_factory.info(instr).used_registers()
+    );
+    println!(
+        "\nUsed Memory: {:#x?}",
+        info_factory.info(instr).used_memory()
+    );
+}
+
 // Adapted from https://docs.rs/iced-x86/1.10.0/iced_x86/?search=#get-instruction-info-eg-readwritten-regsmem-control-flow-info-etc
 // TODO: check against updated docs
 #[allow(dead_code)]

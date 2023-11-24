@@ -49,6 +49,7 @@ where
         .collect()
 }
 
+// TODO: update for syscalls?
 /// Parallel filter to gadgets of the form "pop {reg} * 1+, {ret or ctrl-ed jmp/call}"
 pub fn filter_reg_pop_only<'a, P>(gadgets: P) -> P
 where

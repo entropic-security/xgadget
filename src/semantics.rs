@@ -40,7 +40,7 @@ pub fn is_gadget_body(instr: &iced_x86::Instruction, all: bool) -> bool {
     }
 
     if !all {
-        // Flow control doesn't reach gadget tail
+        // Flow control may not reach gadget tail
         if matches!(
             instr_flow,
             iced_x86::FlowControl::UnconditionalBranch
